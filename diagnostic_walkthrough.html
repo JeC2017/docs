@@ -1,0 +1,292 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overlap Diagnostic — usage walkthrough &amp; template</title>
+<style>
+ :root{--ink:#1f2430;--mut:#5b6472;--line:#e5e8ef;--accent:#1f4e79;--ok:#2e7d32;--warn:#c0392b;}
+ *{box-sizing:border-box} body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+   color:var(--ink);max-width:960px;margin:0 auto;padding:34px 22px 80px;line-height:1.55;background:#fff}
+ h1{font-size:26px;margin:0 0 4px} h2{font-size:20px;margin:38px 0 10px;padding-top:14px;border-top:1px solid var(--line)}
+ h3{font-size:16px;margin:22px 0 6px} p{margin:8px 0} .sub{color:var(--mut);margin:0 0 18px;font-size:15px}
+ code{background:#f2f4f8;padding:1px 5px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+ pre.cfg{background:#f7f9fc;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;
+   padding:14px 16px;overflow:auto;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.5}
+ .term{background:#0d1117;color:#c9d1d9;border-radius:10px;overflow:hidden;margin:12px 0 6px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+ .term .bar{background:#161b22;padding:7px 12px;font-size:12px;color:#8b949e;border-bottom:1px solid #21262d}
+ .term .bar b{color:#c9d1d9} .term pre{margin:0;padding:14px 16px;overflow:auto;font-family:ui-monospace,Menlo,monospace;
+   font-size:11.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+ .ok{color:#3fb950;font-weight:700} .warn{color:#f85149;font-weight:700}
+ .term b.ok{color:#3fb950} .term b.warn{color:#f85149}
+ .badge{display:inline-block;padding:3px 11px;border-radius:20px;font-size:12.5px;font-weight:700;vertical-align:middle}
+ .badge.ok{background:#e7f5e8;color:var(--ok)} .badge.warn{background:#fdecea;color:var(--warn)}
+ .cmd{background:#0d1117;color:#e6edf3;border-radius:8px;padding:10px 14px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;overflow:auto}
+ .cmd .p{color:#3fb950} table{border-collapse:collapse;width:100%;margin:12px 0;font-size:14px}
+ th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top} th{background:#f7f9fc}
+ .note{background:#f7f9fc;border:1px solid var(--line);border-radius:8px;padding:12px 16px;margin:14px 0}
+ .steps{margin:8px 0;padding-left:20px} .steps li{margin:5px 0}
+ .read{background:#fbfcfe;border:1px solid var(--line);border-radius:8px;padding:12px 16px;margin:8px 0 4px}
+ .read b{color:var(--accent)} .tag{color:var(--mut);font-size:13px}
+</style></head><body>
+
+<h1>Overlap Diagnostic — usage walkthrough &amp; template</h1>
+<p class="sub">A hands-on guide to <code>code/diagnostic_protocol.py</code>, the executable version of the
+paper's Section&nbsp;6.1 protocol. Two worked examples with the paper's data, the exact console output
+(each step ends with a plain-language <b>READING</b>, and the run closes with a <b>BOTTOM LINE</b>), and a
+blank template you can copy for your own study.</p>
+
+<div class="note"><b>Idea in one line.</b> Before you extrapolate a threshold-local (RDD) effect to a whole
+population with a covariate model, let the first-stage propensity tell you whether the population is
+<i>on support</i>. Ample overlap &rarr; report the population effect. Weak overlap &rarr; don't; report an
+overlap-supported estimand and say for whom it holds.</div>
+
+<h2>What the tool does</h2>
+<ol class="steps">
+<li><b>Step 1 — first stage.</b> Cross-fit the propensity <code>e(Z)</code> and outcome models
+<code>m(Z), &mu;&#8320;(Z), &mu;&#8321;(Z)</code> (out-of-fold; folds clustered if you give a cluster id).</li>
+<li><b>Step 2 — overlap.</b> Read the diagnostic off <code>e(Z)</code>: the propensity <b>AUC</b> and
+<b>maximum propensity</b> (both base-rate-robust). Ends with a READING that says whether treated and
+control overlap.</li>
+<li><b>Step 3 — branch.</b> <span class="badge ok">AMPLE</span> &rarr; report the population ATE and a CATE
+map. <span class="badge warn">WEAK</span> &rarr; refuse the population ATE; report ATO / trimmed / AutoDML
+and name the subpopulation.</li>
+<li><b>Step 4 — benchmark (optional).</b> If a running variable is supplied, compare to the local RDD LATE
+<i>and its confidence interval</i>; the READING states whether the RDD confirms, rejects, or is too
+imprecise to judge the covariate estimate, and whether the near-threshold sample is representative.</li>
+</ol>
+
+<h3>Quick start</h3>
+<div class="cmd"><span class="p">$</span> pip install numpy pandas scikit-learn statsmodels matplotlib econml scipy
+<br><span class="p">$</span> cd replication/code
+<br><span class="p">$</span> python diagnostic_protocol.py --app covenant   <span style="color:#8b949e"># built-in example 1</span>
+<br><span class="p">$</span> python diagnostic_protocol.py --app meyersson  <span style="color:#8b949e"># built-in example 2</span>
+<br><span class="p">$</span> python diagnostic_protocol.py                  <span style="color:#8b949e"># your own data via the CONFIG block</span></div>
+
+<h2>Example 1 &nbsp;·&nbsp; Covenant default &nbsp; <span class="badge ok">verdict: AMPLE overlap</span></h2>
+<p>Does technical default on a debt covenant lower investment, and can we extend the threshold-local effect
+to the whole cross-section? Configure the columns:</p>
+<pre class="cfg">CONFIG = dict(
+    data        = &quot;../data/NWallnoloan_forest_data.csv&quot;,
+    outcome     = &quot;investment&quot;,       # Y : investment / capital
+    treatment   = &quot;bind&quot;,             # W : 1 = technical default on a covenant
+    covariates  = [&quot;lag.macro.q&quot;,&quot;cashflow&quot;,&quot;lag.cashflow&quot;,&quot;lag.log.assets&quot;,
+                   &quot;lag.altman_alt&quot;,&quot;initial_slack_ratio&quot;,&quot;syndicate_size&quot;,
+                   &quot;has.rating.all&quot;,&quot;cash_assets&quot;,&quot;year&quot;,&quot;quarter&quot;,&quot;firm_fe&quot;],
+                                       # Z : fundamentals, EXCLUDING the running variable
+    running_var = &quot;slack.ratio&quot;,       # optional : the RDD running variable
+    cutoff      = 0.0,
+    treat_when  = &quot;below&quot;,             # W = 1 when slack &lt; cutoff
+    cluster     = &quot;gvkey&quot;,             # optional : cluster id for standard errors
+    outcome_scale = 100.0,             # report in percentage points
+    label       = &quot;Covenant default and investment&quot;,
+)</pre>
+<div class="cmd"><span class="p">$</span> python diagnostic_protocol.py --app covenant</div>
+<div class="term"><div class="bar"><b>console output</b> — diagnostic_protocol.py --app covenant</div>
+<pre>============================================================================================
+ OVERLAP DIAGNOSTIC  --  Covenant default and investment
+   n=32,530   treated share=0.081   covariates(Z)=12   clustered by &#x27;gvkey&#x27;
+   Z = the conditioning set for every CATE reported below, i.e. tau(z)=E[Y(1)-Y(0) | Z=z]:
+       lag.macro.q, cashflow, lag.cashflow, lag.log.assets, lag.altman_alt, initial_slack_ratio, syndicate_size, has.rating.all, cash_assets, year, quarter, firm_fe
+============================================================================================
+[Step 1] First stage cross-fitted:  outcome R^2=0.471   propensity AUC=0.854
+[Step 2] Overlap diagnostic off e(Z):
+           propensity AUC (separability) : 0.854     &lt;- primary; near 1 = overlap fails
+           max fitted propensity         : 0.925     &lt;- primary; near 1 = control-absent region
+           propensity range              : [0.000, 0.925]
+           share e&lt;0.05 or &gt;0.95 (context): 0.666   (inflated when treatment is rare)
+           share in [0.1, 0.9]  (context) : 0.186
+           max inverse-prop. weight       : 323
+           <b>READING:</b> AUC 0.85 (&lt; 0.95) and max e 0.92 (&lt; 0.98)  -&gt;  treated and control OVERLAP; the population is on support.
+--------------------------------------------------------------------------------------------
+[Step 3] VERDICT: overlap is <span class='ok'>AMPLE</span> -&gt; the population is on support.
+           Population ATE = average of tau(z) over the population : -0.709  (s.e. 0.174)   [pp of investment/capital]
+                (this s.e. is the standard error OF THE AVERAGE effect.)
+           CATE map  tau(z)=E[Y(1)-Y(0) | Z=z]  (effect conditional on your Z above):
+                heterogeneity across units: s.d.[tau(z)] = 1.512   &lt;- how much the effect VARIES firm-to-firm; this is NOT a standard error.
+                per-unit tau(z) are point predictions -- do not read individual s.e.&#x27;s off them;
+                test heterogeneity via subgroup effects or a best-linear-predictor projection.
+--------------------------------------------------------------------------------------------
+[Step 4] RDD benchmark and reach (optional external check):
+           local RDD LATE at cutoff  : -0.069  (s.e. 0.230)  -&gt;  95% CI [-0.52, +0.38]   [h=0.276, N=8133]
+           covariate CATE tau(z) near cutoff: -0.683   (same tau(z) on your Z; full-sample mean -0.743)
+           <b>READING:</b> the RDD is TOO IMPRECISE to confirm or reject the covariate estimate; its 95% band [-0.52, +0.38] is wide enough to contain almost any modest effect. The two at least share a sign, so treat this as a same-sign sanity check, NOT a validation.
+           <b>REPRESENTATIVENESS:</b> near-threshold units are NOT representative (|std. diff|&gt;0.25 on [&#x27;initial_slack_ratio&#x27;]), so a covariate model is needed to speak to the whole population.
+============================================================================================
+ BOTTOM LINE: overlap is <span class='ok'>AMPLE</span>. Report the population ATE = -0.709 (pp of investment/capital, s.e. 0.174)
+              and the CATE map tau(z). Extending the threshold-local effect to the population is supported.
+ Files written: diagnostic_overlap.pdf (overlap plot), diagnostic_report.csv (summary).
+============================================================================================</pre></div>
+<div class="read"><b>How to read it.</b> Step&nbsp;2's READING settles the verdict: <b>AUC 0.85</b> and
+<b>max propensity 0.93</b> are both below 1, so treated and control firms overlap. (The 66&#37; with
+<code>e&lt;0.05</code> is just the low 8&#37; base rate, not an overlap failure.) The tool reports the
+<b>population ATE, &minus;0.71pp (s.e. 0.17)</b>, and a CATE map. In Step&nbsp;4 the RDD is <b>far too
+imprecise</b> to help — its 95&#37; band is [&minus;0.52,&nbsp;+0.38], wide enough to contain almost any
+modest effect — so the tool calls it a <i>same-sign sanity check, not a validation</i> (both negative).
+<b>Bottom line:</b> extrapolation to the population is supported.</div>
+
+<h2>Example 2 &nbsp;·&nbsp; Meyersson close elections &nbsp; <span class="badge warn">verdict: WEAK overlap</span></h2>
+<p>Does a narrowly-elected Islamic mayor raise female schooling? Prior Islamic support almost perfectly
+predicts who wins, so overlap is at risk. Configure the columns:</p>
+<pre class="cfg">CONFIG = dict(
+    data        = &quot;../data/meyersson_clean.csv&quot;,
+    outcome     = &quot;hischshr1520f&quot;,     # Y : female high-school share
+    treatment   = &quot;i94&quot;,              # W : 1 = Islamic mayor won 1994
+    covariates  = [&quot;vshr_islam1994&quot;,&quot;partycount&quot;,&quot;shhs&quot;,&quot;lpop1994&quot;,&quot;ageshr19&quot;,
+                   &quot;ageshr60&quot;,&quot;sexr&quot;,&quot;merkezi&quot;,&quot;merkezp&quot;,&quot;subbuyuk&quot;,&quot;buyuk&quot;,
+                   &quot;hischshr1520m&quot;],   # Z : municipal covariates, EXCLUDING the margin
+    running_var = &quot;iwm94&quot;,             # optional : Islamic win margin (RDD running variable)
+    cutoff      = 0.0,
+    treat_when  = &quot;above&quot;,             # W = 1 when margin &gt;= cutoff
+    cluster     = &quot;pcode&quot;,             # optional : province cluster id
+    outcome_scale = 100.0,
+    label       = &quot;Islamic mayor and female schooling (Meyersson 2014)&quot;,
+)</pre>
+<div class="cmd"><span class="p">$</span> python diagnostic_protocol.py --app meyersson</div>
+<div class="term"><div class="bar"><b>console output</b> — diagnostic_protocol.py --app meyersson</div>
+<pre>============================================================================================
+ OVERLAP DIAGNOSTIC  --  Islamic mayor and female schooling (Meyersson 2014)
+   n=2,629   treated share=0.120   covariates(Z)=12   clustered by &#x27;pcode&#x27;
+   Z = the conditioning set for every CATE reported below, i.e. tau(z)=E[Y(1)-Y(0) | Z=z]:
+       vshr_islam1994, partycount, shhs, lpop1994, ageshr19, ageshr60, sexr, merkezi, merkezp, subbuyuk, buyuk, hischshr1520m
+============================================================================================
+[Step 1] First stage cross-fitted:  outcome R^2=0.697   propensity AUC=0.973
+[Step 2] Overlap diagnostic off e(Z):
+           propensity AUC (separability) : 0.973     &lt;- primary; near 1 = overlap fails
+           max fitted propensity         : 0.994     &lt;- primary; near 1 = control-absent region
+           propensity range              : [0.000, 0.994]
+           share e&lt;0.05 or &gt;0.95 (context): 0.802   (inflated when treatment is rare)
+           share in [0.1, 0.9]  (context) : 0.158
+           max inverse-prop. weight       : 1229
+           <b>READING:</b> AUC 0.97 and/or max e 0.99 are near 1  -&gt;  treated and control are nearly SEPARABLE; much of the population is off-support.
+--------------------------------------------------------------------------------------------
+[Step 3] VERDICT: overlap is <span class='warn'>WEAK</span> -&gt; the all-population ATE is <span class='warn'>NOT credibly identified</span>.
+           Do NOT report a population ATE. Report overlap-supported estimands instead:
+           (naive all-units AIPW ATE : -0.635  &lt;- extrapolates off-support; do not trust)
+           overlap-weighted ATO      : +0.462   [target: the overlap subpopulation]
+           trimmed ATE (0.1&lt;e&lt;0.9)   : +0.977   on N=416 on-support units
+           AutoDML (learned Riesz)   : -0.064  (s.e. 0.391); max weight 18 vs plug-in 1229  &lt;- <span class='ok'>fails safe</span>
+           STATE the subpopulation each estimand describes; the population effect is off-support.
+--------------------------------------------------------------------------------------------
+[Step 4] RDD benchmark and reach (optional external check):
+           local RDD LATE at cutoff  : +1.838  (s.e. 0.799)  -&gt;  95% CI [+0.27, +3.40]   [h=0.138, N=658]
+           covariate CATE tau(z) near cutoff: -0.212   (same tau(z) on your Z; full-sample mean -0.630)
+           <b>READING:</b> the RDD is reasonably precise and the covariate CATE lies OUTSIDE its band: design and covariate model DISAGREE -- re-examine the selection-on-observables assumption.
+           <b>REPRESENTATIVENESS:</b> near-threshold units are NOT representative (|std. diff|&gt;0.25 on [&#x27;vshr_islam1994&#x27;, &#x27;lpop1994&#x27;, &#x27;ageshr19&#x27;, &#x27;ageshr60&#x27;]), so a covariate model is needed to speak to the whole population.
+============================================================================================
+ <b class='warn'>BOTTOM LINE: overlap is WEAK</b>. Do NOT report a population ATE (it extrapolates off-support and can
+              flip sign). Report an overlap-supported estimand (ATO / trimmed ATE / AutoDML) and name
+              the subpopulation it describes; the population effect is not identified from these data.
+ Files written: diagnostic_overlap.pdf (overlap plot), diagnostic_report.csv (summary).
+============================================================================================</pre></div>
+<div class="read"><b>How to read it.</b> Step&nbsp;2: <b>AUC 0.97</b>, <b>max propensity 0.99</b> &rarr; treated
+and control are nearly separable (77&#37; of towns have <code>e&lt;0.05</code>). The tool <b>refuses the
+population ATE</b> and reports ATO <b>+0.46</b>, trimmed <b>+0.98</b>, and AutoDML <b>&minus;0.06</b>
+(weights stay near 18 vs the plug-in's 1229 — it <span class="ok">fails safe</span>). Step&nbsp;4 is the
+sharpest warning: the RDD here <i>is</i> precise (+1.84, band [+0.27,&nbsp;+3.40]) and the covariate CATE
+nearby (&minus;0.21) falls <b>outside</b> it, so the tool prints <b>“design and covariate model DISAGREE”</b>
+— the covariate estimate has the wrong sign relative to the design, the classic no-overlap artifact.
+<b>Bottom line:</b> do not report a population effect; report an overlap-supported estimand and name the
+subpopulation.</div>
+
+<h2>Example 3 &nbsp;·&nbsp; A clean RDD (synthetic demo) &nbsp; <span class="badge ok">verdict: AMPLE &amp; the RDD validates</span></h2>
+<p>Neither paper example reaches the happy case where the RDD actually <i>validates</i> the covariate CATE
+(covenant's RDD is too imprecise; Meyersson's overlap fails). This synthetic dataset is built so all three
+conditions hold at once &mdash; ample overlap, a precise RDD, and selection-on-observables &mdash; so the
+design confirms the covariate extrapolation. Generate it with <code>python make_demo_rdd.py</code>, then:</p>
+<pre class="cfg">CONFIG preset "demo":  data = demo_rdd_clean.csv,  outcome = "y",  treatment = "w",
+                       covariates = ["x1","x2","x3"],  running_var = "r",  cutoff = 0,  treat_when = "above"</pre>
+<div class="cmd"><span class="p">$</span> python diagnostic_protocol.py --app demo</div>
+<div class="term"><div class="bar"><b>console output</b> &mdash; diagnostic_protocol.py --app demo</div>
+<pre>============================================================================================
+ OVERLAP DIAGNOSTIC  --  Synthetic clean RDD (demonstration; not in the paper)
+   n=8,000
+   Z = the conditioning set for every CATE reported below, i.e. tau(z)=E[Y(1)-Y(0) | Z=z]:
+       x1, x2, x3
+============================================================================================
+[Step 1] First stage cross-fitted:  outcome R^2=0.693   propensity AUC=0.654
+[Step 2] Overlap diagnostic off e(Z):
+           propensity AUC (separability) : 0.654     &lt;- primary; near 1 = overlap fails
+           max fitted propensity         : 0.920     &lt;- primary; near 1 = control-absent region
+           propensity range              : [0.024, 0.920]
+           share e&lt;0.05 or &gt;0.95 (context): 0.001   (inflated when treatment is rare)
+           share in [0.1, 0.9]  (context) : 0.996
+           max inverse-prop. weight       : 35
+           <b>READING:</b> AUC 0.65 (&lt; 0.95) and max e 0.92 (&lt; 0.98)  -&gt;  treated and control OVERLAP; the population is on support.
+--------------------------------------------------------------------------------------------
+[Step 3] VERDICT: overlap is <span class='ok'>AMPLE</span> -&gt; the population is on support.
+           Population ATE = average of tau(z) over the population : +1.005  (s.e. 0.016)   [outcome units]
+                (this s.e. is the standard error OF THE AVERAGE effect.)
+           CATE map  tau(z)=E[Y(1)-Y(0) | Z=z]  (effect conditional on your Z above):
+                heterogeneity across units: s.d.[tau(z)] = 0.654   &lt;- how much the effect VARIES firm-to-firm; this is NOT a standard error.
+                per-unit tau(z) are point predictions -- do not read individual s.e.&#x27;s off them;
+                test heterogeneity via subgroup effects or a best-linear-predictor projection.
+--------------------------------------------------------------------------------------------
+[Step 4] RDD benchmark and reach (optional external check):
+           local RDD LATE at cutoff  : +0.975  (s.e. 0.058)  -&gt;  95% CI [+0.86, +1.09]   [h=0.323, N=2000]
+           covariate CATE tau(z) near cutoff: +1.007   (same tau(z) on your Z; full-sample mean +1.005)
+           <b>READING:</b> the RDD is reasonably precise and the covariate CATE lies INSIDE its confidence band: the design supports the covariate estimate.
+           <b>REPRESENTATIVENESS:</b> near-threshold units look representative of the full sample (no |std. diff|&gt;0.25).
+============================================================================================
+ BOTTOM LINE: overlap is <span class='ok'>AMPLE</span>. Report the population ATE = +1.005 (outcome units, s.e. 0.016)
+              and the CATE map tau(z). Extending the threshold-local effect to the population is supported.
+ Files written: diagnostic_overlap.pdf (overlap plot), diagnostic_report.csv (summary).
+============================================================================================</pre></div>
+<div class="read"><b>How to read it.</b> Overlap is ample (AUC&nbsp;0.65). Step&nbsp;4 is the payoff: the RDD is
+<b>precise</b> (+0.98, band [+0.86,&nbsp;+1.09]) and the covariate CATE nearby (+1.01) lands <b>inside</b> it,
+so the tool prints &ldquo;the design <span class="ok">supports the covariate estimate</span>.&rdquo; This is
+the validated case &mdash; report the population ATE (+1.00) and the CATE map.</div>
+
+<div class="note"><b>Aside &mdash; can you rescue Meyersson by choosing a smaller Z?</b> No. Dropping the
+covariate that kills overlap (prior Islamic vote share) does make overlap ample (AUC 0.97 &rarr; 0.71), but
+that covariate is the key <i>confounder</i>: without it the estimate turns to &minus;1.4pp, the wrong sign
+versus the RDD (+3.0pp). The covariate you need for identification is exactly the one that destroys overlap
+&mdash; a genuine trade-off, reproduced by <code>demo_Z_choice.py</code>.</div>
+
+<h2>Use it on your own data &nbsp;·&nbsp; template</h2>
+<p>Copy this <code>CONFIG</code> into <code>diagnostic_protocol.py</code> (replacing the block near the top),
+fill in your column names, and run <code>python diagnostic_protocol.py</code>. The only hard rule:
+<b>the running variable must be excluded from <code>covariates</code></b>.</p>
+<pre class="cfg">CONFIG = dict(
+    data        = &quot;PATH/TO/your_data.csv&quot;,
+    outcome     = &quot;YOUR_OUTCOME_COL&quot;,       # Y  (numeric)
+    treatment   = &quot;YOUR_TREATMENT_COL&quot;,     # W  (0 / 1)
+    covariates  = [&quot;col1&quot;,&quot;col2&quot;, &quot;...&quot;],   # Z  : pre-treatment covariates.
+                                            #      &gt;&gt;&gt; EXCLUDE the running variable &lt;&lt;&lt;
+    running_var = &quot;YOUR_RUNNING_VAR&quot;,       # optional : omit/None if not an RDD
+    cutoff      = 0.0,                       # threshold c
+    treat_when  = &quot;below&quot;,                   # &quot;below&quot; if W=1 when R&lt;c, else &quot;above&quot;
+    cluster     = &quot;YOUR_CLUSTER_ID&quot;,         # optional : id for clustered SEs (or None)
+    outcome_scale = 1.0,                     # multiply Y for reporting units
+    label       = &quot;My application&quot;,
+)</pre>
+
+<h3>Field reference</h3>
+<table>
+<tr><th>Field</th><th>What to put</th></tr>
+<tr><td><code>data</code></td><td>Path to a CSV (one row per unit).</td></tr>
+<tr><td><code>outcome</code> / <code>treatment</code></td><td>Column names for Y (numeric) and W (coded 0/1).</td></tr>
+<tr><td><code>covariates</code></td><td>Pre-treatment covariates Z. <b>Exclude the running variable.</b></td></tr>
+<tr><td><code>running_var</code>, <code>cutoff</code>, <code>treat_when</code></td>
+    <td>Optional RDD benchmark. <code>treat_when="below"</code> if W=1 when R&lt;cutoff, else <code>"above"</code>. Omit <code>running_var</code> for a purely observational study.</td></tr>
+<tr><td><code>cluster</code></td><td>Optional id for clustered standard errors and clustered cross-fitting folds.</td></tr>
+<tr><td><code>outcome_scale</code></td><td>Multiplier for reporting units (e.g. 100 to report percentage points).</td></tr>
+</table>
+
+<h3>What you end up estimating</h3>
+<table>
+<tr><th>Verdict</th><th>What to report</th><th>What NOT to report</th></tr>
+<tr><td><span class="badge ok">AMPLE</span></td>
+    <td>Population ATE (doubly-robust, clustered SE) and the CATE map &tau;(z); the extension of the local effect is supported.</td>
+    <td>—</td></tr>
+<tr><td><span class="badge warn">WEAK</span></td>
+    <td>An overlap-supported estimand — ATO, trimmed ATE, or AutoDML — <b>with the subpopulation named</b>; plus the statement that the population effect is not identified from the observed support.</td>
+    <td>The all-population ATE (it extrapolates off-support and can flip sign).</td></tr>
+</table>
+
+<p class="tag">Decision rule (adjustable at the top of the script): overlap is treated as ample when
+propensity AUC &lt; 0.95 <b>and</b> max propensity &lt; 0.98; otherwise weak. Each run also writes
+<code>diagnostic_overlap.pdf</code> (the treated-vs-control propensity histogram) and
+<code>diagnostic_report.csv</code> (the machine-readable summary).</p>
+
+<p class="tag" style="margin-top:24px">Companion to <i>Overlap and the Reach of a Regression Discontinuity: A
+Double Machine Learning Diagnostic</i> (Chen &amp; Chou). See <code>replication/README.md</code> for the full
+table/figure reproduction map.</p>
+</body></html>
