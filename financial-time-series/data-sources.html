@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="《財務時間序列分析》R 線上附錄：資料來源、版本與公開政策">
-  <title>資料來源、版本與公開政策｜財務時間序列分析</title>
+  <meta name="description" content="《財務時間序列分析》R 線上附錄：實證資料來源與固定版本">
+  <title>實證資料來源與固定版本｜財務時間序列分析</title>
   <link rel="stylesheet" href="assets/site.css">
   <script>
     window.MathJax = {
@@ -21,54 +21,54 @@
   <header class="site-header">
     <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
     <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
-    <a class="policy-link" href="data-policy.html">資料政策</a>
+    <a class="policy-link" href="data-policy.html">資料說明</a>
   </header>
   <div class="layout">
     <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
       <p class="sidebar-title">線上附錄</p>
       <ol><li><a href="index.html">首頁</a></li>
 <li><a href="data.html" aria-current="page" class="active">實證資料下載</a></li>
-<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="data-policy.html">資料來源與重現說明</a></li>
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
 <li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與實證特徵</a></li>
-<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
-<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
-<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
-<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
-<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
-<li><a href="R09_portfolio_capm_factors.html">R09　投資組合、CAPM 與財務因子</a></li>
-<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
-<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
-<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA、ARMA 與真實報酬的 ACF</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　AAPL 的 ARMA 估計、診斷與預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　TWD／JPY 的無資料洩漏樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　TWD／JPY 的單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　AAPL 的 ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html">R09　美國十產業投資組合、CAPM 與 Fama–French 三因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　真實股票報酬的 PCA、低秩重建與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　S&amp;P 500 平衡子樣本的 PCA 與跨股票落後值修正</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC–ICAPM 的第二階段個案研究</a></li>
 <li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
-<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
-<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　機器學習的金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　加州學校資料的雙重選擇與 DML 式殘差化</a></li>
 <li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
 <li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
 <li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
     </nav>
     <main id="main-content" class="content">
       <div class="publication-note">
-        本網站提供作者執行後的教學內容、程式原始檔與本書實證使用的固定資料版本。
-        詳見<a href="data-policy.html">資料與重現政策</a>。
+        想自己重算，可以從頁首下載 R Markdown 與執行結果。所有實證例都使用隨書提供的固定資料；
+        檔案來源、變數單位與已知限制請見<a href="data-policy.html">資料來源與重現說明</a>。
       </div>
       <article>
-        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>資料來源、版本與公開政策</h1></header>
-        <p>本書的實證主線回到作者四個學期密集課程實際使用的資料與程式。<code>data/processed/</code> 內的十個 CSV 是可直接執行線上附錄的固定版本；<code>manifest.csv</code> 記錄列數、欄數與 MD5，避免下載、排序或清理差異被誤認為估計差異。</p>
-<h2 id="_1">公開範圍<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
-<p>作者已明確同意公開本課程用於教學與研究重跑、且在作者可處分範圍內的整理資料檔，因此 GitHub Pages 版會提供十個實證 CSV、資料字典、來源說明、R Markdown、執行後結果與圖表。這項同意不會取代第三方原始供應者的授權條款，也不包含學生名冊、學生作業、評分檔、合約、行政資料或任何個人資料；這些檔案不會進入專案或網站。</p>
-<p>部分資料源自 FRED、Kenneth French Data Library、global-q、Welch--Goyal、Ruey S. Tsay 教科書網站或課程整理檔。本站保留來源識別與轉換紀錄；下載者仍須遵守各原始供應者的條款。公開固定版本的目的，是讓讀者核對本書結果，不是替第三方授權作一般性保證；來源或再散布依據仍有缺口的檔案，應在正式對外推廣前逐檔再查核，必要時改為只提供建檔程式與衍生統計結果。</p>
-<h2 id="2026-07-16">原始來源鏈（查核日：2026-07-16）<a class="headerlink" href="#2026-07-16" title="Permanent link">#</a></h2>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>實證資料來源與固定版本</h1></header>
+        <p>本書的實證分析沿用「財務時間序列分析」課程實際使用的資料，並整理成十個可直接執行線上附錄的 CSV。檔案放在 <code>data/processed/</code>；同一目錄下的 <code>manifest.csv</code> 記錄每份檔案的列數、欄數與 MD5。如果讀者算出的結果與書中不同，可以先從這三項資訊確認是否讀到同一版本，再檢查排序、缺值處理與模型設定。</p>
+<h2 id="_1">網站隨附哪些資料？<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
+<p>網站隨附十個實證 CSV、資料字典、來源說明、R Markdown、執行結果（Markdown）與圖表，讓讀者可以重跑書中的分析並比較輸出。下載區只包含本書使用的教材與固定資料，不含原課程的學生或行政紀錄。</p>
+<p>部分欄位來自 FRED、Kenneth French Data Library、global-q、Welch–Goyal 與 Ruey S. Tsay 教科書網站，其餘則保留自原課程工作檔。下文整理目前可以確認的來源與轉換方式。固定版本說明了書中數值如何得到，原始供應者的變數定義與使用條款仍以來源網站的最新說明為準。若資料沒有留下完整的來源版本資訊，本書只解讀現存固定快照可以支持的結果，不主張能從目前的上游資料完整重建。</p>
+<h2 id="2026-07-16">資料來源與版本（查閱日：2026-07-16）<a class="headerlink" href="#2026-07-16" title="Permanent link">#</a></h2>
 <ul>
-<li><strong>FRED 匯率：</strong>Board of Governors of the Federal Reserve System (US), H.10 Foreign Exchange Rates；<a href="https://fred.stlouisfed.org/series/DEXJPUS">DEXJPUS</a> 與 <a href="https://fred.stlouisfed.org/series/DEXTAUS">DEXTAUS</a>。官方頁定義兩者分別為一美元兌日圓與新臺幣數、日資料、未季調，並標示「Public Domain: Citation Requested」。本書保存 2020-01-01 至 2022-12-16 的 FRED CSV 回傳值。</li>
-<li><strong>Tsay 教科書資料：</strong>Ruey S. Tsay, <em>Analysis of Financial Time Series</em>, 3rd ed. 的<a href="https://faculty.chicagobooth.edu/ruey-s-tsay/research/analysis-of-financial-time-series-3rd-edition">官方 companion page</a>及原課程程式內的三個固定檔 URL：<code>d-msft8608.txt</code>、<code>m-5clog-9008.txt</code>、<code>m-barra-9003.txt</code>。</li>
-<li><strong>Fama--French 與十產業：</strong>Kenneth R. French <a href="https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html">Data Library</a> 的 Fama/French 3 Factors 與 10 Industry Portfolios。現行網站說明 2025 年起 CRSP 來源格式由 FIZ 改為 CIZ，因此本書鎖定原課程截至 2021-11 的工作快照，不把今日重抓值當成同一版本。快照未保存各月因子何時發布或可由當時成分與權重重建。</li>
-<li><strong>global-q：</strong>原課程 <code>fffqmacro.R</code> 指向 2021 版 q5 monthly CSV；因子定義與百分比單位可由 <a href="https://global-q.org/uploads/1/2/2/6/122679606/factorstd_2025feb.pdf">global-q technical document</a> 查核。本書使用 ME、IA、ROE、EG 四欄，並於合併時由百分點除以 100。</li>
-<li><strong>Welch--Goyal 總體預測變數：</strong>原課程依 <a href="https://github.com/ramnathv/tidy-finance-website/blob/main/accessing-and-managing-financial-data.qmd">Tidy Finance 建檔流程</a> 讀取 Amit Goyal 公開工作簿的 Monthly sheet，再自行建立 <code>dp</code>、<code>dy</code>、<code>ep</code>、<code>de</code>、<code>tms</code> 與 <code>dfy</code> 等欄。本書鎖定原課程 2021 工作版，不宣稱是 2026 最新 vintage。</li>
-<li><strong>California schools：</strong>原課程依 Stock and Watson, <em>Introduction to Econometrics</em>, 4th ed., Chapter 14 的學校／學區資料與變數表整理；原作者的<a href="https://www.princeton.edu/~mwatson/Stock-Watson_4E/Stock-Watson-Resources-4e.html">第四版資源頁</a>提供課程資料下載。本書只用於 PCA 與高維控制示範，不把機構名稱或郵遞區號當成個人資料。</li>
-<li><strong>日本月資料、S&amp;P 價格長表與臺灣 ICAPM：</strong>保留自作者原課程資料夾；其中日本檔未附可核對的 provider/vintage，S&amp;P 長表未附 vendor 授權文字，臺灣案例只保留匿名第二階段。這三組資料在正文均明示來源紀錄缺口與可支持的有限結論。</li>
+<li><strong>FRED 匯率：</strong>資料來自美國聯邦準備理事會（Board of Governors of the Federal Reserve System）的 H.10 Foreign Exchange Rates，包括 <a href="https://fred.stlouisfed.org/series/DEXJPUS">DEXJPUS</a> 與 <a href="https://fred.stlouisfed.org/series/DEXTAUS">DEXTAUS</a>。官方頁將兩者分別定義為一美元可兌換的日圓數與新臺幣數；資料頻率為日資料，未經季節調整，並標示「Public Domain: Citation Requested」。本書保存 2020-01-02 至 2022-12-16 的 FRED CSV 回傳值。</li>
+<li><strong>Tsay 教科書資料：</strong>Ruey S. Tsay, <em>Analysis of Financial Time Series</em>, 3rd ed. 的 <a href="https://faculty.chicagobooth.edu/ruey-s-tsay/research/analysis-of-financial-time-series-3rd-edition">官方配套資料頁</a>，以及原課程程式指定的三個檔案：<code>d-msft8608.txt</code>、<code>m-5clog-9008.txt</code> 與 <code>m-barra-9003.txt</code>。</li>
+<li><strong>Fama–French 與十產業：</strong>資料取自 Kenneth R. French <a href="https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html">Data Library</a> 的 Fama/French 3 Factors 與 10 Industry Portfolios。該網站說明 CRSP 的月報酬資料自 2025 年起由 FIZ 改為 CIZ；這次變更牽涉資料格式與月報酬累積方式，因此新版序列可能和舊快照不同。本書固定使用原課程截至 2021-11 的工作快照，不把今日重新下載的值視為同一版本。現有快照沒有保留每月因子的發布日，也不足以用當時的成分股與權重重新建構投資組合。</li>
+<li><strong>global-q：</strong>原課程的 <code>fffqmacro.R</code> 指向 2021 版 q5 monthly CSV；因子定義與百分比單位可參考 <a href="https://global-q.org/uploads/1/2/2/6/122679606/factorstd_2025feb.pdf">global-q technical document</a>。本書使用 ME、IA、ROE 與 EG 四欄，合併資料時再將百分點除以 100，改成小數尺度。</li>
+<li><strong>Welch–Goyal 總體預測變數：</strong>原課程依 <a href="https://github.com/ramnathv/tidy-finance-website/blob/main/accessing-and-managing-financial-data.qmd">Tidy Finance 建檔流程</a> 讀取 Amit Goyal 公開工作簿的 Monthly 工作表，再建立 <code>dp</code>、<code>dy</code>、<code>ep</code>、<code>de</code>、<code>tms</code> 與 <code>dfy</code> 等欄。本書固定使用原課程 2021 年的工作版本；它不是 2026 年重新下載的最新資料版本。</li>
+<li><strong>加州學校資料：</strong>原課程依 Stock and Watson, <em>Introduction to Econometrics</em>, 4th ed., Chapter 14 的學校與學區資料及變數表整理；原作者的 <a href="https://www.princeton.edu/~mwatson/Stock-Watson_4E/Stock-Watson-Resources-4e.html">第四版資源頁</a> 提供課程資料下載。本書用這份資料示範 PCA、高維控制、雙重選擇與 DML；學校或學區識別碼不作為連續解釋變數。</li>
+<li><strong>日本月資料、S&amp;P 價格長表與臺灣 ICAPM：</strong>三者均保留自原課程資料夾。日本檔沒有留下可確認的原始供應者與資料版本；S&amp;P 價格長表只保留課程工作檔，沒有完整的版本紀錄；臺灣案例則只保留匿名化的第二階段資料。相關附錄會分別說明這些缺口，並把結論限於固定資料版本實際能支持的範圍。</li>
 </ul>
 <h2 id="_2">固定資料與用途<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
 <table>
@@ -108,7 +108,7 @@
 <tr>
 <td><code>california_schools.csv</code></td>
 <td>3,932 所學校、110 欄；高維 PCA、正則化、雙重選擇</td>
-<td>原課程 <code>str_pca</code> hands-on；欄位定義見 <code>DATA_DICTIONARY.md</code> 與課程變數表</td>
+<td>原課程 <code>str_pca</code> 實作；欄位定義見 <code>DATA_DICTIONARY.md</code> 與課程變數表</td>
 </tr>
 <tr>
 <td><code>sp500_returns_balanced_2013_2022.csv</code></td>
@@ -123,27 +123,27 @@
 <tr>
 <td><code>ff_qf_macro_industries_1967_2021.csv</code></td>
 <td>659 月、十產業，合計 6,590 列；資產定價與金融因子選擇</td>
-<td>原課程合併 Fama--French、global-q、Welch--Goyal 總體預測變數與十產業組合</td>
+<td>原課程合併 Fama–French、global-q、Welch–Goyal 總體預測變數與十產業組合</td>
 </tr>
 <tr>
 <td><code>taiwan_icapm_second_stage_47x497.csv</code></td>
 <td>47 家公司、497 日；固定效果與條件共變數的第二階段案例</td>
-<td>原課程 <code>datICAPM3.R</code>；只重現可核對的第二階段，不宣稱補出缺少的第一階段 DCC/PQR 原始資料與估計流程</td>
+<td>原課程 <code>datICAPM3.R</code>；目前檔案可重算第二階段，第一階段 DCC/PQR 則缺少原始資料與估計流程</td>
 </tr>
 </tbody>
 </table>
-<h2 id="_3">可重建流程<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<h2 id="_3">如何重建固定資料？<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
 <p>從教科書專案根目錄執行：</p>
 <pre><code class="language-r">Rscript code/build_empirical_data.R
 </code></pre>
-<p>程式會直接讀取相鄰課程資料夾中的原課程檔，以及 <code>data/source_snapshots/</code> 中按原課程 URL 保存的 FRED／Tsay 快照，檢查必要欄位與預期維度，再重建十個 CSV 和 <code>manifest.csv</code>。公開網站則直接附上固定 CSV，因此一般讀者不必擁有作者的 Dropbox 路徑。</p>
-<h2 id="_4">不能越過的實證界線<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
+<p>這支程式會讀取原課程資料檔，以及 <code>data/source_snapshots/</code> 中保存的 FRED／Tsay 下載快照；確認必要欄位與資料維度後，再建立十個 CSV 和 <code>manifest.csv</code>。完整重建仍需要原課程工作目錄中的來源檔，一般讀者可以直接使用網站隨附的固定 CSV 執行附錄，不必另行取得原始工作路徑。</p>
+<h2 id="_4">解讀結果前要先掌握的限制<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
 <ul>
-<li>固定檔可重現「這個版本」的數值，不自動證明資料定義或識別假設正確。</li>
-<li>臺灣 ICAPM 檔只有第二階段共變數與報酬；正文與 R appendix 均須明寫「部分重現」。</li>
-<li>FRED 交叉匯率以報價單位命名，避免把 <code>TWD per JPY</code> 誤寫成反方向。</li>
-<li>資產報酬、總體變數與學校資料的迴歸，除非另有可信識別設計，不作因果宣稱。</li>
-<li>R14 的因子欄只能驗證月份標籤與事後凍結值，不能驗證歷史發布／可重建時點；其結果是指定可得性假設下的擬樣本外評估，不是已驗證的即時可交易回測。</li>
+<li>固定檔讓讀者重算「這個版本」的數值；變數定義是否適合研究問題、識別假設是否成立，仍須另外判斷。</li>
+<li>臺灣 ICAPM 檔只有第二階段共變數與報酬，因此相關附錄能重算的是第二階段分析。</li>
+<li>FRED 交叉匯率依報價單位命名；<code>TWD per JPY</code> 表示一日圓可兌換的新臺幣數，解讀時不可倒置方向。</li>
+<li>資產報酬、總體變數與學校資料的迴歸，在沒有額外識別設計時，應解讀為條件關聯或預測關係。</li>
+<li>R14 可以確認因子欄的月份標籤與固定快照，卻無法得知每個歷史時點的實際發布日與當時可得版本。因此，該頁是在明示可得性假設下進行擬樣本外評估，不能直接視為即時交易回測。</li>
 </ul>
       </article>
       
@@ -151,11 +151,11 @@
     </main>
     <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
 <ul>
-<li><a href="#_1">公開範圍</a></li>
-<li><a href="#2026-07-16">原始來源鏈（查核日：2026-07-16）</a></li>
+<li><a href="#_1">網站隨附哪些資料？</a></li>
+<li><a href="#2026-07-16">資料來源與版本（查閱日：2026-07-16）</a></li>
 <li><a href="#_2">固定資料與用途</a></li>
-<li><a href="#_3">可重建流程</a></li>
-<li><a href="#_4">不能越過的實證界線</a></li>
+<li><a href="#_3">如何重建固定資料？</a></li>
+<li><a href="#_4">解讀結果前要先掌握的限制</a></li>
 </ul>
 </div>
 </aside>

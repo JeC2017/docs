@@ -21,43 +21,44 @@
   <header class="site-header">
     <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
     <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
-    <a class="policy-link" href="data-policy.html">資料政策</a>
+    <a class="policy-link" href="data-policy.html">資料說明</a>
   </header>
   <div class="layout">
     <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
       <p class="sidebar-title">線上附錄</p>
       <ol><li><a href="index.html">首頁</a></li>
 <li><a href="data.html">實證資料下載</a></li>
-<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="data-policy.html">資料來源與重現說明</a></li>
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
 <li><a href="R03_distributions_heavy_tails.html" aria-current="page" class="active">R03　分配、厚尾與實證特徵</a></li>
-<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
-<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
-<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
-<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
-<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
-<li><a href="R09_portfolio_capm_factors.html">R09　投資組合、CAPM 與財務因子</a></li>
-<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
-<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
-<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA、ARMA 與真實報酬的 ACF</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　AAPL 的 ARMA 估計、診斷與預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　TWD／JPY 的無資料洩漏樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　TWD／JPY 的單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　AAPL 的 ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html">R09　美國十產業投資組合、CAPM 與 Fama–French 三因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　真實股票報酬的 PCA、低秩重建與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　S&amp;P 500 平衡子樣本的 PCA 與跨股票落後值修正</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC–ICAPM 的第二階段個案研究</a></li>
 <li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
-<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
-<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　機器學習的金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　加州學校資料的雙重選擇與 DML 式殘差化</a></li>
 <li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
 <li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
 <li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
     </nav>
     <main id="main-content" class="content">
       <div class="publication-note">
-        本網站提供作者執行後的教學內容、程式原始檔與本書實證使用的固定資料版本。
-        詳見<a href="data-policy.html">資料與重現政策</a>。
+        想自己重算，可以從頁首下載 R Markdown 與執行結果。所有實證例都使用隨書提供的固定資料；
+        檔案來源、變數單位與已知限制請見<a href="data-policy.html">資料來源與重現說明</a>。
       </div>
       <article>
-        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R03：分配、厚尾與實證特徵</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R03_distributions_heavy_tails.Rmd">R Markdown 原始檔</a><a href="source/R03_distributions_heavy_tails.md">執行後 Markdown</a></div></header>
-        <p>本附錄對應第 3--4 章。先以固定種子比較常態與標準化 Student-$t$ 分配，再分析兩組真實日簡單報酬：1986--2008 年的 Microsoft（MSFT），以及由 89 檔股票組成的 2013--2022 年等權教學投資組合。MSFT 資料源自 Ruey S. Tsay 教科書網站的 <code>d-msft8608.txt</code>；股票面板源自原課程 S&amp;P 500 價格檔。固定版本與建置方式見 <code>data/DATA_SOURCES.md</code>。</p>
-<p>兩組報酬都以小數表示，0.01 代表 1%。等權序列不是官方 S&amp;P 500 指數，也沒有校正成分股生存者偏誤。以下分配與相依性結果是歷史描述，不能解讀成任何市場事件對報酬的因果效果。</p>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R03：分配、厚尾與實證特徵</h1><div class="source-links" aria-label="下載本頁檔案"><a href="source/R03_distributions_heavy_tails.Rmd">下載 R Markdown</a><a href="source/R03_distributions_heavy_tails.md">下載執行結果（Markdown）</a></div></header>
+        <p>本附錄對應第 3–4 章，要回答兩個彼此相關的問題：金融報酬的尾端是否比常態分配厚，以及大幅波動是否會在時間上成群出現？我們先用固定種子模擬常態與標準化 Student-$t$ 分配，確認「變異數相同，尾端仍可很不一樣」；再把同一套描述工具用在兩組真實日簡單報酬上。</p>
+<p>第一組資料是 1986–2008 年的 Microsoft（MSFT），每一列代表一個交易日；第二組是由 89 檔股票組成的 2013–2022 年等權教學投資組合，每一列先記錄同一共同交易日的 89 個個股報酬，再取橫斷面平均。MSFT 資料源自 Ruey S. Tsay 教科書網站的 <code>d-msft8608.txt</code>，股票面板源自原課程 S&amp;P 500 價格檔；固定版本與建置方式見 <code>data/DATA_SOURCES.md</code>。</p>
+<p>兩組報酬都以小數表示，0.01 代表 1%。等權序列是教學用組合，不是官方 S&amp;P 500 指數，也沒有校正成分股生存者偏誤。本頁使用完整歷史樣本做分配與相依性描述，不進行預測，因此不分訓練期、驗證期與測試期；結果也沒有識別任何市場事件對報酬的因果效果。</p>
 <pre><code class="language-r">knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
   fig.width = 8, fig.height = 5,
@@ -85,9 +86,10 @@ if (!&quot;cwTeX Online&quot; %in% systemfonts::registry_fonts()$family) {
 }
 plot_family &lt;- &quot;cwTeX Online&quot;
 </code></pre>
-<h2 id="jarque-bera">描述統計與 Jarque--Bera 函數<a class="headerlink" href="#jarque-bera" title="Permanent link">#</a></h2>
-<p>以下峰度採用「常態分配等於 3」的定義；超額峰度是峰度減 3。有限樣本偏態與峰度有不同修正版本，因此正式報告必須交代公式。</p>
+<h2 id="jarquebera">描述統計與 Jarque–Bera 函數<a class="headerlink" href="#jarquebera" title="Permanent link">#</a></h2>
+<p>先寫兩個小函數，目的是讓每一個輸出都能與公式對上。<code>sample_moments()</code> 接受一條報酬序列，輸出有效觀察值數、平均數、標準差、偏態、峰度與尾端分位數；<code>jarque_bera()</code> 再用偏態與超額峰度組成檢定統計量。以下峰度採用「常態分配等於 3」的定義，超額峰度則是峰度減 3。有限樣本偏態與峰度有不同修正版本，因此比較手動版與套件版以前，必須先確認定義。</p>
 <pre><code class="language-r">sample_moments &lt;- function(x) {
+  # 描述同一條序列時使用相同的有限值樣本，避免各統計量樣本數不同。
   x &lt;- x[is.finite(x)]
   centered &lt;- x - mean(x)
   m2 &lt;- mean(centered^2)
@@ -110,6 +112,7 @@ plot_family &lt;- &quot;cwTeX Online&quot;
 
 jarque_bera &lt;- function(x) {
   m &lt;- sample_moments(x)
+  # 此處使用教科書中的 iid 漸近式；時間相依性稍後另做診斷。
   statistic &lt;- m[&quot;n&quot;] * (
     m[&quot;skewness&quot;]^2 / 6 + m[&quot;excess_kurtosis&quot;]^2 / 24
   )
@@ -121,10 +124,11 @@ jarque_bera &lt;- function(x) {
   )
 }
 </code></pre>
-<h2 id="_1">常態與厚尾模擬：只用來核對直覺<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
-<p>自由度 5 的 Student-$t$ 變異數是 $5/(5-2)$。除以理論標準差後，它與標準常態具有相同變異數，但尾端仍較厚。</p>
+<h2 id="_1">先用已知分配看懂「厚尾」<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
+<p>模擬的好處是母體分配已知，可以先排除資料建置與模型選擇的干擾。自由度 5 的 Student-$t$ 變異數是 $5/(5-2)$；除以理論標準差後，它與標準常態具有相同變異數，但尾端機率仍較高。這一段要觀察的是峰度、尾端分位數與直方圖形狀，不是檢定金融市場。</p>
 <pre><code class="language-r">n_sim &lt;- 10000L
 normal_draw &lt;- rnorm(n_sim)
+# 標準化後兩組理論變異數相同，尾端差異才不會只是尺度造成。
 t5_draw &lt;- rt(n_sim, df = 5) / sqrt(5 / 3)
 
 simulation_summary &lt;- rbind(
@@ -181,6 +185,7 @@ knitr::kable(round(simulation_summary, 4))
 </tr>
 </tbody>
 </table>
+<p>樣本平均數與變異數會因這一次亂數抽樣略有誤差。標準化 Student-$t_5$ 的 1% 與 99% 分位數通常比常態分位數離零更遠，但 5% 與 95% 分位數反而更靠近零，不能籠統地說所有尾端分位數都更遠。直方圖呈現的是三個一起發生的特徵：中心尖峰較高、肩部較薄，而極端尾端較厚；峰度則把這種極端尾端的差異濃縮成一個數字。</p>
 <pre><code class="language-r">old_par &lt;- par(
   mfrow = c(1, 2), mar = c(4, 4, 2, 1),
   family = plot_family
@@ -201,12 +206,14 @@ curve(dnorm(x), add = TRUE, lwd = 2, col = &quot;#173B57&quot;)
 <p><img alt="相同理論變異數下，標準化 Student-t(5) 的尾端比常態分配厚。" src="./R03_distributions_heavy_tails_files/figure-gfm/simulation-plots-1.png"></p>
 <pre><code class="language-r">par(old_par)
 </code></pre>
-<p>模擬在這裡只說明「相同變異數不代表相同尾端」；真正的實證問題要由以下固定資料回答。</p>
+<p>模擬讓我們看懂「相同變異數不代表相同尾端」，卻沒有提供 MSFT 或投資組合的實證結論。接下來才把這套觀察方式帶到固定的歷史資料。</p>
 <h2 id="msft">讀取 MSFT 與股票面板<a class="headerlink" href="#msft" title="Permanent link">#</a></h2>
+<p>讀入兩份資料後，先依日期排序並確認沒有缺值。<code>R</code> 的每一列是一個共同交易日，每一欄是一檔股票；<code>rowMeans(R)</code> 因此是在同一天對 89 檔股票等權平均，而不是跨時間平均。這個方向若弄反，會得到完全不同的研究對象。</p>
 <pre><code class="language-r">msft &lt;- read.csv(project_path(
   &quot;data&quot;, &quot;processed&quot;, &quot;msft_daily_returns_1986_2008.csv&quot;
 ))
 msft$date &lt;- as.Date(msft$date)
+# ACF 依賴時間次序，所以在任何診斷前先由早到晚排序。
 msft &lt;- msft[order(msft$date), ]
 
 panel &lt;- read.csv(
@@ -276,7 +283,9 @@ knitr::kable(data_profile)
 </tr>
 </tbody>
 </table>
+<p><code>data_profile</code> 應顯示 MSFT 有 5,752 個交易日，等權組合有 2,384 個共同交易日。兩列的日期範圍不同，因此後面的統計量是在各自樣本內描述，不宜把數值差異全部歸因於資產本身；市場年代、樣本長度與成分股篩選也可能影響結果。</p>
 <h2 id="_2">真實報酬的偏態、峰度與尾端<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
+<p>現在用同一組公式整理兩條真實報酬序列。分位數告訴我們左右尾的實際尺度，偏態描述兩側是否對稱，峰度則對極端觀察值特別敏感；三者要放在一起讀，不能只看單一 $p$ 值。</p>
 <pre><code class="language-r">empirical_summary &lt;- rbind(
   MSFT = sample_moments(msft$simple_return),
   SP_equal_weight = sample_moments(sp_equal)
@@ -358,13 +367,13 @@ knitr::kable(jb_table, digits = 6)
 </tr>
 </tbody>
 </table>
-<p>MSFT 的樣本峰度約為 12.92，等權教學組合約為 22.94，均遠高於常態分配的 3；兩者的 Jarque--Bera 統計量也都很大。這是厚尾與偏態的實證警訊，不代表某一個替代分配已被唯一選定。</p>
-<p>Jarque--Bera 的卡方近似依賴獨立同分配與有限高階動差。金融報酬常有條件異質變異，因此極小的漸近 $p$ 值可作常態模型的警訊，卻不能取代完整的時間序列診斷。</p>
-<h2 id="fbasics">原課程套件捷徑：<code>fBasics</code><a class="headerlink" href="#fbasics" title="Permanent link">#</a></h2>
+<p>MSFT 的樣本峰度約為 12.92，等權教學組合約為 22.94，都遠高於常態分配的 3；兩者的 Jarque–Bera 統計量也都很大。就這兩段固定樣本而言，常態分配無法妥善描述偏態與尾端。這項結果只指出常態模型的不足，還沒有在 Student-$t$、偏態 $t$ 或其他厚尾分配之間選出唯一答案。</p>
+<p>Jarque–Bera 的卡方近似依賴獨立同分配與有限高階動差。金融報酬常有條件異質變異，因此極小的漸近 $p$ 值適合當作常態模型的警訊，後面仍要檢查報酬與平方報酬的時間相依性。</p>
+<h2 id="basicstats-normaltest">套件作法：用 <code>basicStats()</code> 與 <code>normalTest()</code> 整理分配特徵<a class="headerlink" href="#basicstats-normaltest" title="Permanent link">#</a></h2>
 <p>原課程的實作程式在
 <code>slides/L02_Return_properties/W1L2_R_scripts_Descriptive_stat_returns.R</code>
 以 <code>fBasics::basicStats()</code> 整理描述統計，並以
-<code>normalTest(..., method = "jb")</code> 執行 Jarque--Bera 檢定。下列程式保留這個捷徑，但改讀本書的固定公開資料，不在執行期連線下載。</p>
+<code>normalTest(..., method = "jb")</code> 執行 Jarque–Bera 檢定。下列程式沿用這個工作流程，但改讀本書的固定資料，不在執行時連線下載。套件會代為計算統計量並整理 <code>fHTEST</code> 輸出；資料期間、報酬尺度、峰度定義與時間相依性是否可忽略，仍要由使用者判斷。</p>
 <pre><code class="language-r">stopifnot(requireNamespace(&quot;fBasics&quot;, quietly = TRUE))
 
 empirical_series &lt;- list(
@@ -382,6 +391,7 @@ basic_row &lt;- function(out, row_name) {
 fbasics_summary &lt;- lapply(empirical_series, fBasics::basicStats)
 manual_summary &lt;- lapply(empirical_series, sample_moments)
 
+# 按統計量名稱取值，避免套件輸出列次序改變時配錯數字。
 moment_comparison &lt;- do.call(rbind, lapply(names(empirical_series), function(nm) {
   package_result &lt;- as.matrix(fbasics_summary[[nm]])
   manual_result &lt;- manual_summary[[nm]]
@@ -478,11 +488,12 @@ knitr::kable(moment_comparison, digits = 7)
 </tr>
 </tbody>
 </table>
-<pre><code class="language-r">fbasics_jb &lt;- lapply(empirical_series, function(x) {
+<pre><code class="language-r"># 對同一批固定觀察值執行套件版 JB，才能與手動公式比較。
+fbasics_jb &lt;- lapply(empirical_series, function(x) {
   fBasics::normalTest(x, method = &quot;jb&quot;)
 })
 
-# 保留原套件的完整列印結果，方便學生認識 fHTEST 輸出。
+# 先看完整 fHTEST，認識統計量、自由度與 p 值在物件中的位置。
 for (nm in names(fbasics_jb)) {
   cat(&quot;\n&quot;, nm, &quot;\n&quot;, sep = &quot;&quot;)
   print(fbasics_jb[[nm]])
@@ -562,9 +573,7 @@ knitr::kable(jb_comparison, digits = 7)
 </tr>
 </tbody>
 </table>
-<p>平均數與標準差可用來核對資料與單位；偏態、峰度與 Jarque--Bera
-數值則可能因有限樣本修正與動差定義不同而略有差異。特別是
-<code>basicStats()</code> 的 <code>Kurtosis</code> 應與上文「常態等於 0」的超額峰度比較，不是直接與「常態等於 3」的峰度比較。兩種做法對這份固定資料的實質結論應一致：兩組報酬都對常態模型提出強烈警訊。</p>
+<p>平均數與標準差先幫我們確認資料與尺度是否一致；偏態、峰度與 Jarque–Bera 數值則可能因有限樣本修正與動差定義不同而略有差異。特別是 <code>basicStats()</code> 的 <code>Kurtosis</code> 採超額峰度，應與上文「常態等於 0」的欄位比較，不能直接對照「常態等於 3」的峰度。表中若出現小幅數值差，先查定義與修正方式；兩種作法在這份固定資料上的方向應一致，都指出常態模型對尾端的描述不足。</p>
 <pre><code class="language-r">series_list &lt;- list(
   MSFT = list(date = msft$date, return = msft$simple_return),
   `S&amp;P 等權教學組合` = list(date = panel$date, return = sp_equal)
@@ -591,16 +600,17 @@ for (nm in names(series_list)) {
   )
   qqnorm(
     z$return, pch = 16, cex = 0.4,
-    col = &quot;#173B57&quot;, main = paste(nm, &quot;常態 Q--Q&quot;)
+    col = &quot;#173B57&quot;, main = paste(nm, &quot;常態 Q–Q&quot;)
   )
   qqline(z$return, col = &quot;#A34045&quot;, lwd = 2)
 }
 </code></pre>
-<p><img alt="MSFT 與等權教學投資組合的時間圖、經驗分配與常態 Q--Q 圖。" src="./R03_distributions_heavy_tails_files/figure-gfm/empirical-plots-1.png"></p>
+<p><img alt="MSFT 與等權教學投資組合的時間圖、經驗分配與常態 Q–Q 圖。" src="./R03_distributions_heavy_tails_files/figure-gfm/empirical-plots-1.png"></p>
 <pre><code class="language-r">par(old_par)
 </code></pre>
-<p>Q--Q 圖能分開呈現左尾與右尾的偏離。圖形是診斷證據，不是某個厚尾分配已被證明正確。</p>
+<p>時間圖先告訴我們極端波動落在哪些日期，直方圖比較整體形狀，Q–Q 圖則把左右尾偏離常態的方向分開呈現。若尾端點系統性離開參考線，應考慮厚尾創新或更合適的風險衡量方式；圖形本身還不能決定唯一的替代分配。</p>
 <h2 id="_3">報酬與平方報酬的時間相依<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<p>厚尾描述的是無條件分配，波動群聚則問「大波動之後是否較常接著大波動」。因此同時畫原報酬與平方報酬的自相關函數（ACF）：前者主要看條件平均的線性相依，後者把正負號拿掉，用來觀察波動大小是否具有持續性。</p>
 <pre><code class="language-r">old_par &lt;- par(
   mfrow = c(2, 2), mar = c(4, 3.5, 4, 1),
   family = plot_family, cex.main = 0.85
@@ -660,8 +670,9 @@ knitr::kable(diagnostics, digits = 6)
 </tr>
 </tbody>
 </table>
-<p>報酬方向的線性相關與平方報酬的波動相依是兩個不同問題。Ljung--Box 結果只檢查指定落後集合的零自相關限制；它不直接證明報酬可交易，也不提供因果機制。</p>
+<p>在這份固定資料中，MSFT 報酬的 $Q(20)$ 約為 41.30，等權組合約為 422.20；平方報酬的統計量更分別達約 1,156.80 與 4,037.73。前 20 階同時為零的限制在兩條序列上都遭拒絕，平方報酬的相依尤其明顯。下一步可分開處理兩個問題：條件平均模型檢查殘差是否仍有線性相依，ARCH/GARCH 類模型則處理波動持續性。這些統計量沒有直接證明報酬可交易，也沒有提供造成波動群聚的因果機制。</p>
 <h2 id="_4">定位極端日期<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
+<p>由於峰度對少數極端值很敏感，最後把絕對報酬最大的日期列出來。這一步是為了回查資料來源與理解哪些觀察值主導尾端，而不是根據結果大小自動刪除資料。</p>
 <pre><code class="language-r">largest_moves &lt;- function(date, x, label, number = 5L) {
   keep &lt;- order(abs(x), decreasing = TRUE)[seq_len(number)]
   data.frame(
@@ -739,20 +750,23 @@ knitr::kable(extreme_table, digits = 6)
 </tr>
 </tbody>
 </table>
-<p>這張表只定位需要回查的觀察值。確認是資料錯誤才修正；真實市場極端值正是厚尾與風險分析的重要資訊。</p>
+<p>若回查後確認是建檔或價格調整錯誤，應修正資料並重新計算全部統計量；若極端值與原始來源一致，就應保留，因為它們正是厚尾與風險分析要解釋的現象。</p>
+<h2 id="_5">這兩段歷史資料給我們的訊息<a class="headerlink" href="#_5" title="Permanent link">#</a></h2>
+<p>MSFT 與等權教學組合都呈現高峰度、常態 Q–Q 圖尾端偏離，以及顯著的平方報酬相依。這些證據支持在後續模型中正面處理厚尾與條件異質變異，卻還不能判定哪一個厚尾分配最好，也不能把歷史尾端頻率當成不變的未來機率。實務上的下一步，是在明確的訓練期內比較候選分配與波動模型，再用保留的測試期評估預測分配，而不是只依一次常態性檢定作決定。</p>
       </article>
-      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R02_prices_dates_returns.html">← 價格、日期與報酬率</a><a rel="next" href="R04_ar_ma_arma_simulation.html">AR、MA 與 ARMA：理論與真實報酬 →</a></nav>
+      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R02_prices_dates_returns.html">← 價格、日期與報酬率</a><a rel="next" href="R04_ar_ma_arma_simulation.html">AR、MA、ARMA 與真實報酬的 ACF →</a></nav>
       <footer>© 陳釗而　《財務時間序列分析》</footer>
     </main>
     <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
 <ul>
-<li><a href="#jarque-bera">描述統計與 Jarque--Bera 函數</a></li>
-<li><a href="#_1">常態與厚尾模擬：只用來核對直覺</a></li>
+<li><a href="#jarquebera">描述統計與 Jarque–Bera 函數</a></li>
+<li><a href="#_1">先用已知分配看懂「厚尾」</a></li>
 <li><a href="#msft">讀取 MSFT 與股票面板</a></li>
 <li><a href="#_2">真實報酬的偏態、峰度與尾端</a></li>
-<li><a href="#fbasics">原課程套件捷徑：fBasics</a></li>
+<li><a href="#basicstats-normaltest">套件作法：用 basicStats() 與 normalTest() 整理分配特徵</a></li>
 <li><a href="#_3">報酬與平方報酬的時間相依</a></li>
 <li><a href="#_4">定位極端日期</a></li>
+<li><a href="#_5">這兩段歷史資料給我們的訊息</a></li>
 </ul>
 </div>
 </aside>

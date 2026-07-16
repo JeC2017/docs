@@ -21,38 +21,38 @@
   <header class="site-header">
     <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
     <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
-    <a class="policy-link" href="data-policy.html">資料政策</a>
+    <a class="policy-link" href="data-policy.html">資料說明</a>
   </header>
   <div class="layout">
     <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
       <p class="sidebar-title">線上附錄</p>
       <ol><li><a href="index.html" aria-current="page" class="active">首頁</a></li>
 <li><a href="data.html">實證資料下載</a></li>
-<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="data-policy.html">資料來源與重現說明</a></li>
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
 <li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與實證特徵</a></li>
-<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
-<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
-<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
-<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
-<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
-<li><a href="R09_portfolio_capm_factors.html">R09　投資組合、CAPM 與財務因子</a></li>
-<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
-<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
-<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA、ARMA 與真實報酬的 ACF</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　AAPL 的 ARMA 估計、診斷與預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　TWD／JPY 的無資料洩漏樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　TWD／JPY 的單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　AAPL 的 ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html">R09　美國十產業投資組合、CAPM 與 Fama–French 三因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　真實股票報酬的 PCA、低秩重建與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　S&amp;P 500 平衡子樣本的 PCA 與跨股票落後值修正</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC–ICAPM 的第二階段個案研究</a></li>
 <li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
-<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
-<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　機器學習的金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　加州學校資料的雙重選擇與 DML 式殘差化</a></li>
 <li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
 <li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
 <li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
     </nav>
     <main id="main-content" class="content">
       <div class="publication-note">
-        本網站提供作者執行後的教學內容、程式原始檔與本書實證使用的固定資料版本。
-        詳見<a href="data-policy.html">資料與重現政策</a>。
+        想自己重算，可以從頁首下載 R Markdown 與執行結果。所有實證例都使用隨書提供的固定資料；
+        檔案來源、變數單位與已知限制請見<a href="data-policy.html">資料來源與重現說明</a>。
       </div>
       <article>
         <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R 線上附錄</h1></header>
@@ -60,8 +60,8 @@
 <section class="hero">
   <p class="eyebrow">臺灣中文教學資源</p>
   <h2>財務時間序列分析</h2>
-  <p>十九份可重現的 R hands-on，使用原課程的股票、匯率、產業因子、臺灣與日本資料，涵蓋報酬率、ARMA、波動模型、資產定價、高維預測、VAR、共整合與局部投影。</p>
-  <p>相關附錄同頁並列「手動建構版」與「原課程套件捷徑」：既能看清公式與資訊邊界，也能直接使用 <code>auto.arima()</code>、<code>tsCV()</code>、<code>adf.test()</code>、<code>garchFit()</code>、<code>prcomp()</code> 與 <code>glmnet()</code> 完成標準分析。</p>
+  <p>十九份 R 實作附錄，使用原課程的股票、匯率、產業因子，以及臺灣與日本資料，依序練習報酬率、ARMA、波動模型、資產定價、高維預測、VAR、共整合與局部投影。</p>
+  <p>每一頁先交代要回答的實證問題、資料在何時可得，以及輸出應如何解讀，再逐步執行程式。許多主題同時提供手動建構與套件作法：前者用來看懂公式如何變成運算，後者示範如何使用 <code>auto.arima()</code>、<code>tsCV()</code>、<code>adf.test()</code>、<code>garchFit()</code>、<code>prcomp()</code> 與 <code>glmnet()</code> 完成同一項分析。</p>
   <p><a class="hero-link" href="data.html">瀏覽實證資料與資料字典 →</a></p>
 </section>
 <section aria-labelledby="appendix-list-title">
@@ -74,30 +74,30 @@
   <a href="R02_prices_dates_returns.html"><span class="appendix-number">R02</span><strong>價格、日期與報酬率</strong><small>對應章節 2</small></a>
 </li><li class="appendix-card" data-search="r03_distributions_heavy_tails 分配、厚尾與實證特徵 3–4">
   <a href="R03_distributions_heavy_tails.html"><span class="appendix-number">R03</span><strong>分配、厚尾與實證特徵</strong><small>對應章節 3–4</small></a>
-</li><li class="appendix-card" data-search="r04_ar_ma_arma_simulation ar、ma 與 arma：理論與真實報酬 4–6">
-  <a href="R04_ar_ma_arma_simulation.html"><span class="appendix-number">R04</span><strong>AR、MA 與 ARMA：理論與真實報酬</strong><small>對應章節 4–6</small></a>
-</li><li class="appendix-card" data-search="r05_arma_estimation_diagnostics_forecasting arma 估計、診斷與多步預測 6–7">
-  <a href="R05_arma_estimation_diagnostics_forecasting.html"><span class="appendix-number">R05</span><strong>ARMA 估計、診斷與多步預測</strong><small>對應章節 6–7</small></a>
-</li><li class="appendix-card" data-search="r06_leak_free_out_of_sample_evaluation 無資料洩漏的樣本外評估 8">
-  <a href="R06_leak_free_out_of_sample_evaluation.html"><span class="appendix-number">R06</span><strong>無資料洩漏的樣本外評估</strong><small>對應章節 8</small></a>
-</li><li class="appendix-card" data-search="r07_unit_roots_differencing_breaks 單根、差分與結構變動 9–10">
-  <a href="R07_unit_roots_differencing_breaks.html"><span class="appendix-number">R07</span><strong>單根、差分與結構變動</strong><small>對應章節 9–10</small></a>
-</li><li class="appendix-card" data-search="r08_arch_garch_asymmetry_forecasting arch、garch、非對稱波動與預測 11–12">
-  <a href="R08_arch_garch_asymmetry_forecasting.html"><span class="appendix-number">R08</span><strong>ARCH、GARCH、非對稱波動與預測</strong><small>對應章節 11–12</small></a>
-</li><li class="appendix-card" data-search="r09_portfolio_capm_factors 投資組合、capm 與財務因子 13–14">
-  <a href="R09_portfolio_capm_factors.html"><span class="appendix-number">R09</span><strong>投資組合、CAPM 與財務因子</strong><small>對應章節 13–14</small></a>
-</li><li class="appendix-card" data-search="r10_pca_factor_analysis pca 與因子分析 15">
-  <a href="R10_pca_factor_analysis.html"><span class="appendix-number">R10</span><strong>PCA 與因子分析</strong><small>對應章節 15</small></a>
-</li><li class="appendix-card" data-search="r11_sp500_pca_corrected 修正後的 s&amp;p 500 pca 15">
-  <a href="R11_sp500_pca_corrected.html"><span class="appendix-number">R11</span><strong>修正後的 S&amp;P 500 PCA</strong><small>對應章節 15</small></a>
-</li><li class="appendix-card" data-search="r12_taiwan_dcc_icapm_case_study 臺灣 dcc／icapm 案例 16">
-  <a href="R12_taiwan_dcc_icapm_case_study.html"><span class="appendix-number">R12</span><strong>臺灣 DCC／ICAPM 案例</strong><small>對應章節 16</small></a>
+</li><li class="appendix-card" data-search="r04_ar_ma_arma_simulation ar、ma、arma 與真實報酬的 acf 4–6">
+  <a href="R04_ar_ma_arma_simulation.html"><span class="appendix-number">R04</span><strong>AR、MA、ARMA 與真實報酬的 ACF</strong><small>對應章節 4–6</small></a>
+</li><li class="appendix-card" data-search="r05_arma_estimation_diagnostics_forecasting aapl 的 arma 估計、診斷與預測 6–7">
+  <a href="R05_arma_estimation_diagnostics_forecasting.html"><span class="appendix-number">R05</span><strong>AAPL 的 ARMA 估計、診斷與預測</strong><small>對應章節 6–7</small></a>
+</li><li class="appendix-card" data-search="r06_leak_free_out_of_sample_evaluation twd／jpy 的無資料洩漏樣本外評估 8">
+  <a href="R06_leak_free_out_of_sample_evaluation.html"><span class="appendix-number">R06</span><strong>TWD／JPY 的無資料洩漏樣本外評估</strong><small>對應章節 8</small></a>
+</li><li class="appendix-card" data-search="r07_unit_roots_differencing_breaks twd／jpy 的單根、差分與結構變動 9–10">
+  <a href="R07_unit_roots_differencing_breaks.html"><span class="appendix-number">R07</span><strong>TWD／JPY 的單根、差分與結構變動</strong><small>對應章節 9–10</small></a>
+</li><li class="appendix-card" data-search="r08_arch_garch_asymmetry_forecasting aapl 的 arch、garch、非對稱波動與預測 11–12">
+  <a href="R08_arch_garch_asymmetry_forecasting.html"><span class="appendix-number">R08</span><strong>AAPL 的 ARCH、GARCH、非對稱波動與預測</strong><small>對應章節 11–12</small></a>
+</li><li class="appendix-card" data-search="r09_portfolio_capm_factors 美國十產業投資組合、capm 與 fama–french 三因子 13–14">
+  <a href="R09_portfolio_capm_factors.html"><span class="appendix-number">R09</span><strong>美國十產業投資組合、CAPM 與 Fama–French 三因子</strong><small>對應章節 13–14</small></a>
+</li><li class="appendix-card" data-search="r10_pca_factor_analysis 真實股票報酬的 pca、低秩重建與因子分析 15">
+  <a href="R10_pca_factor_analysis.html"><span class="appendix-number">R10</span><strong>真實股票報酬的 PCA、低秩重建與因子分析</strong><small>對應章節 15</small></a>
+</li><li class="appendix-card" data-search="r11_sp500_pca_corrected s&amp;p 500 平衡子樣本的 pca 與跨股票落後值修正 15">
+  <a href="R11_sp500_pca_corrected.html"><span class="appendix-number">R11</span><strong>S&amp;P 500 平衡子樣本的 PCA 與跨股票落後值修正</strong><small>對應章節 15</small></a>
+</li><li class="appendix-card" data-search="r12_taiwan_dcc_icapm_case_study 臺灣 dcc–icapm 的第二階段個案研究 16">
+  <a href="R12_taiwan_dcc_icapm_case_study.html"><span class="appendix-number">R12</span><strong>臺灣 DCC–ICAPM 的第二階段個案研究</strong><small>對應章節 16</small></a>
 </li><li class="appendix-card" data-search="r13_regularization ridge、lasso、elastic net 與 post-lasso 17–18">
   <a href="R13_regularization.html"><span class="appendix-number">R13</span><strong>Ridge、LASSO、Elastic Net 與 post-LASSO</strong><small>對應章節 17–18</small></a>
-</li><li class="appendix-card" data-search="r14_financial_factor_selection 金融因子選擇 19">
-  <a href="R14_financial_factor_selection.html"><span class="appendix-number">R14</span><strong>金融因子選擇</strong><small>對應章節 19</small></a>
-</li><li class="appendix-card" data-search="r15_double_selection_dml 雙重選擇、正交化與 dml 20">
-  <a href="R15_double_selection_dml.html"><span class="appendix-number">R15</span><strong>雙重選擇、正交化與 DML</strong><small>對應章節 20</small></a>
+</li><li class="appendix-card" data-search="r14_financial_factor_selection 機器學習的金融因子選擇 19">
+  <a href="R14_financial_factor_selection.html"><span class="appendix-number">R14</span><strong>機器學習的金融因子選擇</strong><small>對應章節 19</small></a>
+</li><li class="appendix-card" data-search="r15_double_selection_dml 加州學校資料的雙重選擇與 dml 式殘差化 20">
+  <a href="R15_double_selection_dml.html"><span class="appendix-number">R15</span><strong>加州學校資料的雙重選擇與 DML 式殘差化</strong><small>對應章節 20</small></a>
 </li><li class="appendix-card" data-search="r16_var_irf var、識別與衝擊反應函數 21">
   <a href="R16_var_irf.html"><span class="appendix-number">R16</span><strong>VAR、識別與衝擊反應函數</strong><small>對應章節 21</small></a>
 </li><li class="appendix-card" data-search="r17_cointegration_vecm 共整合、johansen 檢定與 vecm 22">
@@ -105,7 +105,7 @@
 </li><li class="appendix-card" data-search="r18_local_projection_irf var、局部投影與進階 irf 23">
   <a href="R18_local_projection_irf.html"><span class="appendix-number">R18</span><strong>VAR、局部投影與進階 IRF</strong><small>對應章節 23</small></a>
 </li></ol>
-  <p id="no-results" class="no-results" hidden>沒有符合的附錄。</p>
+  <p id="no-results" class="no-results" hidden>找不到符合這個關鍵字的附錄。</p>
 </section>
 
       </article>

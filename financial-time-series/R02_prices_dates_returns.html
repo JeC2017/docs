@@ -21,43 +21,44 @@
   <header class="site-header">
     <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
     <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
-    <a class="policy-link" href="data-policy.html">資料政策</a>
+    <a class="policy-link" href="data-policy.html">資料說明</a>
   </header>
   <div class="layout">
     <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
       <p class="sidebar-title">線上附錄</p>
       <ol><li><a href="index.html">首頁</a></li>
 <li><a href="data.html">實證資料下載</a></li>
-<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="data-policy.html">資料來源與重現說明</a></li>
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html" aria-current="page" class="active">R02　價格、日期與報酬率</a></li>
 <li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與實證特徵</a></li>
-<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
-<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
-<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
-<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
-<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
-<li><a href="R09_portfolio_capm_factors.html">R09　投資組合、CAPM 與財務因子</a></li>
-<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
-<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
-<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA、ARMA 與真實報酬的 ACF</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　AAPL 的 ARMA 估計、診斷與預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　TWD／JPY 的無資料洩漏樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　TWD／JPY 的單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　AAPL 的 ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html">R09　美國十產業投資組合、CAPM 與 Fama–French 三因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　真實股票報酬的 PCA、低秩重建與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　S&amp;P 500 平衡子樣本的 PCA 與跨股票落後值修正</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC–ICAPM 的第二階段個案研究</a></li>
 <li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
-<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
-<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　機器學習的金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　加州學校資料的雙重選擇與 DML 式殘差化</a></li>
 <li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
 <li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
 <li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
     </nav>
     <main id="main-content" class="content">
       <div class="publication-note">
-        本網站提供作者執行後的教學內容、程式原始檔與本書實證使用的固定資料版本。
-        詳見<a href="data-policy.html">資料與重現政策</a>。
+        想自己重算，可以從頁首下載 R Markdown 與執行結果。所有實證例都使用隨書提供的固定資料；
+        檔案來源、變數單位與已知限制請見<a href="data-policy.html">資料來源與重現說明</a>。
       </div>
       <article>
-        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R02：價格、日期與報酬率</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R02_prices_dates_returns.Rmd">R Markdown 原始檔</a><a href="source/R02_prices_dates_returns.md">執行後 Markdown</a></div></header>
-        <p>本附錄對應第 2 章，實際讀取 Apple Inc.（AAPL）的固定資料，從調整收盤價重新計算日簡單報酬與日對數報酬。樣本期間為 2019-01-02 至 2022-06-22，共 875 個交易日。<code>adjusted</code> 的單位是「美元／股的調整後價格尺度」；報酬欄位以小數表示，例如 0.01 代表 1%。資料來自原課程 S&amp;P 500 價格檔所保留的 AAPL 序列，建置細節見 <code>data/DATA_SOURCES.md</code>。</p>
-<p>以下結果描述這一份固定歷史資料的價格與報酬計算，不識別任何市場事件或變數對 AAPL 報酬的因果效果。</p>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R02：價格、日期與報酬率</h1><div class="source-links" aria-label="下載本頁檔案"><a href="source/R02_prices_dates_returns.Rmd">下載 R Markdown</a><a href="source/R02_prices_dates_returns.md">下載執行結果（Markdown）</a></div></header>
+        <p>本附錄對應第 2 章，從一個每天都會遇到的實證問題開始：手上只有一列列調整收盤價時，日簡單報酬與日對數報酬究竟應如何計算，日期間隔又該怎麼處理？我們實際讀取 Apple Inc.（AAPL）的固定資料，從調整收盤價重算兩種報酬，再比較複利、交易日間隔與極端日。</p>
+<p>每一列代表一個交易日，樣本期間為 2019-01-02 至 2022-06-22，共 875 個交易日。<code>adjusted</code> 的尺度是「美元／股的調整後價格」；報酬欄位以小數表示，例如 0.01 代表 1%。資料來自原課程 S&amp;P 500 價格檔所保留的 AAPL 序列，建置細節見 <code>data/DATA_SOURCES.md</code>。第 $t$ 日報酬要同時用到第 $t$ 日與前一交易日的價格，因此通常要等第 $t$ 日收盤價可得後才能計算；若拿它預測同一天稍早的結果，就會使用到尚未出現的資訊。</p>
+<p>這一頁的工作是整理並描述固定歷史資料，沒有訓練期、驗證期與測試期之分，也沒有識別市場事件對 AAPL 報酬的因果效果。</p>
 <pre><code class="language-r">knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
   fig.width = 7, fig.height = 4.5,
@@ -85,7 +86,7 @@ if (!&quot;cwTeX Online&quot; %in% systemfonts::registry_fonts()$family) {
 plot_family &lt;- &quot;cwTeX Online&quot;
 </code></pre>
 <h2 id="_1">讀取、排序與入口檢查<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
-<p>金融資料不能先假定已依日期排序。以下先檢查欄位，再轉換日期、排序並檢查重複值與價格正值條件。</p>
+<p>計算落後價格以前，先把日期順序確認清楚。若檔案不是由早到晚排列，<code>lag()</code> 或相鄰列相除便會把錯誤的兩天接在一起。以下先檢查欄位，將日期轉成 <code>Date</code> 後排序，再確認沒有重複日期，而且調整價格都是正的有限值。</p>
 <pre><code class="language-r">aapl_path &lt;- project_path(
   &quot;data&quot;, &quot;processed&quot;, &quot;aapl_adjusted_daily_2019_2022.csv&quot;
 )
@@ -99,6 +100,7 @@ needed &lt;- c(
 stopifnot(all(needed %in% names(aapl)))
 
 aapl$date &lt;- as.Date(aapl$date)
+# 報酬是依相鄰交易日計算，排序必須發生在任何 lag 或 diff 之前。
 aapl &lt;- aapl[order(aapl$date), ]
 row.names(aapl) &lt;- NULL
 
@@ -147,7 +149,8 @@ knitr::kable(data_profile)
 </tr>
 </tbody>
 </table>
-<p>第一筆報酬沒有前一期價格，因此應為缺值；這不是資料錯誤。</p>
+<p>資料摘要應顯示單一資產 AAPL、875 個交易日，以及前述價格與報酬尺度。這張表把後續每個數字的分母與時間單位先固定下來；若換成週報酬或未調整收盤價，解讀也必須跟著改變。</p>
+<p>第一筆價格沒有本檔案中的前一期價格可供比較，所以兩種報酬都應是缺值。這個缺值是報酬定義自然產生的，不需要填成 0；填入 0 反而會憑空增加一個「沒有漲跌」的交易日。</p>
 <pre><code class="language-r">colSums(is.na(aapl[c(&quot;adjusted&quot;, &quot;simple_return&quot;, &quot;log_return&quot;)]))
 </code></pre>
 <pre><code>##      adjusted simple_return    log_return 
@@ -160,20 +163,21 @@ knitr::kable(data_profile)
   !anyNA(aapl$log_return[-1])
 )
 </code></pre>
-<h2 id="_2">由調整價格重新計算報酬<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
+<h2 id="_2">用相鄰交易日的調整價格計算報酬<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
 <p>若 $P_t^*$ 是同一調整尺度下的價格，則</p>
 <p>\[
 R_t=\frac{P_t^*}{P_{t-1}^*}-1,
 \qquad
 r_t=\log P_t^*-\log P_{t-1}^*=\log(1+R_t).
 \]</p>
-<p>調整價格把供應者所採用的公司行動調整反映在同一價格尺度；若研究需要逐筆拆股或現金股利，仍須另讀公司行動資料字典，不能由本欄反推全部現金流。</p>
+<p>第一個公式衡量價格的相對變動，第二個公式把相鄰價格取對數後相減。兩者都要求 \(P_t^*\) 與 \(P_{t-1}^*\) 位於同一調整尺度。資料供應者已把其採用的公司行動調整反映在 <code>adjusted</code> 中；若研究需要逐筆辨認拆股或現金股利，仍要另讀公司行動資料，單靠這一欄無法還原全部現金流。</p>
 <pre><code class="language-r">aapl$calculated_simple &lt;- c(
   NA_real_,
   aapl$adjusted[-1] / head(aapl$adjusted, -1) - 1
 )
 aapl$calculated_log &lt;- c(NA_real_, diff(log(aapl$adjusted)))
 
+# 與固定資料內原有欄位比較，可發現排序或公式是否寫錯。
 calculation_error &lt;- data.frame(
   欄位 = c(&quot;simple_return&quot;, &quot;log_return&quot;),
   最大絕對差 = c(
@@ -262,11 +266,14 @@ knitr::kable(
 </tr>
 </tbody>
 </table>
-<h2 id="_3">原課程套件捷徑（與手動版並列）<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
-<p>原課程的 AAPL scripts 先以 <code>tidyquant::tq_get()</code> 取得 Yahoo 資料，再用 <code>dplyr::arrange()</code>、<code>mutate()</code> 與 <code>lag()</code> 建立報酬。本書保留資料整理流程，但改讀上面的固定 CSV，避免供應者日後修訂資料。對應來源是 <code>slides/L04_ARMA/W1L4_R_template_for_estimating_ARMA.R</code> 與 <code>slides/L07_ARCH_GARCH/W2L2_R_template_GARCH.R</code>；以下不是另一組模擬資料。</p>
+<p><code>最大絕對差</code> 應小於 \(10^{-12}\)，表示重算欄位與固定資料只差浮點誤差。前六列則讓我們直接看到：第一列報酬為缺值，從第二列開始，每個報酬都連結當日與前一個交易日的調整價格。</p>
+<h2 id="arrangemutate-lag">套件作法：用 <code>arrange()</code>、<code>mutate()</code> 與 <code>lag()</code> 計算報酬<a class="headerlink" href="#arrangemutate-lag" title="Permanent link">#</a></h2>
+<p>原課程的 AAPL 程式先以 <code>tidyquant::tq_get()</code> 取得 Yahoo 資料，再用 <code>dplyr::arrange()</code>、<code>mutate()</code> 與 <code>lag()</code> 建立報酬。本書沿用這套工作流程，但改讀上面的固定 CSV，避免資料供應者日後修訂歷史值而使答案改變。對應來源是 <code>slides/L04_ARMA/W1L4_R_template_for_estimating_ARMA.R</code> 與 <code>slides/L07_ARCH_GARCH/W2L2_R_template_GARCH.R</code>。</p>
+<p><code>arrange()</code> 會把日期排好，<code>lag()</code> 會取同欄前一列，<code>mutate()</code> 則把公式加入資料框。這些函數不會替我們選擇正確的價格欄位，也不知道休市日應如何處理；資料尺度、排序鍵與缺值規則仍要由研究者先決定。</p>
 <pre><code class="language-r">stopifnot(requireNamespace(&quot;dplyr&quot;, quietly = TRUE))
 
 returns_package &lt;- aapl |&gt;
+  # 先排序，再取落後值；顛倒次序會把原始列順序誤當成時間順序。
   dplyr::arrange(date) |&gt;
   dplyr::mutate(
     simple_return_package =
@@ -336,8 +343,9 @@ knitr::kable(package_return_check, digits = 14)
   max(package_return_check$最大絕對差) &lt; 1e-12
 )
 </code></pre>
-<p>這裡兩版應在浮點誤差內完全一致，因為它們只是用不同語法計算同一定義。套件縮短了資料操作程式，卻沒有消除「先排序、第一筆為缺值、必須使用同一調整價格尺度」等資料責任。</p>
-<h2 id="_4">價格與報酬的時間圖<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
+<p>四列 <code>最大絕對差</code> 都應接近零，因為手動版與套件版只是用不同語法計算同一定義。套件縮短了資料操作程式，資料責任仍然相同：先排序、保留第一筆自然產生的缺值，並確定分子與分母使用同一調整價格尺度。</p>
+<h2 id="_3">價格與報酬的時間圖<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<p>接著把價格水準與日報酬放在同一張圖的上下兩格。價格圖回答「資產價值如何隨時間累積」，報酬圖回答「每一交易日的相對變動有多大」；兩者的尺度與統計性質不同，不能只因來自同一欄價格就用同一模型處理。</p>
 <pre><code class="language-r">old_par &lt;- par(
   mfrow = c(2, 1), mar = c(4.5, 4, 3, 1),
   family = plot_family
@@ -357,9 +365,9 @@ abline(h = 0, col = &quot;gray60&quot;)
 <p><img alt="AAPL 調整價格與由它計算的日對數報酬。報酬圖以百分比呈現。" src="./R02_prices_dates_returns_files/figure-gfm/price-return-plot-1.png"></p>
 <pre><code class="language-r">par(old_par)
 </code></pre>
-<p>價格水準有明顯趨勢，不代表報酬本身也有相同趨勢。建模前必須先分清楚研究對象是價格、簡單報酬或對數報酬。</p>
-<h2 id="_5">簡單報酬與對數報酬的差距<a class="headerlink" href="#_5" title="Permanent link">#</a></h2>
-<p>小幅報酬時 $r_t\approx R_t$，大幅漲跌時兩者差距會擴大。下圖中的每一點都是 AAPL 的實際日報酬。</p>
+<p>圖中的價格水準有明顯長期變動，日報酬則大多圍繞零上下波動，偶爾出現較大的跳動。這提醒我們在建模前先說清楚研究對象是價格、簡單報酬或對數報酬；價格有趨勢，不表示報酬也沿著同一趨勢前進。</p>
+<h2 id="_4">簡單報酬與對數報酬的差距<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
+<p>小幅報酬時 $r_t\approx R_t$，所以散點應貼近 45 度線；大幅漲跌時，對數轉換的非線性會讓兩者差距擴大。下圖中的每一點都是同一交易日的 AAPL 簡單報酬與對數報酬。</p>
 <pre><code class="language-r">old_par &lt;- par(family = plot_family)
 plot(
   100 * aapl$simple_return, 100 * aapl$log_return,
@@ -371,8 +379,8 @@ abline(0, 1, lty = 2, lwd = 2, col = &quot;#A34045&quot;)
 <p><img alt="AAPL 日簡單報酬與日對數報酬；虛線表示兩者完全相等。" src="./R02_prices_dates_returns_files/figure-gfm/approximation-plot-1.png"></p>
 <pre><code class="language-r">par(old_par)
 </code></pre>
-<h2 id="_6">多期複利必須乘，不是直接加<a class="headerlink" href="#_6" title="Permanent link">#</a></h2>
-<p>從第一個調整價格到最後一個調整價格，三種算法應得到相同的多期簡單報酬：</p>
+<h2 id="_5">從單日報酬走到整段期間報酬<a class="headerlink" href="#_5" title="Permanent link">#</a></h2>
+<p>要回答「從樣本第一天持有到最後一天，調整價格總共變動多少」，單日簡單報酬要逐期複利，而對數報酬可以先相加。從第一個調整價格到最後一個調整價格，三種算法應得到相同的多期簡單報酬：</p>
 <ol>
 <li>每日簡單報酬逐期複利；</li>
 <li>每日對數報酬相加後轉回簡單報酬；</li>
@@ -420,9 +428,9 @@ knitr::kable(compound_table, digits = 8)
 </table>
 <pre><code class="language-r">stopifnot(diff(range(compound_table$全期簡單報酬)) &lt; 1e-12)
 </code></pre>
-<p>這個全期報酬只描述所選起迄日；不能把它外推成固定的未來成長率。</p>
-<h2 id="_7">交易日與日曆日不同<a class="headerlink" href="#_7" title="Permanent link">#</a></h2>
-<p>相鄰交易日可能跨過週末或休市日。<code>calendar_gap</code> 的單位是日曆日，不是遺漏的報酬筆數。</p>
+<p>表中的三列應在浮點誤差內相同，這也檢查了單期報酬公式與複利方向是否一致。所得全期報酬只描述所選起迄日；樣本內累積幅度不等於固定的未來成長率。</p>
+<h2 id="_6">交易日與日曆日不同<a class="headerlink" href="#_6" title="Permanent link">#</a></h2>
+<p>相鄰兩列代表相鄰交易日，卻可能跨過週末或休市日。<code>calendar_gap</code> 計算兩個交易日期之間隔了幾個日曆日，並不是在宣告中間遺漏了幾筆交易報酬。</p>
 <pre><code class="language-r">aapl$calendar_gap &lt;- c(NA_integer_, as.integer(diff(aapl$date)))
 gap_table &lt;- as.data.frame(table(aapl$calendar_gap, useNA = &quot;no&quot;))
 names(gap_table) &lt;- c(&quot;相鄰交易日的日曆間隔&quot;, &quot;次數&quot;)
@@ -454,8 +462,9 @@ knitr::kable(gap_table)
 </tr>
 </tbody>
 </table>
-<p>若要年度化波動、合併不同市場或對齊總體資料，必須另外交代交易日曆、時區與缺值規則。</p>
-<h2 id="_8">極端日先查來源，不自動刪除<a class="headerlink" href="#_8" title="Permanent link">#</a></h2>
+<p>表中多於一天的間隔通常對應週末或休市。若要年度化波動、合併不同市場或對齊總體資料，下一步還要交代交易日曆、時區與缺值規則；直接把日曆日補成 0 報酬會改變樣本的統計性質。</p>
+<h2 id="_7">極端日先查來源，不自動刪除<a class="headerlink" href="#_7" title="Permanent link">#</a></h2>
+<p>最後列出絕對對數報酬最大的八個交易日。排序的目的，是把最值得回查原始來源的日期找出來，而不是先把它們排除在分析之外。</p>
 <pre><code class="language-r">valid_rows &lt;- aapl[is.finite(aapl$log_return), ]
 extreme_rows &lt;- valid_rows[
   order(abs(valid_rows$log_return), decreasing = TRUE)[1:8],
@@ -532,7 +541,9 @@ knitr::kable(extreme_rows, digits = 6)
 </tr>
 </tbody>
 </table>
-<p>極端報酬可能是市場事件，也可能是公司行動或建檔錯誤。這張表只負責定位日期；是否修正必須回到原始來源查證，而不能因為觀察值「看起來太大」就刪除。</p>
+<p>極端報酬可能反映真實市場變動，也可能來自公司行動處理或建檔錯誤。若調整價格與原始來源一致，就應把真實極端日保留，並在後續分配或波動模型中正面處理厚尾；只有查到明確的資料錯誤時才修正。</p>
+<h2 id="_8">從這份價格資料可以得到的結論<a class="headerlink" href="#_8" title="Permanent link">#</a></h2>
+<p>這份 AAPL 固定資料顯示，先排序再取落後價格，可以一致地重算簡單報酬與對數報酬；套件作法與手動公式得到相同結果，多期複利也與起訖價格比一致。這些結果仍只是資料處理與歷史描述，沒有說明極端日由什麼事件造成，也沒有提供未來報酬預測。下一步若要研究報酬分配，應保留已查證的極端日並進入 R03；若要預測，則須從資訊可得時點出發，另行安排時間排序的樣本切分。</p>
       </article>
       <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R01_r_tidyverse_manual_ols.html">← R、tidyverse 與手動 OLS</a><a rel="next" href="R03_distributions_heavy_tails.html">分配、厚尾與實證特徵 →</a></nav>
       <footer>© 陳釗而　《財務時間序列分析》</footer>
@@ -540,13 +551,14 @@ knitr::kable(extreme_rows, digits = 6)
     <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
 <ul>
 <li><a href="#_1">讀取、排序與入口檢查</a></li>
-<li><a href="#_2">由調整價格重新計算報酬</a></li>
-<li><a href="#_3">原課程套件捷徑（與手動版並列）</a></li>
-<li><a href="#_4">價格與報酬的時間圖</a></li>
-<li><a href="#_5">簡單報酬與對數報酬的差距</a></li>
-<li><a href="#_6">多期複利必須乘，不是直接加</a></li>
-<li><a href="#_7">交易日與日曆日不同</a></li>
-<li><a href="#_8">極端日先查來源，不自動刪除</a></li>
+<li><a href="#_2">用相鄰交易日的調整價格計算報酬</a></li>
+<li><a href="#arrangemutate-lag">套件作法：用 arrange()、mutate() 與 lag() 計算報酬</a></li>
+<li><a href="#_3">價格與報酬的時間圖</a></li>
+<li><a href="#_4">簡單報酬與對數報酬的差距</a></li>
+<li><a href="#_5">從單日報酬走到整段期間報酬</a></li>
+<li><a href="#_6">交易日與日曆日不同</a></li>
+<li><a href="#_7">極端日先查來源，不自動刪除</a></li>
+<li><a href="#_8">從這份價格資料可以得到的結論</a></li>
 </ul>
 </div>
 </aside>

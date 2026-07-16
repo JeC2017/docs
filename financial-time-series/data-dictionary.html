@@ -21,72 +21,75 @@
   <header class="site-header">
     <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
     <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
-    <a class="policy-link" href="data-policy.html">資料政策</a>
+    <a class="policy-link" href="data-policy.html">資料說明</a>
   </header>
   <div class="layout">
     <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
       <p class="sidebar-title">線上附錄</p>
       <ol><li><a href="index.html">首頁</a></li>
 <li><a href="data.html" aria-current="page" class="active">實證資料下載</a></li>
-<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="data-policy.html">資料來源與重現說明</a></li>
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
 <li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與實證特徵</a></li>
-<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
-<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
-<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
-<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
-<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
-<li><a href="R09_portfolio_capm_factors.html">R09　投資組合、CAPM 與財務因子</a></li>
-<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
-<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
-<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA、ARMA 與真實報酬的 ACF</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　AAPL 的 ARMA 估計、診斷與預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　TWD／JPY 的無資料洩漏樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　TWD／JPY 的單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　AAPL 的 ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html">R09　美國十產業投資組合、CAPM 與 Fama–French 三因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　真實股票報酬的 PCA、低秩重建與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　S&amp;P 500 平衡子樣本的 PCA 與跨股票落後值修正</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC–ICAPM 的第二階段個案研究</a></li>
 <li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
-<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
-<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　機器學習的金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　加州學校資料的雙重選擇與 DML 式殘差化</a></li>
 <li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
 <li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
 <li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
     </nav>
     <main id="main-content" class="content">
       <div class="publication-note">
-        本網站提供作者執行後的教學內容、程式原始檔與本書實證使用的固定資料版本。
-        詳見<a href="data-policy.html">資料與重現政策</a>。
+        想自己重算，可以從頁首下載 R Markdown 與執行結果。所有實證例都使用隨書提供的固定資料；
+        檔案來源、變數單位與已知限制請見<a href="data-policy.html">資料來源與重現說明</a>。
       </div>
       <article>
         <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>實證資料字典</h1></header>
-        <p>本頁列出線上附錄實際使用的欄位、單位與時間鍵。完整列數、欄數與 MD5 以 <code>processed/manifest.csv</code> 為準。</p>
+        <p>本頁說明線上附錄實際使用的欄位、單位與時間索引。讀取一份新資料時，請先回答三個問題：每一列代表哪個觀察單位？報酬以小數還是百分點表示？日期指交易日、FRED 觀察日，還是月份？完整的列數、欄數與 MD5 記錄在 <code>processed/manifest.csv</code>，可以用來確認目前讀入的是哪一個固定版本。</p>
 <h2 id="aapl-msft">AAPL 與 MSFT<a class="headerlink" href="#aapl-msft" title="Permanent link">#</a></h2>
 <ul>
 <li><code>aapl_adjusted_daily_2019_2022.csv</code></li>
 <li><code>date</code>：交易日。</li>
-<li><code>adjusted</code>：原價格檔的調整後收盤價，美元。</li>
+<li><code>adjusted</code>：原價格檔的調整後收盤價，採美元／股的調整後價格尺度。</li>
 <li><code>simple_return</code>：$P_t/P_{t-1}-1$。</li>
 <li><code>log_return</code>：$\log P_t-\log P_{t-1}$。</li>
 <li><code>symbol</code>、<code>company</code>、<code>sector</code>：證券與產業識別欄。</li>
 <li><code>msft_daily_returns_1986_2008.csv</code></li>
 <li><code>date</code>：交易日。</li>
-<li><code>simple_return</code>：Microsoft 日簡單報酬，小數表示。</li>
+<li><code>simple_return</code>：Microsoft 日簡單報酬，以小數表示；例如 <code>0.01</code> 代表 1%。</li>
 </ul>
+<p>兩份檔案的每一列都代表一個交易日。AAPL 第一列沒有前一期價格，因此兩種報酬欄自然會是缺值；分析報酬時應保留這項時間關係，而不是把缺值填成 0。</p>
 <h2 id="fred">FRED 日匯率<a class="headerlink" href="#fred" title="Permanent link">#</a></h2>
 <p><code>fred_jpy_twd_daily_2020_2022.csv</code>：</p>
 <ul>
-<li><code>date</code>：日曆日；非交易日或原序列缺值保留為空值。</li>
+<li><code>date</code>：FRED 工作日觀察日期；來源序列在該日沒有報價時保留為空值，R 讀入後記為 <code>NA</code>。</li>
 <li><code>jpy_per_usd</code>：一美元可兌日圓數，FRED <code>DEXJPUS</code>。</li>
 <li><code>twd_per_usd</code>：一美元可兌新臺幣數，FRED <code>DEXTAUS</code>。</li>
 <li><code>twd_per_jpy</code>：<code>twd_per_usd / jpy_per_usd</code>。</li>
 <li><code>log_return_twd_per_jpy</code>：交叉匯率的一期對數差分；遇缺值時不跨缺值補算。</li>
 </ul>
+<p>每一列對應一個 FRED 工作日觀察日期。只有兩條來源匯率都有數值時，<code>twd_per_jpy</code> 才能形成；若其中一天缺值，<code>log_return_twd_per_jpy</code> 也不跨過該日計算。R06 篩選有限報酬後，預測的「下一期」是下一個有效報酬觀察日，不一定是下一個日曆日。</p>
 <h2 id="tsay">Tsay 股票面板<a class="headerlink" href="#tsay" title="Permanent link">#</a></h2>
 <ul>
-<li><code>tsay_five_stock_monthly_returns_1990_2008.csv</code>：<code>month</code> 加 IBM、HPQ、INTC、JPM、BAC 五家公司月對數報酬。</li>
-<li><code>tsay_barra_monthly_returns_1990_2003.csv</code>：<code>month</code> 加 AGE、C、MWD、MER、DELL、HPQ、IBM、AA、CAT、PG 十家公司月報酬。原檔數值以百分點表示；程式在需要時除以 100。</li>
+<li><code>tsay_five_stock_monthly_returns_1990_2008.csv</code>：每一列是一個月份，欄位為 <code>month</code> 與 IBM、HPQ、INTC、JPM、BAC 五家公司月對數報酬。</li>
+<li><code>tsay_barra_monthly_returns_1990_2003.csv</code>：每一列是一個月份，欄位為 <code>month</code> 與 AGE、C、MWD、MER、DELL、HPQ、IBM、AA、CAT、PG 十家公司月報酬。原檔數值以百分點表示；程式在需要時除以 100。</li>
 </ul>
 <h2 id="sp-500">S&amp;P 500 平衡報酬面板<a class="headerlink" href="#sp-500" title="Permanent link">#</a></h2>
-<p><code>sp500_returns_balanced_2013_2022.csv</code> 的第一欄 <code>date</code> 是共同交易日，其餘 89 欄是股票代碼，儲存日簡單報酬。建檔時先在 <code>symbol</code> 內依日期排序與計算報酬，再保留全部 89 檔都有觀察值的日期。</p>
+<p><code>sp500_returns_balanced_2013_2022.csv</code> 的每一列是一個共同交易日。第一欄 <code>date</code> 記錄日期，其餘 89 欄以股票代碼命名，儲存小數尺度的日簡單報酬。建檔時先在每一檔股票內依日期排序並計算報酬，再保留 89 檔都有觀察值的日期。這個順序很重要；若直接對尚未分組的長表取落後值，前一期價格可能來自另一檔股票。</p>
 <h2 id="_1">日本月總體金融資料<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
 <p><code>japan_monthly_2007_2018.csv</code>：</p>
+<p>每一列代表一個月份，以下水準值與變動率各自使用檔案中的原尺度：</p>
 <ul>
 <li><code>date</code>：月份。</li>
 <li><code>spj</code>、<code>return_j</code>：日本股價指數與報酬。</li>
@@ -105,15 +108,15 @@
 <li><code>yield_10</code>、<code>yield_10_change</code>：日本十年期公債殖利率與百分比變動。</li>
 </ul>
 <h2 id="_2">因子、總體預測變數與十產業<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
-<p><code>ff_qf_macro_industries_1967_2021.csv</code> 每月每產業一列：</p>
+<p><code>ff_qf_macro_industries_1967_2021.csv</code> 每一列代表某個月份的一個產業，同一月份因此會有十列：</p>
 <ul>
 <li><code>month</code>、<code>industry</code>、<code>ret</code>：月份、十產業代碼、產業超額報酬。</li>
-<li><code>factor_ff_rf</code>、<code>factor_ff_mkt_excess</code>、<code>factor_ff_smb</code>、<code>factor_ff_hml</code>：Fama--French 無風險利率與三因子。</li>
+<li><code>factor_ff_rf</code>、<code>factor_ff_mkt_excess</code>、<code>factor_ff_smb</code>、<code>factor_ff_hml</code>：Fama–French 無風險利率與三因子。</li>
 <li><code>factor_q_me</code>、<code>factor_q_ia</code>、<code>factor_q_roe</code>、<code>factor_q_eg</code>：global-q 規模、投資、ROE 與預期成長因子。</li>
-<li><code>macro_dp</code>、<code>macro_dy</code>、<code>macro_ep</code>、<code>macro_de</code>、<code>macro_svar</code>、<code>macro_bm</code>、<code>macro_ntis</code>、<code>macro_tbl</code>、<code>macro_lty</code>、<code>macro_ltr</code>、<code>macro_tms</code>、<code>macro_dfy</code>、<code>macro_infl</code>：Welch--Goyal 月總體預測變數。</li>
+<li><code>macro_dp</code>、<code>macro_dy</code>、<code>macro_ep</code>、<code>macro_de</code>、<code>macro_svar</code>、<code>macro_bm</code>、<code>macro_ntis</code>、<code>macro_tbl</code>、<code>macro_lty</code>、<code>macro_ltr</code>、<code>macro_tms</code>、<code>macro_dfy</code>、<code>macro_infl</code>：Welch–Goyal 月總體預測變數。</li>
 </ul>
-<h2 id="california-schools">California schools<a class="headerlink" href="#california-schools" title="Permanent link">#</a></h2>
-<p><code>california_schools.csv</code> 有 110 欄。主要應變數與處置／解釋變數為：</p>
+<h2 id="_3">加州學校資料<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<p><code>california_schools.csv</code> 的每一列是一所學校，共有 110 欄。R15 使用的主要應變數與重點解釋變數如下：</p>
 <ul>
 <li><code>testscore</code>：五年級數學與英語／語文測驗分數之和。</li>
 <li><code>elarts_score</code>、<code>math_score</code>：英文與數學成績。</li>
@@ -128,11 +131,11 @@
 <p>原課程附有 Stock and Watson, <em>Introduction to Econometrics</em>, 4th ed., Chapter 14 的完整變數表；R15 只從具經濟意義的連續背景欄位建立控制字典。</p>
 <h2 id="icapm">臺灣 ICAPM 第二階段面板<a class="headerlink" href="#icapm" title="Permanent link">#</a></h2>
 <ul>
-<li><code>day</code>、<code>firm</code>：497 日與 47 家公司的平衡面板鍵。</li>
+<li><code>day</code>、<code>firm</code>：共同識別「公司—日期」觀察值；資料為 47 家公司、497 日的平衡面板。</li>
 <li><code>return</code>：公司報酬。</li>
 <li><code>cov_X</code>、<code>cov_vix</code>、<code>cov_liq</code>：原課程第一階段預先計算的市場、VIX 與流動性條件共變數。</li>
 </ul>
-<p>因缺少第一階段原始序列與完整估計紀錄，這三個共變數只能視為給定輸入；不能由此檔獨立驗證 DCC 或 PQR 的第一階段。</p>
+<p>現有檔案沒有保存第一階段原始序列與完整估計紀錄，因此分析時將這三個共變數視為已給定的輸入。這份資料足以重算第二階段面板分析；DCC 或 PQR 第一階段則需要原始序列與估計設定，無法只靠目前檔案重新取得。</p>
       </article>
       
       <footer>© 陳釗而　《財務時間序列分析》</footer>
@@ -145,7 +148,7 @@
 <li><a href="#sp-500">S&amp;P 500 平衡報酬面板</a></li>
 <li><a href="#_1">日本月總體金融資料</a></li>
 <li><a href="#_2">因子、總體預測變數與十產業</a></li>
-<li><a href="#california-schools">California schools</a></li>
+<li><a href="#_3">加州學校資料</a></li>
 <li><a href="#icapm">臺灣 ICAPM 第二階段面板</a></li>
 </ul>
 </div>

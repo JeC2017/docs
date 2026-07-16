@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="《財務時間序列分析》R 線上附錄：R09：投資組合、CAPM 與財務因子">
-  <title>R09：投資組合、CAPM 與財務因子｜財務時間序列分析</title>
+  <meta name="description" content="《財務時間序列分析》R 線上附錄：R09：美國十產業投資組合、CAPM 與 Fama–French 三因子">
+  <title>R09：美國十產業投資組合、CAPM 與 Fama–French 三因子｜財務時間序列分析</title>
   <link rel="stylesheet" href="assets/site.css">
   <script>
     window.MathJax = {
@@ -21,51 +21,51 @@
   <header class="site-header">
     <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
     <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
-    <a class="policy-link" href="data-policy.html">資料政策</a>
+    <a class="policy-link" href="data-policy.html">資料說明</a>
   </header>
   <div class="layout">
     <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
       <p class="sidebar-title">線上附錄</p>
       <ol><li><a href="index.html">首頁</a></li>
 <li><a href="data.html">實證資料下載</a></li>
-<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="data-policy.html">資料來源與重現說明</a></li>
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
 <li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與實證特徵</a></li>
-<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
-<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
-<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
-<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
-<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
-<li><a href="R09_portfolio_capm_factors.html" aria-current="page" class="active">R09　投資組合、CAPM 與財務因子</a></li>
-<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
-<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
-<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA、ARMA 與真實報酬的 ACF</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　AAPL 的 ARMA 估計、診斷與預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　TWD／JPY 的無資料洩漏樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　TWD／JPY 的單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　AAPL 的 ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html" aria-current="page" class="active">R09　美國十產業投資組合、CAPM 與 Fama–French 三因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　真實股票報酬的 PCA、低秩重建與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　S&amp;P 500 平衡子樣本的 PCA 與跨股票落後值修正</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC–ICAPM 的第二階段個案研究</a></li>
 <li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
-<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
-<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　機器學習的金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　加州學校資料的雙重選擇與 DML 式殘差化</a></li>
 <li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
 <li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
 <li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
     </nav>
     <main id="main-content" class="content">
       <div class="publication-note">
-        本網站提供作者執行後的教學內容、程式原始檔與本書實證使用的固定資料版本。
-        詳見<a href="data-policy.html">資料與重現政策</a>。
+        想自己重算，可以從頁首下載 R Markdown 與執行結果。所有實證例都使用隨書提供的固定資料；
+        檔案來源、變數單位與已知限制請見<a href="data-policy.html">資料來源與重現說明</a>。
       </div>
       <article>
-        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R09：投資組合、CAPM 與財務因子</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R09_portfolio_capm_factors.Rmd">R Markdown 原始檔</a><a href="source/R09_portfolio_capm_factors.md">執行後 Markdown</a></div></header>
-        <p>本附錄對應第 13--14 章，改用真實的美國十產業月報酬與 Fama--French 因子，不再以模擬資產報酬作為主體。分析包含等權重、全域最小變異數（GMV）、驗證期選定的收縮 GMV，以及 CAPM／Fama--French 三因子在固定測試期的條件解釋表現。</p>
-<p>樣本是作者工作用凍結快照：1967 年 1 月至 2021 年 11 月，共 659 個月、10 個產業。<code>ret</code> 是產業投資組合的月超額報酬，<code>factor_ff_rf</code> 是月無風險報酬，市場、SMB 與 HML 都是月因子報酬；本檔均以<strong>小數</strong>表示，例如 0.01 代表 1%。原課程程式透過 Kenneth French Data Library 取得 Fama--French 因子與十產業投資組合，再合併 Global-q 與 Welch--Goyal 總體變數。本附錄只使用十產業、無風險利率與 FF3 欄位。</p>
-<p>公開版隨附作者已授權公開的 <code>data/processed</code> 凍結 CSV、程式與執行結果，因此可離線自含重跑。若讀者另從上游來源重建，仍須記錄資料庫版本、下載日、FIZ/CIZ 方法版本、百分比轉小數與產業報酬減去無風險利率的步驟；即時下載版本不保證與凍結快照相同。</p>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R09：美國十產業投資組合、CAPM 與 Fama–French 三因子</h1><div class="source-links" aria-label="下載本頁檔案"><a href="source/R09_portfolio_capm_factors.Rmd">下載 R Markdown</a><a href="source/R09_portfolio_capm_factors.md">下載執行結果（Markdown）</a></div></header>
+        <p>本附錄用美國十個產業的月報酬回答兩個實際問題。第一，估計共變異數矩陣時加入收縮，能否讓全域最小變異數（global minimum variance, GMV）投資組合在保留期更穩定？第二，加入 SMB 與 HML 後，Fama–French 三因子模型能否比 CAPM 更貼近同月已實現的產業超額報酬？前一題是投資組合風險比較，後一題是同期條件解釋，兩者的資訊時間與結論不能混在一起。</p>
+<p>資料涵蓋 1967 年 1 月至 2021 年 11 月，共 659 個月、10 個產業。長資料中的一列是一個「產業—月份」觀察，所以共有 6,590 列；轉成矩陣後，一列是一個月份，一欄是一個產業。<code>ret</code> 是產業投資組合的月超額報酬，<code>factor_ff_rf</code> 是月無風險報酬，市場、SMB 與 HML 都是月因子報酬。所有報酬都以<strong>小數</strong>表示，例如 0.01 代表 1%。原課程程式透過 Kenneth French Data Library 取得因子與十產業投資組合，再合併 global-q 與 Welch–Goyal 總體變數；本附錄只使用其中的十產業、無風險利率與 FF3 欄位。</p>
+<p>隨書提供的 <code>data/processed</code> CSV 是固定資料快照，讓程式在沒有網路時也能重做。若讀者改從上游來源下載，請記錄資料庫版本、下載日、FIZ/CIZ 方法版本、百分比轉小數，以及產業報酬減去無風險利率的步驟。CRSP 從 FIZ 改為 CIZ 時，同時調整了資料格式與月報酬累積方式，因此資料庫更新後，數字不必與這份固定快照完全相同。</p>
 <pre><code class="language-r">knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
   fig.width = 7, fig.height = 4.3
 )
 stopifnot(getRversion() &gt;= &quot;4.3.0&quot;)
 </code></pre>
-<h2 id="1">1. 讀取、來源與單位核對<a class="headerlink" href="#1" title="Permanent link">#</a></h2>
+<h2 id="_1">先確認一列資料代表什麼<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
 <pre><code class="language-r">locate_project_file &lt;- function(relative_path) {
   candidates &lt;- c(
     relative_path,
@@ -85,6 +85,7 @@ manifest_file &lt;- locate_project_file(&quot;data/processed/manifest.csv&quot;)
 d &lt;- read.csv(panel_file, stringsAsFactors = FALSE, check.names = FALSE)
 manifest &lt;- read.csv(manifest_file, stringsAsFactors = FALSE)
 d$month &lt;- as.Date(d$month)
+# 排序後，同一月份的十個產業會相鄰，後面的矩陣轉換才有明確順序。
 d &lt;- d[order(d$month, d$industry), ]
 
 manifest_key &lt;- &quot;data/processed/ff_qf_macro_industries_1967_2021.csv&quot;
@@ -115,13 +116,14 @@ data.frame(
 ##                                md5
 ## 1 69563611584d8a2dfd984ec6a53822a4
 </code></pre>
-<p>資料來源與解讀界線如下。</p>
+<p>輸出中的日期與筆數先回答最基本的資料問題：每個「月份—產業」鍵只出現一次，而且 659 個月都各有 10 個產業。MD5 值只用來辨認本附錄使用哪一份固定快照；它不代表資料內容正確，也不取代來源與轉換紀錄。</p>
+<p>下面把資料來源與本附錄實際使用的欄位並列，方便讀者分清楚原始合併檔與本題分析範圍。</p>
 <pre><code class="language-r">data.frame(
-  component = c(&quot;十產業與 FF3&quot;, &quot;凍結合併面板&quot;, &quot;本附錄輸出&quot;),
+  component = c(&quot;十產業與 FF3&quot;, &quot;固定合併面板&quot;, &quot;本附錄輸出&quot;),
   source = c(
     &quot;Kenneth French Data Library；原課程以 frenchdata 下載&quot;,
-    &quot;原課程 fffqmacro.R；另含 Global-q 與 Welch--Goyal 欄位&quot;,
-    &quot;作者授權公開的 processed 凍結快照&quot;
+    &quot;原課程 fffqmacro.R；另含 global-q 與 Welch–Goyal 欄位&quot;,
+    &quot;隨書提供的 processed 固定快照&quot;
   ),
   use_here = c(
     &quot;ret、RF、MKT-RF、SMB、HML&quot;,
@@ -130,17 +132,17 @@ data.frame(
   )
 )
 </code></pre>
-<pre><code>##      component                                                 source
-## 1 十產業與 FF3  Kenneth French Data Library；原課程以 frenchdata 下載
-## 2 凍結合併面板 原課程 fffqmacro.R；另含 Global-q 與 Welch--Goyal 欄位
-## 3   本附錄輸出                      作者授權公開的 processed 凍結快照
+<pre><code>##      component                                                source
+## 1 十產業與 FF3 Kenneth French Data Library；原課程以 frenchdata 下載
+## 2 固定合併面板 原課程 fffqmacro.R；另含 global-q 與 Welch–Goyal 欄位
+## 3   本附錄輸出                         隨書提供的 processed 固定快照
 ##                           use_here
 ## 1        ret、RF、MKT-RF、SMB、HML
 ## 2              只讀取 FF3 相關欄位
 ## 3 方法教學，不作投資建議或因果解讀
 </code></pre>
-<h2 id="2">2. 整理十產業矩陣並固定時間切分<a class="headerlink" href="#2" title="Permanent link">#</a></h2>
-<p>先確認同一月份的因子與無風險利率在十個產業列完全一致，再把長資料轉成「月份乘產業」矩陣。</p>
+<h2 id="_2">如何安排訓練、驗證與測試月份？<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
+<p>先確認同一月份的因子與無風險利率在十個產業列完全一致，再把長資料轉成「月份乘產業」矩陣。這一步也把資訊單位改清楚：共變異數與因子迴歸都以月份為觀察，而不是把同月的十個產業誤當成十個獨立時間點。</p>
 <pre><code class="language-r">common_names &lt;- c(
   &quot;factor_ff_rf&quot;, &quot;factor_ff_mkt_excess&quot;,
   &quot;factor_ff_smb&quot;, &quot;factor_ff_hml&quot;
@@ -170,7 +172,7 @@ stopifnot(
   max(abs(rowMeans(R_total - R_excess) - rf)) &lt; 1e-12
 )
 </code></pre>
-<p>固定前 60% 為訓練期、接續 20% 為驗證期、最後 20% 為測試期。驗證期只選共變異數收縮強度；測試期不參與任何權重或模型選擇。</p>
+<p>依時間順序把前 60% 設為訓練期、接續 20% 設為驗證期、最後 20% 留作測試期。訓練期估計初始共變異數；驗證期只選收縮強度；選定後再用訓練與驗證期重估最終權重。測試期只用一次，不參與權重、收縮強度或因子模型的選擇。</p>
 <pre><code class="language-r">n_month &lt;- length(months)
 train_end &lt;- floor(0.60 * n_month)
 validation_end &lt;- floor(0.80 * n_month)
@@ -191,21 +193,23 @@ data.frame(
 ## 2   驗證  1999-12-01 2010-11-01          132
 ## 3   測試  2010-12-01 2021-11-01          132
 </code></pre>
-<h2 id="3-gmv-gmv">3. 等權重、GMV 與驗證期收縮 GMV<a class="headerlink" href="#3-gmv-gmv" title="Permanent link">#</a></h2>
+<p>請把表中的三段日期視為研究設計的一部分。若先看過測試期再改候選網格或模型規格，最後一段就已參與調校，不能再當作未見的保留期。</p>
+<h2 id="gmv">收縮能否改善 GMV 的保留期表現？<a class="headerlink" href="#gmv" title="Permanent link">#</a></h2>
 <p>GMV 權重為</p>
 <p>\[
 \widehat w_{GMV}=
 \frac{\widehat\Sigma^{-1}\mathbf 1}
 {\mathbf 1^\top\widehat\Sigma^{-1}\mathbf 1}.
 \]</p>
-<p>為降低小特徵值造成的不穩定，候選共變異數為</p>
+<p>GMV 會反轉共變異數矩陣，因此很小、又估得不準的特徵值可能把權重放大。為降低這種不穩定，候選共變異數為</p>
 <p>\[
 \widehat\Sigma_\lambda=(1-\lambda)\widehat\Sigma+
 \lambda\operatorname{diag}(\widehat\Sigma),
 \]</p>
-<p>且只用驗證期實現波動選擇 \(\lambda\)。</p>
+<p>且只用驗證期實現波動選擇 \(\lambda\)。當 \(\lambda=0\) 時保留完整樣本共變異數；當 \(\lambda=1\) 時只保留各產業自己的變異數。這裡比較的是一小組事先列出的候選值，不是在測試期反覆調整。</p>
 <pre><code class="language-r">gmv_weights &lt;- function(Sigma, lambda = 0) {
   stopifnot(lambda &gt;= 0, lambda &lt;= 1)
+  # 收縮只改變共變異數估計；所有候選權重仍滿足加總為一。
   Sigma_use &lt;- (1 - lambda) * Sigma + lambda * diag(diag(Sigma))
   one &lt;- rep(1, nrow(Sigma_use))
   raw &lt;- solve(Sigma_use, one)
@@ -238,7 +242,7 @@ shrinkage_table
 </code></pre>
 <pre><code>## [1] 0.5
 </code></pre>
-<p>鎖定 \(\lambda\) 後，合併訓練與驗證期重新估計一次；測試期仍未參與。</p>
+<p>驗證期月標準差在 \(\lambda=0.50\) 時最低，因此後續固定使用 0.50。這不是「真實最佳參數」，而是這個候選網格、這段驗證期與這組產業下的選擇。選定 \(\lambda\) 後，合併訓練與驗證期重新估計一次；測試期仍未參與。</p>
 <pre><code class="language-r">development_id &lt;- c(train_id, validation_id)
 Sigma_development &lt;- cov(R_total[development_id, , drop = FALSE])
 n_asset &lt;- ncol(R_total)
@@ -261,6 +265,7 @@ round(weights, 3)
 ## GMV                   0.447
 ## Validation_Shrunk_GMV 0.300
 </code></pre>
+<p>未收縮 GMV 出現較大的正負權重，反映矩陣反轉會放大產業間細微的共變異數差異；收縮後的權重較接近零，也較少依賴大幅放空。這是穩定化的直觀效果，但是否真的降低保留期風險，仍要看下一張表。</p>
 <pre><code class="language-r">max_drawdown &lt;- function(r) {
   wealth &lt;- c(1, cumprod(1 + r))
   min(wealth / cummax(wealth) - 1)
@@ -288,25 +293,26 @@ round(test_performance, 4)
 ## GMV                            -0.1861
 ## Validation_Shrunk_GMV          -0.2224
 </code></pre>
+<p>在這個測試期，未收縮 GMV 的年化標準差約為 11.66%，收縮 GMV 約為 11.98%，都低於等權重的 14.12%；最低風險並沒有自動帶來最高平均報酬或 Sharpe 比率。收縮 GMV 的表現介於等權重與未收縮 GMV 之間，說明驗證期選出的穩定化程度不保證在每個保留期都勝過未收縮估計。</p>
 <pre><code class="language-r">wealth &lt;- sapply(seq_len(nrow(weights)), function(j) {
   cumprod(1 + drop(R_total[test_id, , drop = FALSE] %*% weights[j, ]))
 })
 matplot(
   months[test_id], wealth, type = &quot;l&quot;, lty = 1, lwd = 1.5,
   col = c(&quot;#173B57&quot;, &quot;#A34045&quot;, &quot;#1D6D73&quot;),
-  xlab = &quot;Month&quot;, ylab = &quot;Cumulative wealth&quot;,
-  main = &quot;Real Ten-Industry Portfolios: Fixed-Weight Test Performance&quot;
+  xlab = &quot;月份&quot;, ylab = &quot;累積財富&quot;,
+  main = &quot;十產業投資組合：固定權重的測試期表現&quot;
 )
 legend(
-  &quot;topleft&quot;, rownames(weights),
+  &quot;topleft&quot;, c(&quot;等權重&quot;, &quot;未收縮 GMV&quot;, &quot;驗證期收縮 GMV&quot;),
   col = c(&quot;#173B57&quot;, &quot;#A34045&quot;, &quot;#1D6D73&quot;),
   lty = 1, lwd = 1.5, bty = &quot;n&quot;
 )
 </code></pre>
 <p><img alt="固定權重在最終測試期的累積財富；未扣交易成本。" src="./R09_portfolio_capm_factors_files/figure-gfm/wealth-plot-1.png"></p>
-<p>這是歷史保留期比較，不是可交易績效宣告：未納入交易成本、估計誤差、多重嘗試或產業投資組合實際取得方式。</p>
-<h2 id="4-capm-ff3">4. 真實產業報酬的 CAPM 與 FF3<a class="headerlink" href="#4-capm-ff3" title="Permanent link">#</a></h2>
-<p>以下以製造業（<code>Manuf</code>）為焦點，係數只用訓練期估計。因子是當月已實現報酬，所以測試期結果是<strong>同期條件重建</strong>，不是月初可交易的事前預測。</p>
+<p>這是歷史保留期的描述性比較。程式假設在測試期持有固定權重，沒有納入交易成本、做空限制、估計誤差、多重嘗試，也沒有處理產業投資組合在實務上如何取得，因此不能直接視為可交易策略的績效。</p>
+<h2 id="ff3-capm">FF3 是否比 CAPM 更能重建同月產業報酬？<a class="headerlink" href="#ff3-capm" title="Permanent link">#</a></h2>
+<p>以下先以製造業（<code>Manuf</code>）為例，所有係數只用訓練期估計。測試月份的因子與產業報酬都是當月結束後才完整觀察，因此這裡問的是：給定同月已實現的市場、SMB 與 HML，模型能重建多少產業超額報酬？這是<strong>同期條件重建</strong>，不是月初可以執行的事前預測。</p>
 <pre><code class="language-r">focus_industry &lt;- &quot;Manuf&quot;
 reg_data &lt;- data.frame(
   month = months,
@@ -320,6 +326,7 @@ fit_capm &lt;- lm(y ~ MKT, data = reg_data, subset = train_id)
 fit_ff3 &lt;- lm(y ~ MKT + SMB + HML, data = reg_data, subset = train_id)
 
 newey_west_vcov &lt;- function(model, lag = 6L) {
+  # 月資料可能同時有異質變異與短期序列相關，故以 Bartlett 權重計算 HAC。
   X &lt;- model.matrix(model)
   e &lt;- residuals(model)
   n &lt;- nrow(X)
@@ -353,6 +360,7 @@ data.frame(
 ## 3         SMB  0.031724972 0.0251161499
 ## 4         HML  0.049466265 0.0430464166
 </code></pre>
+<p>製造業的市場係數約為 1.06，表示在這段訓練樣本中，製造業超額報酬與市場超額報酬大致同向且幅度略高。SMB 與 HML 的點估計較小；HAC 標準誤反映序列相依與異質變異後的不確定性。這些係數描述條件關聯，不等於因子的因果效果。</p>
 <pre><code class="language-r">score_reconstruction &lt;- function(model, rows) {
   prediction &lt;- predict(model, newdata = reg_data[rows, ])
   actual &lt;- reg_data$y[rows]
@@ -374,6 +382,7 @@ round(conditional_test, 4)
 ## CAPM 0.0157 0.0120         0.8826
 ## FF3  0.0152 0.0117         0.8905
 </code></pre>
+<p>製造業測試期的 CAPM RMSE 約為 0.0157，FF3 約為 0.0152；FF3 的同期重建誤差略低，條件 \(R^2\) 也由約 0.883 提高到 0.891。差距雖然方向一致，幅度不大，不能只憑這一個產業宣稱三因子模型全面勝出。</p>
 <pre><code class="language-r">all_industry_rmse &lt;- do.call(rbind, lapply(industries, function(industry) {
   one &lt;- transform(reg_data, y = as.numeric(R_excess[, industry]))
   capm &lt;- lm(y ~ MKT, data = one, subset = train_id)
@@ -400,6 +409,7 @@ all_industry_rmse
 ## 9     Telcm     0.02558006    0.02507557  -0.0005044857
 ## 10    Utils     0.03220611    0.03544833   0.0032422134
 </code></pre>
+<p>十個產業的結果並不一致：FF3 在耐久財、能源、高科技、製造業、其他產業與電信的 RMSE 較低，但在醫療、非耐久財、商店與公用事業較高。加入因子提高模型彈性，是否改善條件重建仍取決於產業與保留期間。</p>
 <pre><code class="language-r">capm_test &lt;- predict(fit_capm, newdata = reg_data[test_id, ])
 ff3_test &lt;- predict(fit_ff3, newdata = reg_data[test_id, ])
 matplot(
@@ -407,25 +417,21 @@ matplot(
   cbind(reg_data$y[test_id], capm_test, ff3_test),
   type = &quot;l&quot;, lty = c(1, 2, 3), lwd = c(1.6, 1.2, 1.2),
   col = c(&quot;black&quot;, &quot;#A34045&quot;, &quot;#1D6D73&quot;),
-  xlab = &quot;Month&quot;, ylab = &quot;Monthly excess return (decimal)&quot;,
-  main = &quot;Manuf: Concurrent Factor Reconstruction in the Test Period&quot;
+  xlab = &quot;月份&quot;, ylab = &quot;月超額報酬（小數）&quot;,
+  main = &quot;製造業：測試期的同期因子重建&quot;
 )
 legend(
-  &quot;topleft&quot;, c(&quot;Actual&quot;, &quot;CAPM&quot;, &quot;FF3&quot;),
+  &quot;topleft&quot;, c(&quot;實際值&quot;, &quot;CAPM&quot;, &quot;FF3&quot;),
   col = c(&quot;black&quot;, &quot;#A34045&quot;, &quot;#1D6D73&quot;),
   lty = c(1, 2, 3), lwd = c(1.6, 1.2, 1.2), bty = &quot;n&quot;
 )
 </code></pre>
 <p><img alt="製造業測試期實現超額報酬與同期因子條件重建。" src="./R09_portfolio_capm_factors_files/figure-gfm/conditional-fit-plot-1.png"></p>
-<p>FF3 測試誤差若低於 CAPM，只能說在這個固定切分下，加入同期 SMB 與 HML 改善條件解釋；不能直接推成未來報酬可預測、因子具有因果效果或策略可獲利。</p>
-<h2 id="5">5. 可重現結論<a class="headerlink" href="#5" title="Permanent link">#</a></h2>
-<ol>
-<li>十產業、RF 與 FF3 都來自真實的固定月資料，不再用合成資產作主結果。</li>
-<li>所有資料均明示為月小數報酬；產業 <code>ret</code> 已扣除 RF。</li>
-<li>收縮強度只用驗證期選定，最後測試期完全保留。</li>
-<li>CAPM／FF3 使用測試期同期因子時，只稱條件重建。</li>
-<li>公開 repo 隨附作者授權的 processed CSV，可直接重跑；若另由上游重建，仍須保存來源、版本與轉換紀錄。</li>
-</ol>
+<p>因此，FF3 測試誤差低於 CAPM 時，合宜的結論是：在這個固定切分下，加入同期 SMB 與 HML 改善了部分產業的條件解釋。這個結果沒有證明未來報酬可預測，也沒有識別因子的因果效果，更不是策略獲利的證據。</p>
+<h2 id="_3">從結果回到研究問題<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<p>投資組合部分顯示，GMV 的確降低了這段測試期的波動，但驗證期選出的收縮 GMV 並未在測試期進一步勝過未收縮 GMV。這不是收縮方法失效的普遍證據，而是提醒我們：估計穩定、權重不極端與單一保留期風險最低，是三個相關但不相同的目標。若要做更接近實務的比較，下一步可加入非負權重、交易成本與滾動重估。</p>
+<p>因子模型部分顯示，FF3 對製造業以及部分產業的同期重建略有改善，但各產業方向不一。由於測試期因子是同月已實現值，這個練習回答的是條件解釋，而不是事前預測或因果問題。若研究目標改為報酬預測，就必須把解釋變數延遲到預測形成時已知的資訊。</p>
+<p>重做本附錄時，請保留資料來源、版本、單位轉換與時間切分。若改用最新資料，應把新結果視為新的資料版本，而不是期待逐位數複製這份固定快照。</p>
 <pre><code class="language-r">sessionInfo()
 </code></pre>
 <pre><code>## R version 4.5.2 (2025-10-31)
@@ -445,48 +451,21 @@ legend(
 ## attached base packages:
 ## [1] stats     graphics  grDevices utils     datasets  methods   base     
 ## 
-## other attached packages:
-## [1] tibble_3.3.0 dplyr_1.2.1 
-## 
 ## loaded via a namespace (and not attached):
-##  [1] shape_1.4.6.1       gtable_0.3.6        xfun_0.57          
-##  [4] ggplot2_4.0.3       collapse_2.1.7      lattice_0.22-7     
-##  [7] quadprog_1.5-8      vctrs_0.7.2         tools_4.5.2        
-## [10] Rdpack_2.6.6        generics_0.1.4      curl_7.0.0         
-## [13] parallel_4.5.2      sandwich_3.1-1      xts_0.14.2         
-## [16] pkgconfig_2.0.3     gbutils_0.5.1       Matrix_1.7-4       
-## [19] tidyverse_2.0.0     RColorBrewer_1.1-3  S7_0.2.1           
-## [22] lifecycle_1.0.5     compiler_4.5.2      farver_2.1.2       
-## [25] maxLik_1.5-2.2      textshaping_1.0.5   codetools_0.2-20   
-## [28] htmltools_0.5.9     glmnet_4.1-10       Formula_1.2-5      
-## [31] pillar_1.11.1       MASS_7.3-65         plm_2.6-7          
-## [34] iterators_1.0.14    foreach_1.5.2       nlme_3.1-168       
-## [37] fracdiff_1.5-4      pls_2.9-0           fBasics_4052.98    
-## [40] tidyselect_1.2.1    bdsmatrix_1.3-7     digest_0.6.39      
-## [43] labeling_0.4.3      splines_4.5.2       tseries_0.10-62    
-## [46] miscTools_0.6-30    fastmap_1.2.0       grid_4.5.2         
-## [49] colorspace_2.1-2    cli_3.6.5           magrittr_2.0.4     
-## [52] utf8_1.2.6          survival_3.8-3      withr_3.0.2        
-## [55] scales_1.4.0        forecast_9.0.2      TTR_0.24.4         
-## [58] rmarkdown_2.31      quantmod_0.4.29     otel_0.2.0         
-## [61] timeDate_4052.112   ragg_1.5.2          zoo_1.8-15         
-## [64] timeSeries_4052.112 fGarch_4052.93      urca_1.3-4         
-## [67] evaluate_1.0.5      knitr_1.51          rbibutils_2.4.1    
-## [70] lmtest_0.9-40       rlang_1.1.7         spatial_7.3-18     
-## [73] Rcpp_1.1.0          glue_1.8.0          R6_2.6.1           
-## [76] cvar_0.6            systemfonts_1.3.2
+## [1] compiler_4.5.2 cli_3.6.5      tools_4.5.2    otel_0.2.0     knitr_1.51    
+## [6] xfun_0.57      rlang_1.1.7    evaluate_1.0.5
 </code></pre>
       </article>
-      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R08_arch_garch_asymmetry_forecasting.html">← ARCH、GARCH、非對稱波動與預測</a><a rel="next" href="R10_pca_factor_analysis.html">PCA 與因子分析 →</a></nav>
+      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R08_arch_garch_asymmetry_forecasting.html">← AAPL 的 ARCH、GARCH、非對稱波動與預測</a><a rel="next" href="R10_pca_factor_analysis.html">真實股票報酬的 PCA、低秩重建與因子分析 →</a></nav>
       <footer>© 陳釗而　《財務時間序列分析》</footer>
     </main>
     <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
 <ul>
-<li><a href="#1">1. 讀取、來源與單位核對</a></li>
-<li><a href="#2">2. 整理十產業矩陣並固定時間切分</a></li>
-<li><a href="#3-gmv-gmv">3. 等權重、GMV 與驗證期收縮 GMV</a></li>
-<li><a href="#4-capm-ff3">4. 真實產業報酬的 CAPM 與 FF3</a></li>
-<li><a href="#5">5. 可重現結論</a></li>
+<li><a href="#_1">先確認一列資料代表什麼</a></li>
+<li><a href="#_2">如何安排訓練、驗證與測試月份？</a></li>
+<li><a href="#gmv">收縮能否改善 GMV 的保留期表現？</a></li>
+<li><a href="#ff3-capm">FF3 是否比 CAPM 更能重建同月產業報酬？</a></li>
+<li><a href="#_3">從結果回到研究問題</a></li>
 </ul>
 </div>
 </aside>

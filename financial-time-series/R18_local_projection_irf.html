@@ -21,47 +21,48 @@
   <header class="site-header">
     <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
     <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
-    <a class="policy-link" href="data-policy.html">資料政策</a>
+    <a class="policy-link" href="data-policy.html">資料說明</a>
   </header>
   <div class="layout">
     <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
       <p class="sidebar-title">線上附錄</p>
       <ol><li><a href="index.html">首頁</a></li>
 <li><a href="data.html">實證資料下載</a></li>
-<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="data-policy.html">資料來源與重現說明</a></li>
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
 <li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與實證特徵</a></li>
-<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
-<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
-<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
-<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
-<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
-<li><a href="R09_portfolio_capm_factors.html">R09　投資組合、CAPM 與財務因子</a></li>
-<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
-<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
-<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA、ARMA 與真實報酬的 ACF</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　AAPL 的 ARMA 估計、診斷與預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　TWD／JPY 的無資料洩漏樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　TWD／JPY 的單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　AAPL 的 ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html">R09　美國十產業投資組合、CAPM 與 Fama–French 三因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　真實股票報酬的 PCA、低秩重建與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　S&amp;P 500 平衡子樣本的 PCA 與跨股票落後值修正</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC–ICAPM 的第二階段個案研究</a></li>
 <li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
-<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
-<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　機器學習的金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　加州學校資料的雙重選擇與 DML 式殘差化</a></li>
 <li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
 <li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
 <li><a href="R18_local_projection_irf.html" aria-current="page" class="active">R18　VAR、局部投影與進階 IRF</a></li></ol>
     </nav>
     <main id="main-content" class="content">
       <div class="publication-note">
-        本網站提供作者執行後的教學內容、程式原始檔與本書實證使用的固定資料版本。
-        詳見<a href="data-policy.html">資料與重現政策</a>。
+        想自己重算，可以從頁首下載 R Markdown 與執行結果。所有實證例都使用隨書提供的固定資料；
+        檔案來源、變數單位與已知限制請見<a href="data-policy.html">資料來源與重現說明</a>。
       </div>
       <article>
-        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R18：VAR、局部投影與進階 IRF</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R18_local_projection_irf.Rmd">R Markdown 原始檔</a><a href="source/R18_local_projection_irf.md">執行後 Markdown</a></div></header>
-        <p>本附錄對應選讀第 23 章。前半以<strong>已知且可觀察的外生衝擊</strong>建立教學模擬，比較 VAR 與局部投影（LP）IRF，並示範 HAC 標準誤。接著使用固定日本月資料，估計油價變動創新與股價報酬、十年期殖利率變動的縮減式條件反應。最後提供 DML/AIPW 評分函數與狀態相依性的小型核對例；不宣稱重現專案中三篇 2024--2026 年論文。</p>
-<h2 id="_1">執行條件<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R18：VAR、局部投影與進階 IRF</h1><div class="source-links" aria-label="下載本頁檔案"><a href="source/R18_local_projection_irf.Rmd">下載 R Markdown</a><a href="source/R18_local_projection_irf.md">下載執行結果（Markdown）</a></div></header>
+        <p>局部投影（local projection, LP）把每個預測期距分開估計。它最直接的問題是：今天出現一單位衝擊後，應變數在當期、下一期、再下一期平均改變多少？本附錄先在衝擊確實外生且可觀察的模擬中，比較向量自我迴歸（vector autoregression, VAR）與 LP 的衝擊反應函數（impulse response function, IRF），並示範異質變異與自相關一致（heteroskedasticity and autocorrelation consistent, HAC）標準誤；接著才回到日本月資料，估計油價月變動與股價報酬、十年期殖利率變動的縮減式條件反應。</p>
+<p>這兩段的待估對象不能混在一起。模擬裡的 <code>shock</code> 是資料生成過程明示的外生創新項，所以曲線有因果 IRF 的意義；日本資料只有「控制兩期落後資訊後，當月油價變動所對應的條件反應」，沒有外部識別，不能稱為油價供給衝擊的因果效果。最後的增廣逆機率加權（augmented inverse probability weighting, AIPW）與狀態相依例只是靜態評分函數和曲線形狀的程式核對，也不等於完成一個時間序列 IRF 研究。</p>
+<h2 id="_1">先確認執行環境與三種例子的界線<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
 <ul>
-<li>模型計算使用 base R；<code>knitr</code> 負責轉檔，<code>ragg</code> 與 <code>systemfonts</code> 負責以 cwTeX 字型產生圖檔；不下載資料。</li>
+<li>模型計算使用 R 內建函數；<code>knitr</code> 負責轉檔，<code>ragg</code> 與 <code>systemfonts</code> 負責以 cwTeX 字型產生圖檔；不下載資料。</li>
 <li>模擬使用固定種子；實證使用 <code>data/processed/japan_monthly_2007_2018.csv</code>。</li>
-<li>模擬衝擊的識別由資料生成過程明示；日本資料只有落後資訊條件下的油價變動創新，沒有外生結構衝擊的識別。</li>
+<li>模擬衝擊的識別由資料生成過程明示；日本資料只有落後資訊條件下的油價變動，沒有外生結構衝擊的識別。</li>
 </ul>
 <pre><code class="language-r">knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
@@ -90,13 +91,15 @@ if (!&quot;cwTeX Online&quot; %in% systemfonts::registry_fonts()$family) {
 }
 plot_family &lt;- &quot;cwTeX Online&quot;
 </code></pre>
-<h2 id="var">模擬結構 VAR 與可觀察衝擊<a class="headerlink" href="#var" title="Permanent link">#</a></h2>
+<h2 id="_2">先建立一個衝擊真的外生的模擬<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
+<p>模擬每一列代表一期。<code>A</code> 決定過去的變數如何傳到現在，<code>B</code> 決定當期結構創新項如何進入系統，<code>C</code> 則容許前一期創新項留下額外的移動平均成分。最重要的是，第一個結構創新項會另存成 <code>shock</code>；因此 LP 不必從觀察資料猜測衝擊是什麼。</p>
 <pre><code class="language-r">simulate_svarma &lt;- function(Tn, A, B, C = matrix(0, nrow(B), ncol(B)),
                             burn = 300L) {
   K &lt;- nrow(A)
   eps &lt;- matrix(rnorm((Tn + burn) * K), ncol = K)
   Y &lt;- matrix(0, Tn + burn, K)
   for (t in 2:nrow(Y)) {
+    # 當期值同時接收上一期狀態、當期創新項與可選的前期創新項。
     Y[t, ] &lt;- A %*% Y[t - 1, ] + B %*% eps[t, ] + C %*% eps[t - 1, ]
   }
   keep &lt;- (burn + 1L):(burn + Tn)
@@ -130,19 +133,22 @@ shock &lt;- sim$shock
 colnames(Y) &lt;- c(&quot;y1&quot;, &quot;y2&quot;)
 truth &lt;- extract_response(true_irf(A, B, C0, H), 1, 1)
 </code></pre>
-<h2 id="lp-newey-west-covariance">LP 與 Newey--West covariance<a class="headerlink" href="#lp-newey-west-covariance" title="Permanent link">#</a></h2>
-<p>對每個 horizon (h)，估</p>
+<p>基準模擬有 900 個可用期數，目標是第一個外生衝擊對 <code>y1</code> 在第 0 至 16 期的平均因果反應。模擬不需要訓練、驗證與測試切分，因為此處不是挑選預測模型；我們用已知真值直接檢查兩種 IRF 估計法的有限樣本表現。</p>
+<h2 id="lp-neweywest">LP 與 Newey–West 共變異數<a class="headerlink" href="#lp-neweywest" title="Permanent link">#</a></h2>
+<p>對每個期距 \(h\)，各估一條迴歸：</p>
 <p>\[
 y_{1,t+h}=a_h+\theta_hs_t+\Gamma_h'W_{t-1}+u_{t+h}^{(h)},
 \]</p>
-<p>其中控制變數是 \((Y_{t-1},\ldots,Y_{t-p})\)。衝擊在模擬中直接觀察且與創新項獨立，所以 \(\theta_h\) 有明確的因果 IRF 待估對象。</p>
+<p>其中控制變數是 \((Y_{t-1},\ldots,Y_{t-p})\)。衝擊在模擬中直接觀察，且與其他時點和其他方程的創新項獨立，所以 \(\theta_h\) 有明確的因果 IRF 待估對象。每個 \(h\) 都換一個應變數，也會少掉最後 \(h\) 列資料；LP 曲線因此是許多相關迴歸的集合，而不是一條方程遞迴出來的。</p>
 <pre><code class="language-r">newey_west_vcov &lt;- function(X, residuals, bandwidth) {
+  # 每列評分向量是 x_t u_t；HAC 中間矩陣會把指定頻寬內的跨期共變動加回來。
   score &lt;- X * as.numeric(residuals)
   meat &lt;- crossprod(score)
   n &lt;- nrow(score)
   if (bandwidth &gt; 0L) {
     for (lag in seq_len(min(bandwidth, n - 1L))) {
       weight &lt;- 1 - lag / (bandwidth + 1)
+      # Bartlett 權重隨落後期遞減，並同時加入正向與反向共變異數。
       gamma &lt;- crossprod(score[(lag + 1L):n, , drop = FALSE],
                          score[1:(n - lag), , drop = FALSE])
       meat &lt;- meat + weight * (gamma + t(gamma))
@@ -161,6 +167,7 @@ estimate_lp &lt;- function(Y, shock, horizon_max = 12L, p = 2L,
                     n = NA_integer_, bandwidth = NA_integer_)
 
   for (h in 0:horizon_max) {
+    # 期距愈長，可用的預測起點愈少；不以缺值補齊未來應變數。
     t_index &lt;- (p + 1L):(Tn - h)
     y_h &lt;- Y[t_index + h, 1]
     controls &lt;- do.call(cbind, lapply(seq_len(p), function(lag) {
@@ -171,6 +178,7 @@ estimate_lp &lt;- function(Y, shock, horizon_max = 12L, p = 2L,
     }))
     X &lt;- cbind(Intercept = 1, Shock = shock[t_index], controls)
     fit &lt;- lm.fit(X, y_h)
+    # 頻寬規則是推論選擇，不會改變 OLS 點估計。
     L &lt;- bandwidth_rule(h)
     V &lt;- newey_west_vcov(X, fit$residuals, L)
     out[h + 1L, c(&quot;theta&quot;, &quot;se_hac&quot;, &quot;n&quot;, &quot;bandwidth&quot;)] &lt;-
@@ -190,7 +198,8 @@ head(lp)
 ## 5 4 0.14518145 3.905648e-02 894         4
 ## 6 5 0.06446433 3.843893e-02 893         5
 </code></pre>
-<h2 id="var-irf">VAR IRF<a class="headerlink" href="#var-irf" title="Permanent link">#</a></h2>
+<h2 id="var-irf">同一份模擬資料的 VAR IRF<a class="headerlink" href="#var-irf" title="Permanent link">#</a></h2>
+<p>VAR(1) 先估一組共同的動態係數，再用 Cholesky 矩陣把縮減式殘差正交化，最後遞迴出所有期距的反應。基準資料生成過程正好是 VAR(1)，而且 <code>B</code> 為下三角矩陣，所以這項排序與真實結構一致。這是有意設計的有利情境，不能直接推論 VAR 在所有資料裡都會勝過 LP。</p>
 <pre><code class="language-r">fit_var1 &lt;- function(Y) {
   Y &lt;- as.matrix(Y)
   X &lt;- cbind(Intercept = 1, Y[-nrow(Y), , drop = FALSE])
@@ -206,6 +215,7 @@ head(lp)
 }
 
 var1_irf &lt;- function(fit, horizon) {
+  # 下三角 Cholesky 影響矩陣把第一個縮減式創新項排在當期最前面。
   B_hat &lt;- t(chol(fit$sigma))
   out &lt;- vector(&quot;list&quot;, horizon + 1L)
   out[[1]] &lt;- B_hat
@@ -222,24 +232,25 @@ var_estimate &lt;- extract_response(var1_irf(fit_v, H), 1, 1)
               lp$theta - 1.96 * lp$se_hac,
               lp$theta + 1.96 * lp$se_hac)
 plot(0:H, truth, type = &quot;l&quot;, lwd = 2, col = &quot;black&quot;, ylim = ylim,
-     xlab = &quot;Horizon&quot;, ylab = &quot;Response of y1 to shock 1&quot;)
+     xlab = &quot;衝擊後期數&quot;, ylab = &quot;y1 對第 1 個衝擊的反應&quot;)
 lines(0:H, var_estimate, lwd = 2, lty = 2, col = &quot;#173B57&quot;)
 points(0:H, lp$theta, pch = 16, cex = 0.7, col = &quot;#A34045&quot;)
 segments(0:H, lp$theta - 1.96 * lp$se_hac,
          0:H, lp$theta + 1.96 * lp$se_hac,
          col = adjustcolor(&quot;#A34045&quot;, alpha.f = 0.45))
-legend(&quot;topright&quot;, c(&quot;Truth&quot;, &quot;VAR(1)&quot;, &quot;LP with pointwise HAC interval&quot;),
+legend(&quot;topright&quot;, c(&quot;真實反應&quot;, &quot;VAR(1)&quot;, &quot;LP 與逐期 HAC 區間&quot;),
        col = c(&quot;black&quot;, &quot;#173B57&quot;, &quot;#A34045&quot;),
        lty = c(1, 2, NA), pch = c(NA, NA, 16), lwd = c(2, 2, NA), bty = &quot;n&quot;)
 </code></pre>
-<p><img alt="正確低階 VAR DGP：真實、VAR 與 LP response。" src="./R18_local_projection_irf_files/figure-gfm/compare-correct-dgp-1.png"></p>
-<p>在正確且簡約的 VAR 資料生成過程下，VAR 遞迴通常利用較多跨預測期距限制；LP 點估計可能較不平滑。單次圖不能比較涵蓋率，需重複模擬。</p>
-<h2 id="_2">小型蒙地卡羅實驗：偏誤與標準差<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
+<p><img alt="正確低階 VAR 資料生成過程：真實反應、VAR 與 LP 估計。" src="./R18_local_projection_irf_files/figure-gfm/compare-correct-dgp-1.png"></p>
+<p>在正確且簡約的 VAR 資料生成過程下，VAR 遞迴對所有期距施加同一組動態限制，曲線通常較平滑、估計也可能較精確。LP 分開估計每個期距，限制較少，代價是點估計容易抖動。這一張圖只是一個樣本，不能用來比較平均偏誤或區間涵蓋率；要回答那些問題，必須重複模擬。</p>
+<h2 id="_3">重複模擬後再比較偏誤與標準差<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
 <pre><code class="language-r">monte_carlo &lt;- function(repetitions = 100L, Tn = 350L, horizon = 8L,
                         C = matrix(0, 2, 2), seed = 20260716) {
   set.seed(seed)
   lp_draw &lt;- var_draw &lt;- matrix(NA_real_, repetitions, horizon + 1L)
   for (r in seq_len(repetitions)) {
+    # 每次都重生完整樣本，再用同一待估對象比較 LP 與 VAR。
     s &lt;- simulate_svarma(Tn, A, B, C)
     lp_draw[r, ] &lt;- estimate_lp(s$Y, s$shock, horizon, p = 2)$theta
     var_draw[r, ] &lt;- extract_response(var1_irf(fit_var1(s$Y), horizon), 1, 1)
@@ -269,9 +280,9 @@ round(mc_correct, 3)
 ## 8 7 0.011  -0.007 0.060    0.000  0.009
 ## 9 8 0.005  -0.013 0.067    0.000  0.006
 </code></pre>
-<p>有限次蒙地卡羅實驗是方法的壓力測試，不是理論證明。增加重複次數可降低模擬雜訊，但會增加編譯時間。</p>
-<h2 id="ma">局部 MA 動態錯設的教學壓力測試<a class="headerlink" href="#ma" title="Permanent link">#</a></h2>
-<p>加入小型 \(C\varepsilon_{t-1}\) 後，資料不再是精確 VAR(1)。真實當期反應為 \(B\)，一期反應為 \(AB+C\)，之後由 \(A\) 傳遞。</p>
+<p>表中的 <code>lp_bias</code> 與 <code>var_bias</code> 是各期平均估計減去真值，<code>lp_sd</code> 與 <code>var_sd</code> 則衡量跨模擬樣本的波動。在基準設定裡，VAR 正好符合資料生成過程，通常會以較小標準差換取較強的模型限制。有限次蒙地卡羅實驗只是方法的壓力測試，不是理論證明；增加重複次數可降低模擬雜訊，但會增加編譯時間。</p>
+<h2 id="var">當低階 VAR 錯設時，兩種方法如何改變？<a class="headerlink" href="#var" title="Permanent link">#</a></h2>
+<p>加入小型 \(C\varepsilon_{t-1}\) 後，資料不再是精確 VAR(1)。真實當期反應為 \(B\)，一期反應為 \(AB+C\)，之後由 \(A\) 傳遞。LP 仍直接把可觀察衝擊放進各期距迴歸；VAR(1) 則被迫以一階自我迴歸吸收額外的移動平均成分。這個比較刻意改變的是動態規格，待估衝擊與正規化方式仍相同。</p>
 <pre><code class="language-r">C_small &lt;- 0.20 * B
 sim_ma &lt;- simulate_svarma(900, A, B, C_small)
 truth_ma &lt;- extract_response(true_irf(A, B, C_small, H), 1, 1)
@@ -280,10 +291,10 @@ var_ma &lt;- extract_response(var1_irf(fit_var1(sim_ma$Y), H), 1, 1)
 
 plot(0:H, truth_ma, type = &quot;l&quot;, lwd = 2, col = &quot;black&quot;,
      ylim = range(truth_ma, lp_ma$theta, var_ma),
-     xlab = &quot;Horizon&quot;, ylab = &quot;Response&quot;)
+     xlab = &quot;衝擊後期數&quot;, ylab = &quot;反應&quot;)
 lines(0:H, var_ma, lwd = 2, lty = 2, col = &quot;#173B57&quot;)
 lines(0:H, lp_ma$theta, lwd = 1.5, lty = 3, col = &quot;#A34045&quot;)
-legend(&quot;topright&quot;, c(&quot;Truth&quot;, &quot;Misspecified VAR(1)&quot;, &quot;LP&quot;),
+legend(&quot;topright&quot;, c(&quot;真實反應&quot;, &quot;錯設的 VAR(1)&quot;, &quot;LP&quot;),
        col = c(&quot;black&quot;, &quot;#173B57&quot;, &quot;#A34045&quot;),
        lwd = c(2, 2, 1.5), lty = c(1, 2, 3), bty = &quot;n&quot;)
 </code></pre>
@@ -302,8 +313,8 @@ round(mc_ma, 3)
 ## 8 7 0.016  -0.011 0.070    0.017  0.023
 ## 9 8 0.008  -0.014 0.073    0.010  0.017
 </code></pre>
-<p>這個資料生成過程只是可核對的小例，不能被描述成供應 PDF 的重現，也不能用來證明 LP 對所有錯誤設定都有正確涵蓋率。</p>
-<h2 id="_3">頻寬敏感度<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<p>若 LP 在這個例子較接近真值，正確解讀只是「分期迴歸沒有被同一個錯設 VAR 遞迴限制綁住」。這個資料生成過程只是可核對的小例，並非任何特定論文的重現，也不能用來證明 LP 面對所有錯誤設定都較好或都有正確涵蓋率。</p>
+<h2 id="hac">HAC 頻寬會改變什麼？<a class="headerlink" href="#hac" title="Permanent link">#</a></h2>
 <pre><code class="language-r">lp_Lh &lt;- estimate_lp(Y, shock, H, p = 2,
                      bandwidth_rule = function(h) max(h, 1L))
 lp_L4 &lt;- estimate_lp(Y, shock, H, p = 2,
@@ -337,11 +348,13 @@ data.frame(
 ## 16 15 3.976508e-02 4.144410e-02 4.049851e-02
 ## 17 16 4.244003e-02 4.264808e-02 4.244836e-02
 </code></pre>
-<p>HAC 頻寬是推論設定的一部分。若累積應變數寫成 \(y_{t+h}-y_{t-1}\)，相鄰觀察的重疊窗會使機械相依延伸至落後第 \(h\) 階；若寫成 \(y_{t+h}-y_t\)，才延伸至第 \(h-1\) 階。本例的應變數是未來水準 \(y_{t+h}\)，不是這兩種累積量，但仍可能因動態控制變數與預測誤差而有序列相關。</p>
-<h2 id="lp">日本月資料：縮減式 LP 的資料界線<a class="headerlink" href="#lp" title="Permanent link">#</a></h2>
-<p>凍結檔由原課程的 <code>data_t.csv</code> 與 <code>yield_10.csv</code> 依月份鍵結後整理。原始說明把 <code>opi</code> 定義為 WTI 現貨價，<code>opi_change</code> 是相對前月的百分比變動；<code>yield_10_change</code> 是十年期殖利率相對前月的百分比變動，殖利率接近零時會出現極端比率；<code>return_j</code> 是資料內預先計算的日本股價報酬，但原始說明沒有保留它的精確公式與明確單位。資料夾也沒有完整記錄所有供應者。因此，本節只分析固定課程快照，不把數值與其他資料庫直接拼接。</p>
-<p>來源檔有 133 個月（2007 年 10 月至 2018 年 10 月）。三個變動欄位的第一個月皆缺值；先按日期排序，再對三欄共同刪除不完整列，得到 132 個月（2007 年 11 月至 2018 年 10 月）。為避免未記錄的原始尺度主導迴歸，三欄都以這 132 月的平均數與標準差標準化。因此實證反應的單位是「應變數的樣本標準差」，油價創新正規化為油價月變動的 1 個樣本標準差。</p>
-<pre><code class="language-r">jp_path &lt;- &quot;data/processed/japan_monthly_2007_2018.csv&quot;
+<p>HAC 頻寬是推論設定的一部分。上表讓學生確認：在同一條 LP 迴歸下，改變頻寬只會改標準誤，不會改變點估計。若累積應變數寫成 \(y_{t+h}-y_{t-1}\)，相鄰觀察的重疊窗會使機械相依延伸至落後第 \(h\) 階；若寫成 \(y_{t+h}-y_t\)，才延伸至第 \(h-1\) 階。本例的應變數是未來水準 \(y_{t+h}\)，不是這兩種累積量，但仍可能因動態控制變數與預測誤差而有序列相關。頻寬應隨應變數定義與相依結構說明，不宜只保留軟體預設值。</p>
+<h2 id="_4">回到日本月資料：先界定觀察單位與尺度<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
+<p>固定檔由原課程的 <code>data_t.csv</code> 與 <code>yield_10.csv</code> 依月份鍵結後整理。原始說明把 <code>opi</code> 定義為 WTI 現貨價，<code>opi_change</code> 是相對前月的百分比變動；<code>yield_10_change</code> 是十年期殖利率相對前月的百分比變動，殖利率接近零時會出現極端比率；<code>return_j</code> 是資料內預先計算的日本股價報酬，但原始說明沒有保留它的精確公式與明確單位。資料夾也沒有完整記錄所有供應者。因此，本節只分析固定課程快照，不把數值與其他資料庫直接拼接。</p>
+<p>來源檔有 133 個月（2007 年 10 月至 2018 年 10 月）。三個變動欄位的第一個月皆缺值；先按日期排序，再對三欄共同刪除不完整列，得到 132 個月（2007 年 11 月至 2018 年 10 月）。每一列代表同一月份的三項變動，並未進一步處理月內發布先後。因此第 0 期係數是同月條件關聯，不能依欄位排列順序解讀成油價先發生、股價或殖利率隨後反應。</p>
+<p>為避免未記錄的原始尺度主導迴歸，三欄都以這 132 月的平均數與標準差標準化。因此實證反應的單位是「應變數的樣本標準差」，油價月變動則以 1 個<strong>無條件樣本標準差</strong>為單位。後面的殘差化不會再除以條件殘差的標準差，所以係數不是以「一個條件創新標準差」為單位。這是全樣本描述性 LP，沒有訓練、驗證與測試期；完整樣本標準化在此只服務曲線比較。若改做虛擬樣本外預測，平均數、標準差與任何模型選擇都必須只用預測起點以前的資料。</p>
+<pre><code class="language-r">jp_path &lt;- project_path(&quot;data&quot;, &quot;processed&quot;, &quot;japan_monthly_2007_2018.csv&quot;)
+stopifnot(file.exists(jp_path))
 jp &lt;- read.csv(jp_path, stringsAsFactors = FALSE)
 jp$date &lt;- as.Date(jp$date)
 jp &lt;- jp[order(jp$date), ]
@@ -383,14 +396,15 @@ data.frame(
 ## return_j          4.284162
 ## yield_10_change 500.000000
 </code></pre>
-<h2 id="lp_1">含落後控制的實證 LP<a class="headerlink" href="#lp_1" title="Permanent link">#</a></h2>
+<h2 id="lp">含落後控制的實證 LP：係數究竟比較什麼？<a class="headerlink" href="#lp" title="Permanent link">#</a></h2>
 <p>基準式對每個 \(h=0,\ldots,12\) 估計</p>
 <p>\[
 z_{t+h}=a_h+\theta_h o_t+\sum_{\ell=1}^{2}\Gamma_{h\ell}'
 (o_{t-\ell},r_{t-\ell},q_{t-\ell})'+u_{t+h}^{(h)},
 \]</p>
-<p>其中 \(o_t\) 是標準化油價月變動、\(r_t\) 是標準化股價報酬、\(q_t\) 是標準化殖利率變動。依 Frisch--Waugh--Lovell 定理，\(\theta_h\) 等於先把 \(o_t\) 對同一組落後控制殘差化後的係數，所以可稱為「落後資訊條件下的油價變動創新反應」。基準 HAC 頻寬為 \(\max(h,4)\)，區間是逐點 95% 區間。</p>
+<p>其中 \(o_t\) 是以全樣本無條件標準差標準化的油價月變動、\(r_t\) 是標準化股價報酬、\(q_t\) 是標準化殖利率變動。依 Frisch–Waugh–Lovell 定理，\(\theta_h\) 等於先把 \(o_t\) 對同一組落後控制殘差化，再用剩餘變動估計的係數；但程式沒有把這項殘差再標準化。因此，\(\theta_h\) 表示油價月變動增加一個<strong>無條件樣本標準差</strong>、控制兩期落後值後，應變數所對應的條件變動，不是一個「條件創新標準差」的反應。這項變動也不是由外部工具或事件識別出的結構衝擊。基準 HAC 頻寬為 \(\max(h,4)\)，區間是逐期 95% 信賴區間。</p>
 <pre><code class="language-r">lag_controls &lt;- function(system, index, p) {
+  # 所有方程使用同一組系統落後值，確保油價與應變數的資訊集一致。
   controls &lt;- do.call(cbind, lapply(seq_len(p), function(lag) {
     system[index - lag, , drop = FALSE]
   }))
@@ -401,14 +415,14 @@ z_{t+h}=a_h+\theta_h o_t+\sum_{\ell=1}^{2}\Gamma_{h\ell}'
 }
 
 estimate_reduced_lp &lt;- function(system, response_name,
-                                shock_name = &quot;OilChange&quot;,
+                                focal_name = &quot;OilChange&quot;,
                                 horizon_max = 12L, p = 2L,
                                 bandwidth_rule = function(h) max(h, 4L)) {
   system &lt;- as.matrix(system)
   Tn &lt;- nrow(system)
   response_col &lt;- match(response_name, colnames(system))
-  shock_col &lt;- match(shock_name, colnames(system))
-  stopifnot(!is.na(response_col), !is.na(shock_col), p &gt;= 1L)
+  focal_col &lt;- match(focal_name, colnames(system))
+  stopifnot(!is.na(response_col), !is.na(focal_col), p &gt;= 1L)
 
   out &lt;- data.frame(
     response = response_name, h = 0:horizon_max,
@@ -416,18 +430,24 @@ estimate_reduced_lp &lt;- function(system, response_name,
     n = NA_integer_, bandwidth = NA_integer_, p_lags = p
   )
   for (h in 0:horizon_max) {
+    # 第 h 期迴歸只保留仍看得到 system[t+h, ] 的預測起點。
     index &lt;- (p + 1L):(Tn - h)
     y_h &lt;- system[index + h, response_col]
     controls &lt;- lag_controls(system, index, p)
+    # 油價欄以全樣本無條件標準差為單位；FWL 等價性由同列控制完成殘差化，
+    # 但殘差化後不再除以其條件殘差標準差。
     X &lt;- cbind(Intercept = 1,
-               OilInnovation = system[index, shock_col],
+               OilChange_OneUnconditionalSD = system[index, focal_col],
                controls)
     fit &lt;- lm.fit(X, y_h)
     stopifnot(fit$rank == ncol(X))
+    # HAC 頻寬只決定共變異數估計，不參與 theta 的 OLS 配適。
     L &lt;- as.integer(bandwidth_rule(h))
     V &lt;- newey_west_vcov(X, fit$residuals, L)
-    theta &lt;- fit$coefficients[&quot;OilInnovation&quot;]
-    se &lt;- sqrt(V[&quot;OilInnovation&quot;, &quot;OilInnovation&quot;])
+    theta &lt;- fit$coefficients[&quot;OilChange_OneUnconditionalSD&quot;]
+    se &lt;- sqrt(V[
+      &quot;OilChange_OneUnconditionalSD&quot;, &quot;OilChange_OneUnconditionalSD&quot;
+    ])
     out[h + 1L, c(&quot;theta&quot;, &quot;se_hac&quot;, &quot;lower&quot;, &quot;upper&quot;, &quot;n&quot;, &quot;bandwidth&quot;)] &lt;-
       c(theta, se, theta - 1.96 * se, theta + 1.96 * se,
         length(y_h), L)
@@ -469,7 +489,7 @@ lp_empirical[lp_empirical$h %in% c(0, 1, 3, 6, 12), ]
 ## 20      2
 ## 26      2
 </code></pre>
-<pre><code class="language-r"># 列出逐點 95% 區間未涵蓋零的 horizon；未校正多重比較。
+<pre><code class="language-r"># 列出逐期 95% 區間未涵蓋零的期距；未校正多重比較。
 pointwise_nonzero &lt;- lp_empirical[
   lp_empirical$lower &gt; 0 | lp_empirical$upper &lt; 0,
   c(&quot;response&quot;, &quot;h&quot;, &quot;theta&quot;, &quot;se_hac&quot;, &quot;lower&quot;, &quot;upper&quot;)
@@ -480,7 +500,8 @@ pointwise_nonzero
 ## 1 StockReturn 0 0.2956779 0.10485752 0.090157141 0.5011986
 ## 3 StockReturn 2 0.1930352 0.09718402 0.002554493 0.3835158
 </code></pre>
-<pre><code class="language-r"># 油價月變動的可預測部分與條件創新尺度。
+<pre><code class="language-r"># 油價月變動的可預測部分與殘差尺度；此尺度只作診斷，
+# 沒有用來重新正規化上面的 LP 係數。
 innovation_index &lt;- (p_emp + 1L):nrow(Z_jp)
 innovation_X &lt;- cbind(
   Intercept = 1,
@@ -518,12 +539,12 @@ for (object in list(lp_stock, lp_yield)) {
   abline(h = 0, lty = 3, col = &quot;grey40&quot;)
 }
 </code></pre>
-<p><img alt="日本月資料：一個樣本標準差油價變動創新的縮減式 LP 條件反應；陰影為逐點 HAC 95% 區間。" src="./R18_local_projection_irf_files/figure-gfm/empirical-lp-plot-1.png"></p>
+<p><img alt="日本月資料：油價月變動增加一個無條件樣本標準差、控制兩期系統落後值後的縮減式 LP 條件反應；陰影為逐期 HAC 95% 信賴區間。" src="./R18_local_projection_irf_files/figure-gfm/empirical-lp-plot-1.png"></p>
 <pre><code class="language-r">par(old_par)
 </code></pre>
-<p>基準規格中，未經多重比較校正而逐點未涵蓋零的只有股價報酬的第 0 與第 2 個月。當期係數為 0.296，逐點 95% 區間為 [0.090, 0.501]；第 2 個月係數為 0.193，區間下界僅為 0.003。這些仍只是條件關聯，不是油價的因果效果，也不是整條反應曲線的聯合顯著性。</p>
-<h2 id="lag-hac">實證 lag 與 HAC 頻寬敏感度<a class="headerlink" href="#lag-hac" title="Permanent link">#</a></h2>
-<p>先固定基準頻寬規則，比較 1、2、4 個月的系統落後控制。再固定兩個 lag，比較 \(L=\max(h,1)\)、固定 \(L=4\) 與固定 \(L=12\)。同一個 lag 規格下，改變 HAC 頻寬只會改標準誤，不會改 OLS 點估計。</p>
+<p>基準規格中，未經多重比較校正而逐期未涵蓋零的只有股價報酬的第 0 與第 2 個月。當期係數為 0.296，逐期 95% 信賴區間為 [0.090, 0.501]；第 2 個月係數為 0.193，區間下界僅為 0.003。這些仍只是固定資訊集下的條件關聯，不是油價的因果效果，也不是整條反應曲線的聯合顯著性。</p>
+<h2 id="hac_1">實證落後期與 HAC 頻寬敏感度<a class="headerlink" href="#hac_1" title="Permanent link">#</a></h2>
+<p>先固定基準頻寬規則，比較 1、2、4 個月的系統落後控制，看看點估計是否依賴特定資訊集。再固定兩個落後期，比較 \(L=\max(h,1)\)、固定 \(L=4\) 與固定 \(L=12\)，看看不確定性是否依賴特定頻寬。同一個落後期規格下，改變 HAC 頻寬只會改標準誤，不會改 OLS 點估計。</p>
 <pre><code class="language-r">lag_sensitivity &lt;- do.call(rbind, lapply(c(1L, 2L, 4L), function(p) {
   do.call(rbind, lapply(c(&quot;StockReturn&quot;, &quot;YieldChange&quot;), function(response_name) {
     object &lt;- estimate_reduced_lp(
@@ -602,10 +623,10 @@ bandwidth_sensitivity[bandwidth_sensitivity$h %in% c(0, 2, 3, 6, 12), ]
 ## 20 YieldChange  6 -0.14082395 0.10689945 0.10238319 0.11915542
 ## 26 YieldChange 12  0.07794831 0.05849429 0.06522293 0.05849429
 </code></pre>
-<p>股價報酬第 2 個月的正向係數在一個與四個 lag 規格下，其逐點 95\% 區間都涵蓋零，只有兩個 lag 的基準規格勉強未涵蓋零，因此並不穩健。第 0 個月的正向係數對 lag 數較穩定，但它是同月條件關聯，尤其不能被讀成油價變動先發生、股價其後反應的因果時序。</p>
-<p>油價變動會同時反映全球供需、風險偏好、美元與其他遺漏消息；僅控制兩期落後值不能使它外生。即使某個逐點區間沒有涵蓋零，也只能說是這個固定樣本與條件資訊集下的縮減式關聯，不能稱為「外生油價衝擊」、「油價供給衝擊」或因果效果。lag 或頻寬一改結論就變時，應把敏感度本身列為主要發現。</p>
-<h2 id="dmlaipw-irf">DML/AIPW IRF 評分函數的可執行小例<a class="headerlink" href="#dmlaipw-irf" title="Permanent link">#</a></h2>
-<p>以下為獨立同分配教學例，只核對專案所附 2024 年 PDF 使用的增廣評分函數形式。真實傾向分數與應變數迴歸由資料生成過程已知，因此不涉及機器學習調校。</p>
+<p>股價報酬第 2 個月的正向係數在一個與四個落後期規格下，其逐期 95\% 信賴區間都涵蓋零，只有兩個落後期的基準規格勉強未涵蓋零，因此並不穩健。第 0 個月的正向係數對落後期數較穩定，但它是同月條件關聯，尤其不能被讀成油價變動先發生、股價其後反應的因果時序。</p>
+<p>油價變動會同時反映全球供需、風險偏好、美元與其他遺漏消息；控制兩期落後值仍不足以建立外生性。即使某個逐期區間沒有涵蓋零，這個固定樣本與條件資訊集最多支持縮減式關聯；「外生油價衝擊」「油價供給衝擊」或因果效果都需要額外識別。落後期或頻寬一改結論就變時，敏感度本身就是主要發現，而不應被藏在附註裡。</p>
+<h2 id="aipw">AIPW 評分函數：先用靜態例子核對公式<a class="headerlink" href="#aipw" title="Permanent link">#</a></h2>
+<p>以下是獨立同分配的靜態教學例，待估對象是二元處置的平均處置效果 0.7，不是多期 IRF。它只核對增廣逆機率加權評分函數的方向與程式寫法。真實傾向分數與兩個條件應變數平均數都由資料生成過程已知，所以沒有訓練、調校或交叉配適；在真正的 DML 應用裡，這些干擾函數必須由資料估計，並用樣本分割控制過度配適偏誤。</p>
 <pre><code class="language-r">set.seed(20260717)
 n_aipw &lt;- 3000L
 X_aipw &lt;- rnorm(n_aipw)
@@ -626,9 +647,9 @@ c(AIPW = mean(aipw_score), truth = theta_aipw,
 <pre><code>##           AIPW          truth min_propensity max_propensity 
 ##      0.6216850      0.7000000      0.1182124      0.8925416
 </code></pre>
-<p>若 \(e(X)\) 接近 0 或 1，逆機率項會極端；若處置未滿足給定 \(X\) 的識別條件，評分函數也不能產生因果 IRF。時間序列版本還需要論文所列的相依與時間不變條件。</p>
-<h2 id="_4">狀態相依性的教學模擬<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
-<p>建立 \(g(z)=0.4+0.3z^2\)，衝擊與預定狀態獨立。線性交互作用只能配適直線；已知的二次基底可以恢復彎曲。專案所附 2026 年 PDF 使用篩法與一致推論，本例不是其估計量的重現。</p>
+<p>輸出的 AIPW 平均數應接近真值 0.7，這只說明公式在已知干擾函數的模擬中方向正確。若 \(e(X)\) 接近 0 或 1，逆機率權重會極端；若處置在給定 \(X\) 後仍受未觀察混淆影響，評分函數也不能產生因果效果。要把同一想法延伸到 IRF，還必須清楚定義每個期距的應變數、衝擊時點，以及相依資料下的識別與推論條件。</p>
+<h2 id="_5">狀態相依性：直線可能看不見彎曲反應<a class="headerlink" href="#_5" title="Permanent link">#</a></h2>
+<p>建立 \(g(z)=0.4+0.3z^2\)，讓衝擊與預先決定的狀態獨立。待估對象是「衝擊效果如何隨狀態 \(z\) 改變」的曲線。線性交互作用只能配適直線，已知的二次基底則有機會恢復彎曲；這個例子只說明基底錯設造成的近似偏誤，並未實作篩法估計量或其一致推論。</p>
 <pre><code class="language-r">set.seed(20260718)
 N &lt;- 4000L
 Z &lt;- runif(N, -2, 2)
@@ -646,24 +667,19 @@ g_quad &lt;- coef(quadratic_fit)[&quot;S&quot;] + coef(quadratic_fit)[&quot;S:Z&
   coef(quadratic_fit)[&quot;S:I(Z^2)&quot;] * grid^2
 
 plot(grid, 0.4 + 0.3 * grid^2, type = &quot;l&quot;, lwd = 2, col = &quot;black&quot;,
-     xlab = &quot;Predetermined state z&quot;, ylab = &quot;Response g(z)&quot;)
+     xlab = &quot;預先決定的狀態 z&quot;, ylab = &quot;反應 g(z)&quot;)
 lines(grid, g_linear, lwd = 2, lty = 2, col = &quot;#A34045&quot;)
 lines(grid, g_quad, lwd = 2, lty = 3, col = &quot;#173B57&quot;)
-legend(&quot;topleft&quot;, c(&quot;Truth&quot;, &quot;Linear interaction&quot;, &quot;Quadratic basis&quot;),
+legend(&quot;topleft&quot;, c(&quot;真實反應&quot;, &quot;線性交互作用&quot;, &quot;二次基底&quot;),
        col = c(&quot;black&quot;, &quot;#A34045&quot;, &quot;#173B57&quot;),
        lwd = 2, lty = c(1, 2, 3), bty = &quot;n&quot;)
 </code></pre>
 <p><img alt="plot of chunk state-dependent-demo" src="./R18_local_projection_irf_files/figure-gfm/state-dependent-demo-1.png"></p>
-<h2 id="_5">解讀與退場規則<a class="headerlink" href="#_5" title="Permanent link">#</a></h2>
-<ol>
-<li>LP 衝擊必須先被識別；在本附錄由資料生成過程明示，不能移植到觀察性衝擊。</li>
-<li>VAR/LP 比較必須使用同一待估對象、衝擊、樣本與正規化方式。</li>
-<li>Pointwise 1.96 intervals 不是整條曲線的 simultaneous bands。</li>
-<li>MA 壓力測試只說明特定資料生成過程，不概括專案所附 2026 年 LP/VAR 論文的定理。</li>
-<li>日本油價案例只是落後控制下的縮減式 LP；沒有額外識別資訊便不具因果意義。</li>
-<li>AIPW/DML 仍需 consistency、無未觀察混淆、overlap 與相依資料推論。</li>
-<li>狀態相依的因果解讀需要對衝擊的線性條件平均數限制與衝擊外生性；基底選擇也屬估計程序。</li>
-</ol>
+<p>圖上若線性交互作用無法跟著兩端上彎，不代表狀態不重要，而是直線基底沒有足夠彈性。二次基底在本例表現好，是因為我們事先知道真實函數就是二次式；真實研究裡，基底或平滑程度也要用不偷看最終結果的程序選擇，並把選擇造成的不確定性納入推論。</p>
+<h2 id="_6">把三段結果放回各自的問題<a class="headerlink" href="#_6" title="Permanent link">#</a></h2>
+<p>模擬段可以比較 VAR 與 LP，因為兩者面對同一個外生衝擊、同一份樣本、同一個待估反應與同一種正規化。正確 VAR 通常較平滑；加入特定移動平均成分後，錯設 VAR 可能產生偏誤。這只是兩個可核對的資料生成過程，不概括所有 VAR 與 LP，也不能把逐期 1.96 倍標準誤區間當成整條曲線同時成立的信賴帶。</p>
+<p>日本油價段能說的是：在 2007 年 11 月至 2018 年 10 月的固定樣本裡，油價月變動增加一個無條件樣本標準差、控制兩期系統落後值後，與同月股價報酬呈正向條件關聯；第 2 個月的正向係數對落後期選擇不穩健。這些係數不是以一個條件創新標準差為單位。沒有額外識別資訊時，結論應停在縮減式 LP，不替它加上供給衝擊或因果標籤。</p>
+<p>AIPW 與狀態相依段則各自核對一個機制。若要發展成正式的因果 IRF，還需要一致性、無未觀察混淆或其他衝擊識別、重疊，以及相依資料下的有效推論；狀態曲線還要處理基底選擇。程式可以把公式算出來，但研究設計仍決定那些數字能回答什麼問題。</p>
 <pre><code class="language-r">sessionInfo()
 </code></pre>
 <pre><code>## R version 4.5.2 (2025-10-31)
@@ -684,12 +700,33 @@ legend(&quot;topleft&quot;, c(&quot;Truth&quot;, &quot;Linear interaction&quot;,
 ## [1] stats     graphics  grDevices utils     datasets  methods   base     
 ## 
 ## loaded via a namespace (and not attached):
-##  [1] codetools_0.2-20  shape_1.4.6.1     xfun_0.57         Matrix_1.7-4     
-##  [5] lattice_0.22-7    splines_4.5.2     iterators_1.0.14  knitr_1.51       
-##  [9] lifecycle_1.0.5   cli_3.6.5         foreach_1.5.2     grid_4.5.2       
-## [13] textshaping_1.0.5 systemfonts_1.3.2 compiler_4.5.2    tools_4.5.2      
-## [17] ragg_1.5.2        evaluate_1.0.5    survival_3.8-3    Rcpp_1.1.0       
-## [21] otel_0.2.0        rlang_1.1.7       glmnet_4.1-10
+##  [1] shape_1.4.6.1       gtable_0.3.6        xfun_0.57          
+##  [4] ggplot2_4.0.3       collapse_2.1.7      lattice_0.22-7     
+##  [7] quadprog_1.5-8      vctrs_0.7.2         tools_4.5.2        
+## [10] Rdpack_2.6.6        generics_0.1.4      curl_7.1.0         
+## [13] parallel_4.5.2      sandwich_3.1-2      tibble_3.3.0       
+## [16] xts_0.14.2          pkgconfig_2.0.3     gbutils_0.5.1      
+## [19] Matrix_1.7-4        tidyverse_2.0.0     RColorBrewer_1.1-3 
+## [22] S7_0.2.2            lifecycle_1.0.5     compiler_4.5.2     
+## [25] farver_2.1.2        MatrixModels_0.5-4  maxLik_1.5-2.2     
+## [28] textshaping_1.0.5   codetools_0.2-20    SparseM_1.84-2     
+## [31] quantreg_6.1        htmltools_0.5.9     glmnet_4.1-10      
+## [34] Formula_1.2-5       pillar_1.11.1       MASS_7.3-65        
+## [37] plm_2.6-7           iterators_1.0.14    foreach_1.5.2      
+## [40] nlme_3.1-168        fracdiff_1.5-4      pls_2.9-0          
+## [43] fBasics_4052.98     tidyselect_1.2.1    bdsmatrix_1.3-7    
+## [46] digest_0.6.39       dplyr_1.2.1         labeling_0.4.3     
+## [49] splines_4.5.2       tseries_0.10-62     miscTools_0.6-30   
+## [52] fastmap_1.2.0       grid_4.5.2          colorspace_2.1-3   
+## [55] cli_3.6.5           magrittr_2.0.4      survival_3.8-3     
+## [58] withr_3.0.3         scales_1.4.0        forecast_9.0.2     
+## [61] TTR_0.24.4          rmarkdown_2.31      quantmod_0.4.29    
+## [64] otel_0.2.0          timeDate_4052.112   ragg_1.5.2         
+## [67] zoo_1.8-15          timeSeries_4052.112 fGarch_4052.93     
+## [70] urca_1.3-4          evaluate_1.0.5      knitr_1.51         
+## [73] rbibutils_2.4.1     lmtest_0.9-40       rlang_1.1.7        
+## [76] spatial_7.3-18      Rcpp_1.1.0          glue_1.8.0         
+## [79] R6_2.6.1            cvar_0.6            systemfonts_1.3.2
 </code></pre>
       </article>
       <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R17_cointegration_vecm.html">← 共整合、Johansen 檢定與 VECM</a><span></span></nav>
@@ -697,19 +734,19 @@ legend(&quot;topleft&quot;, c(&quot;Truth&quot;, &quot;Linear interaction&quot;,
     </main>
     <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
 <ul>
-<li><a href="#_1">執行條件</a></li>
-<li><a href="#var">模擬結構 VAR 與可觀察衝擊</a></li>
-<li><a href="#lp-newey-west-covariance">LP 與 Newey--West covariance</a></li>
-<li><a href="#var-irf">VAR IRF</a></li>
-<li><a href="#_2">小型蒙地卡羅實驗：偏誤與標準差</a></li>
-<li><a href="#ma">局部 MA 動態錯設的教學壓力測試</a></li>
-<li><a href="#_3">頻寬敏感度</a></li>
-<li><a href="#lp">日本月資料：縮減式 LP 的資料界線</a></li>
-<li><a href="#lp_1">含落後控制的實證 LP</a></li>
-<li><a href="#lag-hac">實證 lag 與 HAC 頻寬敏感度</a></li>
-<li><a href="#dmlaipw-irf">DML/AIPW IRF 評分函數的可執行小例</a></li>
-<li><a href="#_4">狀態相依性的教學模擬</a></li>
-<li><a href="#_5">解讀與退場規則</a></li>
+<li><a href="#_1">先確認執行環境與三種例子的界線</a></li>
+<li><a href="#_2">先建立一個衝擊真的外生的模擬</a></li>
+<li><a href="#lp-neweywest">LP 與 Newey–West 共變異數</a></li>
+<li><a href="#var-irf">同一份模擬資料的 VAR IRF</a></li>
+<li><a href="#_3">重複模擬後再比較偏誤與標準差</a></li>
+<li><a href="#var">當低階 VAR 錯設時，兩種方法如何改變？</a></li>
+<li><a href="#hac">HAC 頻寬會改變什麼？</a></li>
+<li><a href="#_4">回到日本月資料：先界定觀察單位與尺度</a></li>
+<li><a href="#lp">含落後控制的實證 LP：係數究竟比較什麼？</a></li>
+<li><a href="#hac_1">實證落後期與 HAC 頻寬敏感度</a></li>
+<li><a href="#aipw">AIPW 評分函數：先用靜態例子核對公式</a></li>
+<li><a href="#_5">狀態相依性：直線可能看不見彎曲反應</a></li>
+<li><a href="#_6">把三段結果放回各自的問題</a></li>
 </ul>
 </div>
 </aside>

@@ -1,16 +1,16 @@
 ---
-title: "R09：真實十產業投資組合、CAPM 與 Fama--French 三因子"
+title: "R09：美國十產業投資組合、CAPM 與 Fama–French 三因子"
 output:
   github_document:
     toc: true
     toc_depth: 3
 ---
 
-本附錄對應第 13--14 章，改用真實的美國十產業月報酬與 Fama--French 因子，不再以模擬資產報酬作為主體。分析包含等權重、全域最小變異數（GMV）、驗證期選定的收縮 GMV，以及 CAPM／Fama--French 三因子在固定測試期的條件解釋表現。
+本附錄用美國十個產業的月報酬回答兩個實際問題。第一，估計共變異數矩陣時加入收縮，能否讓全域最小變異數（global minimum variance, GMV）投資組合在保留期更穩定？第二，加入 SMB 與 HML 後，Fama–French 三因子模型能否比 CAPM 更貼近同月已實現的產業超額報酬？前一題是投資組合風險比較，後一題是同期條件解釋，兩者的資訊時間與結論不能混在一起。
 
-樣本是作者工作用凍結快照：1967 年 1 月至 2021 年 11 月，共 659 個月、10 個產業。`ret` 是產業投資組合的月超額報酬，`factor_ff_rf` 是月無風險報酬，市場、SMB 與 HML 都是月因子報酬；本檔均以**小數**表示，例如 0.01 代表 1%。原課程程式透過 Kenneth French Data Library 取得 Fama--French 因子與十產業投資組合，再合併 Global-q 與 Welch--Goyal 總體變數。本附錄只使用十產業、無風險利率與 FF3 欄位。
+資料涵蓋 1967 年 1 月至 2021 年 11 月，共 659 個月、10 個產業。長資料中的一列是一個「產業—月份」觀察，所以共有 6,590 列；轉成矩陣後，一列是一個月份，一欄是一個產業。`ret` 是產業投資組合的月超額報酬，`factor_ff_rf` 是月無風險報酬，市場、SMB 與 HML 都是月因子報酬。所有報酬都以**小數**表示，例如 0.01 代表 1%。原課程程式透過 Kenneth French Data Library 取得因子與十產業投資組合，再合併 global-q 與 Welch–Goyal 總體變數；本附錄只使用其中的十產業、無風險利率與 FF3 欄位。
 
-公開版隨附作者已授權公開的 `data/processed` 凍結 CSV、程式與執行結果，因此可離線自含重跑。若讀者另從上游來源重建，仍須記錄資料庫版本、下載日、FIZ/CIZ 方法版本、百分比轉小數與產業報酬減去無風險利率的步驟；即時下載版本不保證與凍結快照相同。
+隨書提供的 `data/processed` CSV 是固定資料快照，讓程式在沒有網路時也能重做。若讀者改從上游來源下載，請記錄資料庫版本、下載日、FIZ/CIZ 方法版本、百分比轉小數，以及產業報酬減去無風險利率的步驟。CRSP 從 FIZ 改為 CIZ 時，同時調整了資料格式與月報酬累積方式，因此資料庫更新後，數字不必與這份固定快照完全相同。
 
 
 ``` r
@@ -21,7 +21,7 @@ knitr::opts_chunk$set(
 stopifnot(getRversion() >= "4.3.0")
 ```
 
-## 1. 讀取、來源與單位核對
+## 先確認一列資料代表什麼
 
 
 ``` r
@@ -44,6 +44,7 @@ manifest_file <- locate_project_file("data/processed/manifest.csv")
 d <- read.csv(panel_file, stringsAsFactors = FALSE, check.names = FALSE)
 manifest <- read.csv(manifest_file, stringsAsFactors = FALSE)
 d$month <- as.Date(d$month)
+# 排序後，同一月份的十個產業會相鄰，後面的矩陣轉換才有明確順序。
 d <- d[order(d$month, d$industry), ]
 
 manifest_key <- "data/processed/ff_qf_macro_industries_1967_2021.csv"
@@ -77,16 +78,18 @@ data.frame(
 ## 1 69563611584d8a2dfd984ec6a53822a4
 ```
 
-資料來源與解讀界線如下。
+輸出中的日期與筆數先回答最基本的資料問題：每個「月份—產業」鍵只出現一次，而且 659 個月都各有 10 個產業。MD5 值只用來辨認本附錄使用哪一份固定快照；它不代表資料內容正確，也不取代來源與轉換紀錄。
+
+下面把資料來源與本附錄實際使用的欄位並列，方便讀者分清楚原始合併檔與本題分析範圍。
 
 
 ``` r
 data.frame(
-  component = c("十產業與 FF3", "凍結合併面板", "本附錄輸出"),
+  component = c("十產業與 FF3", "固定合併面板", "本附錄輸出"),
   source = c(
     "Kenneth French Data Library；原課程以 frenchdata 下載",
-    "原課程 fffqmacro.R；另含 Global-q 與 Welch--Goyal 欄位",
-    "作者授權公開的 processed 凍結快照"
+    "原課程 fffqmacro.R；另含 global-q 與 Welch–Goyal 欄位",
+    "隨書提供的 processed 固定快照"
   ),
   use_here = c(
     "ret、RF、MKT-RF、SMB、HML",
@@ -97,19 +100,19 @@ data.frame(
 ```
 
 ```
-##      component                                                 source
-## 1 十產業與 FF3  Kenneth French Data Library；原課程以 frenchdata 下載
-## 2 凍結合併面板 原課程 fffqmacro.R；另含 Global-q 與 Welch--Goyal 欄位
-## 3   本附錄輸出                      作者授權公開的 processed 凍結快照
+##      component                                                source
+## 1 十產業與 FF3 Kenneth French Data Library；原課程以 frenchdata 下載
+## 2 固定合併面板 原課程 fffqmacro.R；另含 global-q 與 Welch–Goyal 欄位
+## 3   本附錄輸出                         隨書提供的 processed 固定快照
 ##                           use_here
 ## 1        ret、RF、MKT-RF、SMB、HML
 ## 2              只讀取 FF3 相關欄位
 ## 3 方法教學，不作投資建議或因果解讀
 ```
 
-## 2. 整理十產業矩陣並固定時間切分
+## 如何安排訓練、驗證與測試月份？
 
-先確認同一月份的因子與無風險利率在十個產業列完全一致，再把長資料轉成「月份乘產業」矩陣。
+先確認同一月份的因子與無風險利率在十個產業列完全一致，再把長資料轉成「月份乘產業」矩陣。這一步也把資訊單位改清楚：共變異數與因子迴歸都以月份為觀察，而不是把同月的十個產業誤當成十個獨立時間點。
 
 
 ``` r
@@ -143,7 +146,7 @@ stopifnot(
 )
 ```
 
-固定前 60% 為訓練期、接續 20% 為驗證期、最後 20% 為測試期。驗證期只選共變異數收縮強度；測試期不參與任何權重或模型選擇。
+依時間順序把前 60% 設為訓練期、接續 20% 設為驗證期、最後 20% 留作測試期。訓練期估計初始共變異數；驗證期只選收縮強度；選定後再用訓練與驗證期重估最終權重。測試期只用一次，不參與權重、收縮強度或因子模型的選擇。
 
 
 ``` r
@@ -170,7 +173,9 @@ data.frame(
 ## 3   測試  2010-12-01 2021-11-01          132
 ```
 
-## 3. 等權重、GMV 與驗證期收縮 GMV
+請把表中的三段日期視為研究設計的一部分。若先看過測試期再改候選網格或模型規格，最後一段就已參與調校，不能再當作未見的保留期。
+
+## 收縮能否改善 GMV 的保留期表現？
 
 GMV 權重為
 
@@ -180,19 +185,20 @@ GMV 權重為
 {\mathbf 1^\top\widehat\Sigma^{-1}\mathbf 1}.
 \]
 
-為降低小特徵值造成的不穩定，候選共變異數為
+GMV 會反轉共變異數矩陣，因此很小、又估得不準的特徵值可能把權重放大。為降低這種不穩定，候選共變異數為
 
 \[
 \widehat\Sigma_\lambda=(1-\lambda)\widehat\Sigma+
 \lambda\operatorname{diag}(\widehat\Sigma),
 \]
 
-且只用驗證期實現波動選擇 \(\lambda\)。
+且只用驗證期實現波動選擇 \(\lambda\)。當 \(\lambda=0\) 時保留完整樣本共變異數；當 \(\lambda=1\) 時只保留各產業自己的變異數。這裡比較的是一小組事先列出的候選值，不是在測試期反覆調整。
 
 
 ``` r
 gmv_weights <- function(Sigma, lambda = 0) {
   stopifnot(lambda >= 0, lambda <= 1)
+  # 收縮只改變共變異數估計；所有候選權重仍滿足加總為一。
   Sigma_use <- (1 - lambda) * Sigma + lambda * diag(diag(Sigma))
   one <- rep(1, nrow(Sigma_use))
   raw <- solve(Sigma_use, one)
@@ -232,7 +238,7 @@ selected_lambda
 ## [1] 0.5
 ```
 
-鎖定 \(\lambda\) 後，合併訓練與驗證期重新估計一次；測試期仍未參與。
+驗證期月標準差在 \(\lambda=0.50\) 時最低，因此後續固定使用 0.50。這不是「真實最佳參數」，而是這個候選網格、這段驗證期與這組產業下的選擇。選定 \(\lambda\) 後，合併訓練與驗證期重新估計一次；測試期仍未參與。
 
 
 ``` r
@@ -260,6 +266,8 @@ round(weights, 3)
 ## GMV                   0.447
 ## Validation_Shrunk_GMV 0.300
 ```
+
+未收縮 GMV 出現較大的正負權重，反映矩陣反轉會放大產業間細微的共變異數差異；收縮後的權重較接近零，也較少依賴大幅放空。這是穩定化的直觀效果，但是否真的降低保留期風險，仍要看下一張表。
 
 
 ``` r
@@ -293,6 +301,8 @@ round(test_performance, 4)
 ## Validation_Shrunk_GMV          -0.2224
 ```
 
+在這個測試期，未收縮 GMV 的年化標準差約為 11.66%，收縮 GMV 約為 11.98%，都低於等權重的 14.12%；最低風險並沒有自動帶來最高平均報酬或 Sharpe 比率。收縮 GMV 的表現介於等權重與未收縮 GMV 之間，說明驗證期選出的穩定化程度不保證在每個保留期都勝過未收縮估計。
+
 
 ``` r
 wealth <- sapply(seq_len(nrow(weights)), function(j) {
@@ -301,11 +311,11 @@ wealth <- sapply(seq_len(nrow(weights)), function(j) {
 matplot(
   months[test_id], wealth, type = "l", lty = 1, lwd = 1.5,
   col = c("#173B57", "#A34045", "#1D6D73"),
-  xlab = "Month", ylab = "Cumulative wealth",
-  main = "Real Ten-Industry Portfolios: Fixed-Weight Test Performance"
+  xlab = "月份", ylab = "累積財富",
+  main = "十產業投資組合：固定權重的測試期表現"
 )
 legend(
-  "topleft", rownames(weights),
+  "topleft", c("等權重", "未收縮 GMV", "驗證期收縮 GMV"),
   col = c("#173B57", "#A34045", "#1D6D73"),
   lty = 1, lwd = 1.5, bty = "n"
 )
@@ -313,11 +323,11 @@ legend(
 
 ![固定權重在最終測試期的累積財富；未扣交易成本。](../R09_portfolio_capm_factors_files/figure-gfm/wealth-plot-1.png)
 
-這是歷史保留期比較，不是可交易績效宣告：未納入交易成本、估計誤差、多重嘗試或產業投資組合實際取得方式。
+這是歷史保留期的描述性比較。程式假設在測試期持有固定權重，沒有納入交易成本、做空限制、估計誤差、多重嘗試，也沒有處理產業投資組合在實務上如何取得，因此不能直接視為可交易策略的績效。
 
-## 4. 真實產業報酬的 CAPM 與 FF3
+## FF3 是否比 CAPM 更能重建同月產業報酬？
 
-以下以製造業（`Manuf`）為焦點，係數只用訓練期估計。因子是當月已實現報酬，所以測試期結果是**同期條件重建**，不是月初可交易的事前預測。
+以下先以製造業（`Manuf`）為例，所有係數只用訓練期估計。測試月份的因子與產業報酬都是當月結束後才完整觀察，因此這裡問的是：給定同月已實現的市場、SMB 與 HML，模型能重建多少產業超額報酬？這是**同期條件重建**，不是月初可以執行的事前預測。
 
 
 ``` r
@@ -334,6 +344,7 @@ fit_capm <- lm(y ~ MKT, data = reg_data, subset = train_id)
 fit_ff3 <- lm(y ~ MKT + SMB + HML, data = reg_data, subset = train_id)
 
 newey_west_vcov <- function(model, lag = 6L) {
+  # 月資料可能同時有異質變異與短期序列相關，故以 Bartlett 權重計算 HAC。
   X <- model.matrix(model)
   e <- residuals(model)
   n <- nrow(X)
@@ -370,6 +381,8 @@ data.frame(
 ## 4         HML  0.049466265 0.0430464166
 ```
 
+製造業的市場係數約為 1.06，表示在這段訓練樣本中，製造業超額報酬與市場超額報酬大致同向且幅度略高。SMB 與 HML 的點估計較小；HAC 標準誤反映序列相依與異質變異後的不確定性。這些係數描述條件關聯，不等於因子的因果效果。
+
 
 ``` r
 score_reconstruction <- function(model, rows) {
@@ -395,6 +408,8 @@ round(conditional_test, 4)
 ## CAPM 0.0157 0.0120         0.8826
 ## FF3  0.0152 0.0117         0.8905
 ```
+
+製造業測試期的 CAPM RMSE 約為 0.0157，FF3 約為 0.0152；FF3 的同期重建誤差略低，條件 \(R^2\) 也由約 0.883 提高到 0.891。差距雖然方向一致，幅度不大，不能只憑這一個產業宣稱三因子模型全面勝出。
 
 
 ``` r
@@ -427,6 +442,8 @@ all_industry_rmse
 ## 10    Utils     0.03220611    0.03544833   0.0032422134
 ```
 
+十個產業的結果並不一致：FF3 在耐久財、能源、高科技、製造業、其他產業與電信的 RMSE 較低，但在醫療、非耐久財、商店與公用事業較高。加入因子提高模型彈性，是否改善條件重建仍取決於產業與保留期間。
+
 
 ``` r
 capm_test <- predict(fit_capm, newdata = reg_data[test_id, ])
@@ -436,11 +453,11 @@ matplot(
   cbind(reg_data$y[test_id], capm_test, ff3_test),
   type = "l", lty = c(1, 2, 3), lwd = c(1.6, 1.2, 1.2),
   col = c("black", "#A34045", "#1D6D73"),
-  xlab = "Month", ylab = "Monthly excess return (decimal)",
-  main = "Manuf: Concurrent Factor Reconstruction in the Test Period"
+  xlab = "月份", ylab = "月超額報酬（小數）",
+  main = "製造業：測試期的同期因子重建"
 )
 legend(
-  "topleft", c("Actual", "CAPM", "FF3"),
+  "topleft", c("實際值", "CAPM", "FF3"),
   col = c("black", "#A34045", "#1D6D73"),
   lty = c(1, 2, 3), lwd = c(1.6, 1.2, 1.2), bty = "n"
 )
@@ -448,15 +465,15 @@ legend(
 
 ![製造業測試期實現超額報酬與同期因子條件重建。](../R09_portfolio_capm_factors_files/figure-gfm/conditional-fit-plot-1.png)
 
-FF3 測試誤差若低於 CAPM，只能說在這個固定切分下，加入同期 SMB 與 HML 改善條件解釋；不能直接推成未來報酬可預測、因子具有因果效果或策略可獲利。
+因此，FF3 測試誤差低於 CAPM 時，合宜的結論是：在這個固定切分下，加入同期 SMB 與 HML 改善了部分產業的條件解釋。這個結果沒有證明未來報酬可預測，也沒有識別因子的因果效果，更不是策略獲利的證據。
 
-## 5. 可重現結論
+## 從結果回到研究問題
 
-1. 十產業、RF 與 FF3 都來自真實的固定月資料，不再用合成資產作主結果。
-2. 所有資料均明示為月小數報酬；產業 `ret` 已扣除 RF。
-3. 收縮強度只用驗證期選定，最後測試期完全保留。
-4. CAPM／FF3 使用測試期同期因子時，只稱條件重建。
-5. 公開 repo 隨附作者授權的 processed CSV，可直接重跑；若另由上游重建，仍須保存來源、版本與轉換紀錄。
+投資組合部分顯示，GMV 的確降低了這段測試期的波動，但驗證期選出的收縮 GMV 並未在測試期進一步勝過未收縮 GMV。這不是收縮方法失效的普遍證據，而是提醒我們：估計穩定、權重不極端與單一保留期風險最低，是三個相關但不相同的目標。若要做更接近實務的比較，下一步可加入非負權重、交易成本與滾動重估。
+
+因子模型部分顯示，FF3 對製造業以及部分產業的同期重建略有改善，但各產業方向不一。由於測試期因子是同月已實現值，這個練習回答的是條件解釋，而不是事前預測或因果問題。若研究目標改為報酬預測，就必須把解釋變數延遲到預測形成時已知的資訊。
+
+重做本附錄時，請保留資料來源、版本、單位轉換與時間切分。若改用最新資料，應把新結果視為新的資料版本，而不是期待逐位數複製這份固定快照。
 
 
 ``` r
@@ -481,34 +498,7 @@ sessionInfo()
 ## attached base packages:
 ## [1] stats     graphics  grDevices utils     datasets  methods   base     
 ## 
-## other attached packages:
-## [1] tibble_3.3.0 dplyr_1.2.1 
-## 
 ## loaded via a namespace (and not attached):
-##  [1] shape_1.4.6.1       gtable_0.3.6        xfun_0.57          
-##  [4] ggplot2_4.0.3       collapse_2.1.7      lattice_0.22-7     
-##  [7] quadprog_1.5-8      vctrs_0.7.2         tools_4.5.2        
-## [10] Rdpack_2.6.6        generics_0.1.4      curl_7.0.0         
-## [13] parallel_4.5.2      sandwich_3.1-1      xts_0.14.2         
-## [16] pkgconfig_2.0.3     gbutils_0.5.1       Matrix_1.7-4       
-## [19] tidyverse_2.0.0     RColorBrewer_1.1-3  S7_0.2.1           
-## [22] lifecycle_1.0.5     compiler_4.5.2      farver_2.1.2       
-## [25] maxLik_1.5-2.2      textshaping_1.0.5   codetools_0.2-20   
-## [28] htmltools_0.5.9     glmnet_4.1-10       Formula_1.2-5      
-## [31] pillar_1.11.1       MASS_7.3-65         plm_2.6-7          
-## [34] iterators_1.0.14    foreach_1.5.2       nlme_3.1-168       
-## [37] fracdiff_1.5-4      pls_2.9-0           fBasics_4052.98    
-## [40] tidyselect_1.2.1    bdsmatrix_1.3-7     digest_0.6.39      
-## [43] labeling_0.4.3      splines_4.5.2       tseries_0.10-62    
-## [46] miscTools_0.6-30    fastmap_1.2.0       grid_4.5.2         
-## [49] colorspace_2.1-2    cli_3.6.5           magrittr_2.0.4     
-## [52] utf8_1.2.6          survival_3.8-3      withr_3.0.2        
-## [55] scales_1.4.0        forecast_9.0.2      TTR_0.24.4         
-## [58] rmarkdown_2.31      quantmod_0.4.29     otel_0.2.0         
-## [61] timeDate_4052.112   ragg_1.5.2          zoo_1.8-15         
-## [64] timeSeries_4052.112 fGarch_4052.93      urca_1.3-4         
-## [67] evaluate_1.0.5      knitr_1.51          rbibutils_2.4.1    
-## [70] lmtest_0.9-40       rlang_1.1.7         spatial_7.3-18     
-## [73] Rcpp_1.1.0          glue_1.8.0          R6_2.6.1           
-## [76] cvar_0.6            systemfonts_1.3.2
+## [1] compiler_4.5.2 cli_3.6.5      tools_4.5.2    otel_0.2.0     knitr_1.51    
+## [6] xfun_0.57      rlang_1.1.7    evaluate_1.0.5
 ```

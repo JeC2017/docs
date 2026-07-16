@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="《財務時間序列分析》R 線上附錄：R04：AR、MA 與 ARMA：理論與真實報酬">
-  <title>R04：AR、MA 與 ARMA：理論與真實報酬｜財務時間序列分析</title>
+  <meta name="description" content="《財務時間序列分析》R 線上附錄：R04：AR、MA、ARMA 與真實報酬的 ACF">
+  <title>R04：AR、MA、ARMA 與真實報酬的 ACF｜財務時間序列分析</title>
   <link rel="stylesheet" href="assets/site.css">
   <script>
     window.MathJax = {
@@ -21,43 +21,43 @@
   <header class="site-header">
     <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
     <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
-    <a class="policy-link" href="data-policy.html">資料政策</a>
+    <a class="policy-link" href="data-policy.html">資料說明</a>
   </header>
   <div class="layout">
     <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
       <p class="sidebar-title">線上附錄</p>
       <ol><li><a href="index.html">首頁</a></li>
 <li><a href="data.html">實證資料下載</a></li>
-<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="data-policy.html">資料來源與重現說明</a></li>
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
 <li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與實證特徵</a></li>
-<li><a href="R04_ar_ma_arma_simulation.html" aria-current="page" class="active">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
-<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
-<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
-<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
-<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
-<li><a href="R09_portfolio_capm_factors.html">R09　投資組合、CAPM 與財務因子</a></li>
-<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
-<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
-<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html" aria-current="page" class="active">R04　AR、MA、ARMA 與真實報酬的 ACF</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　AAPL 的 ARMA 估計、診斷與預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　TWD／JPY 的無資料洩漏樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　TWD／JPY 的單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　AAPL 的 ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html">R09　美國十產業投資組合、CAPM 與 Fama–French 三因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　真實股票報酬的 PCA、低秩重建與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　S&amp;P 500 平衡子樣本的 PCA 與跨股票落後值修正</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC–ICAPM 的第二階段個案研究</a></li>
 <li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
-<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
-<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　機器學習的金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　加州學校資料的雙重選擇與 DML 式殘差化</a></li>
 <li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
 <li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
 <li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
     </nav>
     <main id="main-content" class="content">
       <div class="publication-note">
-        本網站提供作者執行後的教學內容、程式原始檔與本書實證使用的固定資料版本。
-        詳見<a href="data-policy.html">資料與重現政策</a>。
+        想自己重算，可以從頁首下載 R Markdown 與執行結果。所有實證例都使用隨書提供的固定資料；
+        檔案來源、變數單位與已知限制請見<a href="data-policy.html">資料來源與重現說明</a>。
       </div>
       <article>
-        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R04：AR、MA 與 ARMA：理論與真實報酬</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R04_ar_ma_arma_simulation.Rmd">R Markdown 原始檔</a><a href="source/R04_ar_ma_arma_simulation.md">執行後 Markdown</a></div></header>
-        <p>本附錄對應第 4--6 章。第一部分保留一個小型固定種子模擬，因為只有在資料生成參數已知時，才能直接核對 AR、MA 與 ARMA 的理論自相關函數（autocorrelation function, ACF）。第二部分改用真實的 MSFT 與 AAPL 日簡單報酬，檢查樣本 ACF 與 Ljung--Box 統計量。</p>
-<p>MSFT 樣本為 1986-03-14 至 2008-12-31，共 5,752 筆；AAPL 樣本為 2019-01-03 至 2022-06-22，共 874 筆有效報酬。兩者單位都是日簡單報酬的小數。資料來源分別是 Tsay 教科書網站及原課程 S&amp;P 500 價格檔，詳見 <code>data/DATA_SOURCES.md</code>。以下相關性是歷史描述，不能作因果解釋。</p>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R04：AR、MA、ARMA 與真實報酬的 ACF</h1><div class="source-links" aria-label="下載本頁檔案"><a href="source/R04_ar_ma_arma_simulation.Rmd">下載 R Markdown</a><a href="source/R04_ar_ma_arma_simulation.md">下載執行結果（Markdown）</a></div></header>
+        <p>本附錄對應第 4–6 章，要練習從自相關函數（autocorrelation function, ACF）辨認 AR、MA 與 ARMA 動態，同時看清楚理論圖形與真實金融資料之間的距離。第一部分用固定種子模擬三個參數已知的過程，讓我們能把樣本 ACF 直接疊在理論 ACF 上；第二部分改用 MSFT 與 AAPL 日簡單報酬，檢查樣本中的線性相依與波動相依。</p>
+<p>MSFT 樣本為 1986-03-14 至 2008-12-31，共 5,752 筆；AAPL 樣本為 2019-01-03 至 2022-06-22，共 874 筆有效報酬。每一筆是一個交易日，兩者單位都是日簡單報酬的小數。資料來源分別是 Tsay 教科書網站與原課程 S&amp;P 500 價格檔，詳見 <code>data/DATA_SOURCES.md</code>。真實資料部分使用完整歷史樣本做描述，沒有訓練期、驗證期與測試期之分；以下相關性也沒有因果含意。</p>
 <pre><code class="language-r">knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
   fig.width = 8, fig.height = 4.8,
@@ -85,7 +85,7 @@ if (!&quot;cwTeX Online&quot; %in% systemfonts::registry_fonts()$family) {
 }
 plot_family &lt;- &quot;cwTeX Online&quot;
 </code></pre>
-<h2 id="_1">小型真值模擬<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
+<h2 id="_1">先用已知真值觀察三種動態<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
 <p>設定三個平均數為零、創新標準差為 1 的資料生成過程：</p>
 <p>\[
 \begin{aligned}
@@ -94,13 +94,14 @@ plot_family &lt;- &quot;cwTeX Online&quot;
 \text{ARMA(1,1)} &amp;: Y_t=0.50Y_{t-1}+a_t+0.40a_{t-1}.
 \end{aligned}
 \]</p>
-<p>模擬只用來核對公式與程式，不是金融市場的實證證據。</p>
+<p>三條序列各有 600 期，觀察單位是模擬期數，沒有日曆日期或貨幣單位。三組創新分別抽自同一個標準常態分配，標準差都是 1，但三條路徑並未逐期共用同一批創新。因此，母體模型的系統性差異只來自 AR 與 MA 係數，有限樣本路徑的差異則同時包含動態差異與不同創新的抽樣波動。這段模擬用來理解模型與檢查程式，不會被當成金融市場的實證證據。</p>
 <pre><code class="language-r">n_sim &lt;- 600L
 phi_ar &lt;- 0.70
 theta_ma &lt;- 0.60
 phi_arma &lt;- 0.50
 theta_arma &lt;- 0.40
 
+# 讓 arima.sim() 依指定真值生成資料；同一種子使三條路徑可重做。
 ar1 &lt;- as.numeric(arima.sim(
   model = list(ar = phi_ar), n = n_sim, sd = 1
 ))
@@ -155,6 +156,7 @@ knitr::kable(simulation_table, digits = 4)
 </tr>
 </tbody>
 </table>
+<p><code>樣本變異數</code> 不會與理論值完全相同，因為每條路徑只有 600 期；差距反映抽樣變動。這裡先看數量級是否合理，再從時間圖觀察衝擊消退的速度與短期起伏。</p>
 <pre><code class="language-r">old_par &lt;- par(family = plot_family)
 matplot(
   1:120,
@@ -173,6 +175,7 @@ legend(
 <pre><code class="language-r">par(old_par)
 </code></pre>
 <h2 id="acf-acf">理論 ACF 與樣本 ACF<a class="headerlink" href="#acf-acf" title="Permanent link">#</a></h2>
+<p>真正用 ACF 辨認模型時，我們只看得到樣本柱線；模擬則額外知道理論值，所以可以把紅點疊上去。每一個落後階數比較相距 $k$ 期的觀察值，零階 ACF 固定等於 1。</p>
 <pre><code class="language-r">lag_max &lt;- 20L
 series_sim &lt;- list(AR1 = ar1, MA1 = ma1, ARMA11 = arma11)
 theory_sim &lt;- list(
@@ -188,6 +191,7 @@ old_par &lt;- par(
   family = plot_family
 )
 for (nm in names(series_sim)) {
+  # 樣本 ACF 由 600 期資料估計，理論 ACF 則直接由設定參數計算。
   sample_acf &lt;- as.numeric(acf(
     series_sim[[nm]], lag.max = lag_max, plot = FALSE
   )$acf)
@@ -203,12 +207,12 @@ for (nm in names(series_sim)) {
 <p><img alt="模擬樣本 ACF（柱線）與已知參數的理論 ACF（紅點）。" src="./R04_ar_ma_arma_simulation_files/figure-gfm/acf-comparison-1.png"></p>
 <pre><code class="language-r">par(old_par)
 </code></pre>
-<p>MA(1) 的母體 ACF 在一階之後為零，但有限樣本柱線仍會因抽樣誤差偏離零。AR 與 ARMA 的 ACF 通常拖尾。</p>
-<h2 id="forecast">原課程套件捷徑：<code>forecast</code><a class="headerlink" href="#forecast" title="Permanent link">#</a></h2>
+<p>圖中 MA(1) 的母體 ACF 在一階之後為零，但有限樣本柱線仍會因抽樣誤差略微偏離零；不能把每一根小柱線都當成真正動態。AR 與 ARMA 的 ACF 通常逐步衰減，因此會呈現拖尾。這些是辨認候選模型的線索，正式選階仍要搭配資訊準則與殘差診斷。</p>
+<h2 id="autoarima-checkresiduals">套件作法：用 <code>auto.arima()</code> 選階並以 <code>checkresiduals()</code> 診斷<a class="headerlink" href="#autoarima-checkresiduals" title="Permanent link">#</a></h2>
 <p>原課程的
 <code>slides/L05_Forecasting_and_CV/W1L5_R_simulated_AR_ARMA_and_then_autoARMA.R</code>
-在模擬 AR 與 ARMA 後，以 <code>forecast::auto.arima()</code> 自動選階、
-<code>checkresiduals()</code> 檢查殘差，再以 <code>forecast()</code> 形成預測。下列程式對相同的固定種子模擬樣本重現這條套件工作流。原程式寫成 <code>seasonal = "FALSE"</code>；這裡改用意義明確的邏輯值 <code>seasonal = FALSE</code>。</p>
+在模擬 AR 與 ARMA 後，以 <code>forecast::auto.arima()</code> 選階、
+<code>checkresiduals()</code> 檢查殘差，再以 <code>forecast()</code> 形成預測。下列程式沿用原課程的工作流程，對同一批固定種子模擬樣本操作。<code>auto.arima()</code> 會估計候選模型並依資訊準則比較，卻不會保證找回真實階數；季節性、搜尋範圍與資訊準則仍需自行設定。原程式寫成 <code>seasonal = "FALSE"</code>，這裡使用意義明確的邏輯值 <code>seasonal = FALSE</code>。</p>
 <pre><code class="language-r">stopifnot(requireNamespace(&quot;forecast&quot;, quietly = TRUE))
 
 true_orders &lt;- list(
@@ -217,36 +221,49 @@ true_orders &lt;- list(
   ARMA11 = c(p = 1, d = 0, q = 1)
 )
 true_coefficients &lt;- list(
-  AR1 = c(ar1 = phi_ar, ma1 = NA_real_),
-  MA1 = c(ar1 = NA_real_, ma1 = theta_ma),
+  AR1 = c(ar1 = phi_ar),
+  MA1 = c(ma1 = theta_ma),
   ARMA11 = c(ar1 = phi_arma, ma1 = theta_arma)
 )
 
+coefficient_or_zero &lt;- function(coefficients, term) {
+  if (term %in% names(coefficients)) unname(coefficients[term]) else 0
+}
+
+# 每個模型都只看到各自的 600 期樣本，函數不知道上方設定的真值。
 auto_models &lt;- lapply(series_sim, function(z) {
   forecast::auto.arima(ts(z), seasonal = FALSE)
 })
 
+# 將選定階數與已知真值並排，觀察有限樣本選模的不確定性。
 auto_selection &lt;- do.call(rbind, lapply(names(auto_models), function(nm) {
   fit &lt;- auto_models[[nm]]
   selected &lt;- forecast::arimaorder(fit)[c(&quot;p&quot;, &quot;d&quot;, &quot;q&quot;)]
   b &lt;- coef(fit)
-  selected_coefficients &lt;- c(
-    ar1 = if (&quot;ar1&quot; %in% names(b)) unname(b[&quot;ar1&quot;]) else NA_real_,
-    ma1 = if (&quot;ma1&quot; %in% names(b)) unname(b[&quot;ma1&quot;]) else NA_real_
-  )
+  selected_terms &lt;- grep(&quot;^(ar|ma)[0-9]+$&quot;, names(b), value = TRUE)
+  dynamic_terms &lt;- sort(unique(c(
+    names(true_coefficients[[nm]]), selected_terms
+  )))
   data.frame(
     模擬真值 = nm,
-    真p = true_orders[[nm]][&quot;p&quot;],
-    真d = true_orders[[nm]][&quot;d&quot;],
-    真q = true_orders[[nm]][&quot;q&quot;],
-    自動p = selected[&quot;p&quot;],
-    自動d = selected[&quot;d&quot;],
-    自動q = selected[&quot;q&quot;],
-    真ar1 = true_coefficients[[nm]][&quot;ar1&quot;],
-    估計ar1 = selected_coefficients[&quot;ar1&quot;],
-    真ma1 = true_coefficients[[nm]][&quot;ma1&quot;],
-    估計ma1 = selected_coefficients[&quot;ma1&quot;],
-    AICc = fit$aicc,
+    真p = unname(true_orders[[nm]][&quot;p&quot;]),
+    真d = unname(true_orders[[nm]][&quot;d&quot;]),
+    真q = unname(true_orders[[nm]][&quot;q&quot;]),
+    自動p = unname(selected[&quot;p&quot;]),
+    自動d = unname(selected[&quot;d&quot;]),
+    自動q = unname(selected[&quot;q&quot;]),
+    動態係數 = dynamic_terms,
+    真值 = vapply(
+      dynamic_terms,
+      function(term) coefficient_or_zero(true_coefficients[[nm]], term),
+      numeric(1)
+    ),
+    估計值 = vapply(
+      dynamic_terms,
+      function(term) coefficient_or_zero(b, term),
+      numeric(1)
+    ),
+    AICc = unname(fit$aicc),
     check.names = FALSE
   )
 }))
@@ -263,10 +280,9 @@ knitr::kable(auto_selection, digits = 4)
 <th style="text-align: right;">自動p</th>
 <th style="text-align: right;">自動d</th>
 <th style="text-align: right;">自動q</th>
-<th style="text-align: right;">真ar1</th>
-<th style="text-align: right;">估計ar1</th>
-<th style="text-align: right;">真ma1</th>
-<th style="text-align: right;">估計ma1</th>
+<th style="text-align: left;">動態係數</th>
+<th style="text-align: right;">真值</th>
+<th style="text-align: right;">估計值</th>
 <th style="text-align: right;">AICc</th>
 </tr>
 </thead>
@@ -279,10 +295,9 @@ knitr::kable(auto_selection, digits = 4)
 <td style="text-align: right;">1</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
+<td style="text-align: left;">ar1</td>
 <td style="text-align: right;">0.7</td>
 <td style="text-align: right;">0.7080</td>
-<td style="text-align: right;">NA</td>
-<td style="text-align: right;">NA</td>
 <td style="text-align: right;">1765.287</td>
 </tr>
 <tr>
@@ -293,8 +308,7 @@ knitr::kable(auto_selection, digits = 4)
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">1</td>
-<td style="text-align: right;">NA</td>
-<td style="text-align: right;">NA</td>
+<td style="text-align: left;">ma1</td>
 <td style="text-align: right;">0.6</td>
 <td style="text-align: right;">0.5866</td>
 <td style="text-align: right;">1702.242</td>
@@ -307,17 +321,43 @@ knitr::kable(auto_selection, digits = 4)
 <td style="text-align: right;">2</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">1</td>
+<td style="text-align: left;">ar1</td>
 <td style="text-align: right;">0.5</td>
 <td style="text-align: right;">0.5441</td>
+<td style="text-align: right;">1742.725</td>
+</tr>
+<tr>
+<td style="text-align: left;">ARMA11</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: left;">ar2</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">0.0024</td>
+<td style="text-align: right;">1742.725</td>
+</tr>
+<tr>
+<td style="text-align: left;">ARMA11</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: left;">ma1</td>
 <td style="text-align: right;">0.4</td>
 <td style="text-align: right;">0.3538</td>
 <td style="text-align: right;">1742.725</td>
 </tr>
 </tbody>
 </table>
+<p>讀表時先比較真 $(p,d,q)$ 與自動選定階數，再逐列查看動態係數。長表列出真實模型與所選模型中出現過的 AR、MA 項；某一規格沒有某個階數時，該係數在該規格下就是 0，而不是缺值。例如，自動選到額外的 <code>ar2</code> 時，真實 ARMA(1,1) 的 <code>ar2</code> 真值會明列為 0。即使階數相同，估計值也會受這一次 600 期路徑影響。<code>AICc</code> 是候選模型在這份模擬樣本中的相對分數，不是模型正確的機率。</p>
 <pre><code class="language-r">forecast::checkresiduals(auto_models$ARMA11, lag = 20)
 </code></pre>
-<p><img alt="原課程 forecast 套件工作流對 ARMA(1,1) 模擬樣本所作的殘差診斷。" src="./R04_ar_ma_arma_simulation_files/figure-gfm/course-auto-arima-diagnostics-1.png"></p>
+<p><img alt="原課程 forecast 套件工作流程對 ARMA(1,1) 模擬樣本所作的殘差診斷。" src="./R04_ar_ma_arma_simulation_files/figure-gfm/course-auto-arima-diagnostics-1.png"></p>
 <pre><code>## 
 ##  Ljung-Box test
 ## 
@@ -326,7 +366,8 @@ knitr::kable(auto_selection, digits = 4)
 ## 
 ## Model df: 3.   Total lags used: 20
 </code></pre>
-<pre><code class="language-r">course_forecast &lt;- forecast::forecast(
+<pre><code class="language-r"># 以 600 期資料估計後，一次預測尚未觀察的第 601 至 630 期。
+course_forecast &lt;- forecast::forecast(
   auto_models$ARMA11,
   h = 30,
   level = c(80, 95)
@@ -404,8 +445,9 @@ knitr::kable(forecast_preview, digits = 4)
 </tr>
 </tbody>
 </table>
-<p>套件版節省了逐一估計候選模型與整理診斷的程式，但不會讓階數「必然」回到資料生成真值。<code>auto.arima()</code> 是依有限樣本的資訊準則選擇模型；上表與已知真值的差異，正好顯示模型選擇也有抽樣不確定性。<code>checkresiduals()</code> 只檢查特定殘差特徵；預測區間還依賴已選模型與創新分配的假設。</p>
-<h2 id="_2">根與衝擊反應的程式核對<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
+<p><code>checkresiduals()</code> 把殘差時間圖、ACF 與 Ljung–Box 檢定放在一起。若殘差仍有明顯自相關，下一步應擴大候選階數或重新思考模型，而不是直接採用預測。若診斷沒有明顯警訊，也只能說這些檢查尚未發現問題；預測區間仍依賴已選模型與創新分配的假設。</p>
+<h2 id="_2">從多項式根判斷定態與可逆<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
+<p>ACF 圖形之外，AR 與 MA 多項式的根提供明確的模型條件。下列程式先列出根與其模，再用 <code>ARMAtoMA()</code> 產生衝擊反應係數，與手算遞迴比較。根的「模」是它到複數平面原點的距離，不是係數本身的絕對值。</p>
 <pre><code class="language-r">root_table &lt;- data.frame(
   部分 = c(&quot;AR(1) 的 AR 根&quot;, &quot;MA(1) 的 MA 根&quot;, &quot;ARMA 的 AR 根&quot;, &quot;ARMA 的 MA 根&quot;),
   根 = Re(c(
@@ -536,8 +578,9 @@ knitr::kable(data.frame(期距 = j, 手算 = psi_manual, R = psi_r), digits = 6)
 </tr>
 </tbody>
 </table>
-<p>AR 根在單位圓外對應因果定態表示；MA 根在單位圓外對應可逆表示。這兩個限制不能混為一談。</p>
+<p>表中四個根的模都大於 1，因此此處設定的 AR 部分具有因果定態表示，MA 部分也可逆。兩個條件處理不同問題：前者讓目前值可由過去創新表示，後者讓創新可由目前與過去觀察值恢復。<code>手算</code> 與 <code>R</code> 兩欄重合，則確認衝擊反應的符號與遞迴次序一致。</p>
 <h2 id="msft-aapl">真實 MSFT 與 AAPL 報酬<a class="headerlink" href="#msft-aapl" title="Permanent link">#</a></h2>
+<p>現在回到真實資料。兩份檔案的樣本期間不同，所以不直接比較單日觀察值；我們只對各自序列計算 ACF 與聯合檢定。日報酬在當日收盤價可得後才完整形成，本頁的同日與落後相關都是事後歷史描述，不是假設在盤中已能取得收盤資訊。</p>
 <pre><code class="language-r">msft &lt;- read.csv(project_path(
   &quot;data&quot;, &quot;processed&quot;, &quot;msft_daily_returns_1986_2008.csv&quot;
 ))
@@ -547,6 +590,7 @@ aapl &lt;- read.csv(project_path(
   &quot;data&quot;, &quot;processed&quot;, &quot;aapl_adjusted_daily_2019_2022.csv&quot;
 ))
 aapl$date &lt;- as.Date(aapl$date)
+# 第一個價格沒有前一期報酬，僅保留有限的實際報酬列。
 aapl &lt;- aapl[is.finite(aapl$simple_return), ]
 
 stopifnot(
@@ -595,6 +639,7 @@ knitr::kable(real_profile)
 </tr>
 </tbody>
 </table>
+<p>資料摘要應重現本頁開頭的起訖日與有效觀察值數。若數字不同，應先檢查是否把 AAPL 第一筆自然缺值算入樣本，或日期是否未按時間排序。</p>
 <pre><code class="language-r">real_series &lt;- list(
   MSFT = msft$simple_return,
   AAPL = aapl$simple_return
@@ -613,7 +658,8 @@ for (nm in names(real_series)) {
 <p><img alt="真實 MSFT 與 AAPL 報酬及平方報酬的樣本 ACF。" src="./R04_ar_ma_arma_simulation_files/figure-gfm/real-acf-1.png"></p>
 <pre><code class="language-r">par(old_par)
 </code></pre>
-<h2 id="ljung-box">Ljung--Box 聯合檢查<a class="headerlink" href="#ljung-box" title="Permanent link">#</a></h2>
+<h2 id="ljungbox">Ljung–Box 聯合檢查<a class="headerlink" href="#ljungbox" title="Permanent link">#</a></h2>
+<p>單看某一根 ACF 柱線容易受到抽樣誤差影響，所以再用 Ljung–Box 統計量聯合檢查前 20 階自相關是否同時為零。原報酬與平方報酬分開檢定，因為前者關心條件平均，後者關心波動大小的持續性。</p>
 <pre><code class="language-r">lb_row &lt;- function(x, label) {
   q_return &lt;- Box.test(x, lag = 20, type = &quot;Ljung-Box&quot;)
   q_square &lt;- Box.test(x^2, lag = 20, type = &quot;Ljung-Box&quot;)
@@ -660,20 +706,23 @@ knitr::kable(lb_table, digits = 6)
 </tr>
 </tbody>
 </table>
-<p>在這兩個固定樣本中，報酬與平方報酬的 20 階聯合零自相關限制都遭拒絕；平方報酬的統計量尤其大。這說明真實資料不應被縮減成「只看模擬 ACF」的練習。</p>
-<p>拒絕「前 20 階自相關同時為零」只表示這組限制與樣本不相容。它不告訴我們應選哪一個 ARMA 階數，也不保證相關性足以克服交易成本。平方報酬的相依則提示第 11--12 章的條件變異模型，而不是把它誤當成平均報酬的因果機制。</p>
+<p>在這兩個固定樣本中，報酬與平方報酬的前 20 階聯合零自相關限制都遭拒絕，平方報酬的統計量尤其大。這表示以白雜訊作為完整描述並不充分，也說明真實資料比三條教學模擬更複雜。</p>
+<p>這項拒絕尚未告訴我們應選哪一個 ARMA 階數。合理的下一步，是只在預先設定的訓練期內比較低階候選模型，檢查估計後殘差，再用保留期間評估預測。平方報酬的相依則提示第 11–12 章的條件變異模型；它描述波動持續性，不是平均報酬的因果機制，也不保證足以克服交易成本。</p>
+<h2 id="_3">從模擬走向實證時要保留的判斷<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<p>已知真值模擬告訴我們 ACF 截尾或拖尾在理論上如何形成，也顯示 <code>auto.arima()</code> 在有限樣本中可能選到不同階數。真實 MSFT 與 AAPL 報酬則呈現平均與波動相依，無法只靠一張理論 ACF 圖決定模型。本頁還沒有做樣本外預測；R05 將在時間切分後比較 AAPL 的候選 ARMA 模型，讓資訊準則、殘差診斷與測試期各自負責不同的判斷。</p>
       </article>
-      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R03_distributions_heavy_tails.html">← 分配、厚尾與實證特徵</a><a rel="next" href="R05_arma_estimation_diagnostics_forecasting.html">ARMA 估計、診斷與多步預測 →</a></nav>
+      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R03_distributions_heavy_tails.html">← 分配、厚尾與實證特徵</a><a rel="next" href="R05_arma_estimation_diagnostics_forecasting.html">AAPL 的 ARMA 估計、診斷與預測 →</a></nav>
       <footer>© 陳釗而　《財務時間序列分析》</footer>
     </main>
     <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
 <ul>
-<li><a href="#_1">小型真值模擬</a></li>
+<li><a href="#_1">先用已知真值觀察三種動態</a></li>
 <li><a href="#acf-acf">理論 ACF 與樣本 ACF</a></li>
-<li><a href="#forecast">原課程套件捷徑：forecast</a></li>
-<li><a href="#_2">根與衝擊反應的程式核對</a></li>
+<li><a href="#autoarima-checkresiduals">套件作法：用 auto.arima() 選階並以 checkresiduals() 診斷</a></li>
+<li><a href="#_2">從多項式根判斷定態與可逆</a></li>
 <li><a href="#msft-aapl">真實 MSFT 與 AAPL 報酬</a></li>
-<li><a href="#ljung-box">Ljung--Box 聯合檢查</a></li>
+<li><a href="#ljungbox">Ljung–Box 聯合檢查</a></li>
+<li><a href="#_3">從模擬走向實證時要保留的判斷</a></li>
 </ul>
 </div>
 </aside>

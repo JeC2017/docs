@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="《財務時間序列分析》R 線上附錄：R05：ARMA 估計、診斷與多步預測">
-  <title>R05：ARMA 估計、診斷與多步預測｜財務時間序列分析</title>
+  <meta name="description" content="《財務時間序列分析》R 線上附錄：R05：AAPL 的 ARMA 估計、診斷與預測">
+  <title>R05：AAPL 的 ARMA 估計、診斷與預測｜財務時間序列分析</title>
   <link rel="stylesheet" href="assets/site.css">
   <script>
     window.MathJax = {
@@ -21,43 +21,43 @@
   <header class="site-header">
     <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
     <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
-    <a class="policy-link" href="data-policy.html">資料政策</a>
+    <a class="policy-link" href="data-policy.html">資料說明</a>
   </header>
   <div class="layout">
     <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
       <p class="sidebar-title">線上附錄</p>
       <ol><li><a href="index.html">首頁</a></li>
 <li><a href="data.html">實證資料下載</a></li>
-<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="data-policy.html">資料來源與重現說明</a></li>
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
 <li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與實證特徵</a></li>
-<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
-<li><a href="R05_arma_estimation_diagnostics_forecasting.html" aria-current="page" class="active">R05　ARMA 估計、診斷與多步預測</a></li>
-<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
-<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
-<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
-<li><a href="R09_portfolio_capm_factors.html">R09　投資組合、CAPM 與財務因子</a></li>
-<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
-<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
-<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA、ARMA 與真實報酬的 ACF</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html" aria-current="page" class="active">R05　AAPL 的 ARMA 估計、診斷與預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　TWD／JPY 的無資料洩漏樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　TWD／JPY 的單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　AAPL 的 ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html">R09　美國十產業投資組合、CAPM 與 Fama–French 三因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　真實股票報酬的 PCA、低秩重建與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　S&amp;P 500 平衡子樣本的 PCA 與跨股票落後值修正</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC–ICAPM 的第二階段個案研究</a></li>
 <li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
-<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
-<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　機器學習的金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　加州學校資料的雙重選擇與 DML 式殘差化</a></li>
 <li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
 <li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
 <li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
     </nav>
     <main id="main-content" class="content">
       <div class="publication-note">
-        本網站提供作者執行後的教學內容、程式原始檔與本書實證使用的固定資料版本。
-        詳見<a href="data-policy.html">資料與重現政策</a>。
+        想自己重算，可以從頁首下載 R Markdown 與執行結果。所有實證例都使用隨書提供的固定資料；
+        檔案來源、變數單位與已知限制請見<a href="data-policy.html">資料來源與重現說明</a>。
       </div>
       <article>
-        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R05：ARMA 估計、診斷與多步預測</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R05_arma_estimation_diagnostics_forecasting.Rmd">R Markdown 原始檔</a><a href="source/R05_arma_estimation_diagnostics_forecasting.md">執行後 Markdown</a></div></header>
-        <p>本附錄對應第 6--7 章，以真實 AAPL 日對數報酬示範 ARMA 候選模型、根、殘差診斷與一次形成的多步預測。固定資料源自原課程 S&amp;P 500 價格檔；有效報酬樣本為 2019-01-03 至 2022-06-22，共 874 筆，單位是小數日對數報酬。資料建置方式見 <code>data/DATA_SOURCES.md</code>。</p>
-<p>模型只描述 AAPL 報酬的條件平均動態。係數、診斷與預測誤差都不能解讀成市場事件對 AAPL 的因果效果，也不構成投資建議。</p>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R05：AAPL 的 ARMA 估計、診斷與預測</h1><div class="source-links" aria-label="下載本頁檔案"><a href="source/R05_arma_estimation_diagnostics_forecasting.Rmd">下載 R Markdown</a><a href="source/R05_arma_estimation_diagnostics_forecasting.md">下載執行結果（Markdown）</a></div></header>
+        <p>本附錄對應第 6–7 章，要完整走過一次實際的預測流程：只看 AAPL 的早期日對數報酬時，應如何選擇低階 ARMA 模型、檢查根與殘差，並在模型選定後評估未見期間？固定資料源自原課程 S&amp;P 500 價格檔；每一列代表一個交易日，有效報酬樣本為 2019-01-03 至 2022-06-22，共 874 筆，單位是小數日對數報酬。資料建置方式見 <code>data/DATA_SOURCES.md</code>。</p>
+<p>第 $t$ 日對數報酬要等當日調整收盤價可得後才能完整計算，所以本頁假設在訓練期最後一日收盤後形成預測。ARMA 模型描述的是 AAPL 報酬的條件平均動態；係數、診斷與預測誤差都沒有識別市場事件的因果效果，也不構成投資建議。</p>
 <pre><code class="language-r">knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
   fig.width = 8, fig.height = 4.8,
@@ -85,11 +85,12 @@ if (!&quot;cwTeX Online&quot; %in% systemfonts::registry_fonts()$family) {
 plot_family &lt;- &quot;cwTeX Online&quot;
 </code></pre>
 <h2 id="_1">固定資料與時間切分<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
-<p>前 80% 報酬是訓練期，最後 20% 是一次性測試期。候選模型、BIC 與所有參數只能使用訓練期；測試期不參與規格選擇。</p>
+<p>前 80% 報酬是訓練期，負責比較候選模型、計算 BIC 與估計所有參數；最後 20% 是一次性測試期，只負責回答選定模型在未見資料上的預測誤差。本例沒有另外設驗證期，因為調校工作都限於訓練期內的預先指定候選集合。測試期一旦被拿來改階數或改規格，就不再是未見測試資料。</p>
 <pre><code class="language-r">aapl &lt;- read.csv(project_path(
   &quot;data&quot;, &quot;processed&quot;, &quot;aapl_adjusted_daily_2019_2022.csv&quot;
 ))
 aapl$date &lt;- as.Date(aapl$date)
+# 報酬的落後關係依日期而定，先排序再切分，不能隨機打散。
 aapl &lt;- aapl[order(aapl$date), ]
 aapl &lt;- aapl[is.finite(aapl$log_return), ]
 row.names(aapl) &lt;- NULL
@@ -103,6 +104,7 @@ y &lt;- aapl$log_return
 dates &lt;- aapl$date
 n &lt;- length(y)
 train_end &lt;- floor(0.80 * n)
+# 切點只由樣本長度決定，不參考後面的預測分數。
 y_train &lt;- y[seq_len(train_end)]
 y_test &lt;- y[(train_end + 1L):n]
 
@@ -147,9 +149,9 @@ knitr::kable(split_table)
 </tr>
 </tbody>
 </table>
-<p>這裡評估的是「在訓練期末一次形成、之後不重新估計」的多步預測。逐期重估或滾動視窗的評估見 R06。</p>
+<p>表中訓練期為 2019-01-03 至 2021-10-11，共 699 筆；測試期為 2021-10-12 至 2022-06-22，共 175 筆。這裡評估的是「在 2021-10-11 收盤後一次形成，之後不重新估計」的多步預測。若希望每個交易日都加入新資訊並重新估計，應改用 R06 的擴展或滾動起點設計。</p>
 <h2 id="_2">只在訓練期比較低階候選模型<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
-<p>候選集合在看測試結果以前固定。<code>stats::arima()</code> 對定態 ARMA 所報的 <code>intercept</code> 是序列平均數，而不是
+<p>候選集合在讀取測試結果以前固定，只包含 $p,q\leq 2$ 的幾個低階模型。每個模型都用相同的 699 筆訓練資料與最大概似法估計，才可以公平比較 BIC。要注意，<code>stats::arima()</code> 對定態 ARMA 所報的 <code>intercept</code> 是序列平均數，而不是
 $Y_t=c+\phi Y_{t-1}+a_t$ 中的 $c$。</p>
 <pre><code class="language-r">candidate_orders &lt;- list(
   ARMA00 = c(0, 0, 0),
@@ -162,6 +164,7 @@ $Y_t=c+\phi Y_{t-1}+a_t$ 中的 $c$。</p>
   ARMA12 = c(1, 0, 2)
 )
 
+# 對每一個事前列出的階數，用同一估計法配適同一訓練期。
 fits &lt;- lapply(candidate_orders, function(ord) {
   arima(
     y_train,
@@ -270,17 +273,17 @@ selected_name
 </code></pre>
 <pre><code>## [1] &quot;AR10&quot;
 </code></pre>
-<p>BIC 是訓練期內的相對比較，不是測試期成績，也不保證候選集合包含正確模型。</p>
-<h2 id="autoarima">原課程套件捷徑：<code>auto.arima()</code><a class="headerlink" href="#autoarima" title="Permanent link">#</a></h2>
+<p>表格由 BIC 小到大排列，這份訓練資料選出 AR(1)。BIC 只是在既定候選集合中的訓練期相對比較，不是測試期成績，也沒有保證候選集合包含真實資料生成過程。若所有候選模型的殘差都不理想，仍應降低結論強度或重新設計候選集合。</p>
+<h2 id="autoarima">套件作法：用 <code>auto.arima()</code> 比較候選階數<a class="headerlink" href="#autoarima" title="Permanent link">#</a></h2>
 <p>原課程的
 <code>slides/L04_ARMA/W1L4_R_template_for_estimating_ARMA.R</code>
 以 <code>forecast::auto.arima()</code> 選階、<code>checkresiduals()</code> 診斷，再以
 <code>forecast()</code> 形成預測。
 <code>slides/L05_Forecasting_and_CV/W1L5_R_prediction_cv.R</code>
-另示範了不使用逐步搜尋的 AIC 選階。下列兩個套件版本都只讀訓練期：第一個把階數範圍與資訊準則限制成上一節的手動候選集合，方便核對；第二個保留原課程的較自動 AIC 搜尋。</p>
+另示範了不使用逐步搜尋的 AIC 選階。下列兩個套件版本都只讀訓練期：第一個把階數範圍與資訊準則限制成上一節的八種 $(p,d,q)$ 組合，但 <code>auto.arima()</code> 另會容許零平均規格，因此模型候選集合仍比手動版稍廣；第二個沿用原課程較自動的 AIC 搜尋。若要和手動版使用完全相同的候選集合，應逐一對 <code>candidate_orders</code> 呼叫 <code>forecast::Arima(..., include.mean = TRUE, method = "ML")</code>，再比較 BIC。<code>auto.arima()</code> 會代為估計與排序候選模型，卻不會替我們決定測試期何時開始、該採 AIC 或 BIC，或哪些階數具有實質上的合理性。</p>
 <pre><code class="language-r">stopifnot(requireNamespace(&quot;forecast&quot;, quietly = TRUE))
 
-# p &lt;= 2、q &lt;= 2 且 p + q &lt;= 3，正好對應上文八個候選模型。
+# 階數範圍與手動版相同；auto.arima() 另會比較零平均規格。
 fit_auto_matched &lt;- forecast::auto.arima(
   y_train,
   d = 0,
@@ -295,7 +298,7 @@ fit_auto_matched &lt;- forecast::auto.arima(
   allowmean = TRUE
 )
 
-# 原課程 AIC 工作流；不用測試期決定階數。
+# 再沿用原課程 AIC 搜尋；階數仍只由訓練期決定。
 fit_auto_course &lt;- forecast::auto.arima(
   y_train,
   seasonal = FALSE,
@@ -312,7 +315,7 @@ order_text &lt;- function(fit) {
 selection_comparison &lt;- data.frame(
   方法 = c(
     &quot;手動候選集／BIC&quot;,
-    &quot;forecast 受限搜尋／BIC&quot;,
+    &quot;forecast 同階數範圍／BIC&quot;,
     &quot;forecast 原課程搜尋／AIC&quot;
   ),
   選定模型 = c(
@@ -357,7 +360,7 @@ knitr::kable(selection_comparison, digits = 3)
 <td style="text-align: right;">-3364.828</td>
 </tr>
 <tr>
-<td style="text-align: left;">forecast 受限搜尋／BIC</td>
+<td style="text-align: left;">forecast 同階數範圍／BIC</td>
 <td style="text-align: left;">ARIMA(1,0,0)</td>
 <td style="text-align: right;">1692.238</td>
 <td style="text-align: right;">-3378.477</td>
@@ -372,8 +375,9 @@ knitr::kable(selection_comparison, digits = 3)
 </tr>
 </tbody>
 </table>
-<p>受限套件搜尋是對手動表的程式核對；若估計方法與參數化相同，應選到相同的相對勝者。AIC 版本的候選範圍與懲罰不同，即使選到不同階數也不是程式錯誤。這個對照也說明「自動選階」仍需把資訊準則、搜尋範圍與訓練期寫清楚。</p>
+<p>同階數範圍搜尋與手動表若選到相同結果，只能說兩者在這份資料上的相對勝者一致；由於前者另容許零平均，不能據此宣稱候選集合完全相同。若兩者結果不同，應先檢查平均數規格；若要逐模型核對，則應使用前述 <code>forecast::Arima()</code> 寫法固定每個階數與 <code>include.mean = TRUE</code>。原課程 AIC 版本的搜尋範圍與懲罰也不同，選到另一個階數時，差異來自研究設定而非套件失靈。報告「自動選階」結果時，仍要一併寫清楚資訊準則、搜尋範圍、平均數規格與訓練期間。</p>
 <h2 id="_3">係數、定態根與可逆根<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<p>選定階數後，先讀係數的方向與不確定性，再檢查 AR 與 MA 多項式的根。係數表的每一列是一個參數，<code>估計值</code> 與 <code>標準誤</code> 使用日對數報酬的小數尺度；根表則列出複數根的實部、虛部與模。</p>
 <pre><code class="language-r">coefficient_table &lt;- data.frame(
   參數 = names(coef(selected_fit)),
   估計值 = as.numeric(coef(selected_fit)),
@@ -411,6 +415,7 @@ knitr::kable(coefficient_table, digits = 6)
   ar_coef &lt;- b[grep(&quot;^ar[0-9]+$&quot;, names(b))]
   ma_coef &lt;- b[grep(&quot;^ma[0-9]+$&quot;, names(b))]
 
+  # AR 與 MA 多項式的符號不同，分開建立可避免根的方向寫反。
   ar_roots &lt;- if (length(ar_coef)) {
     polyroot(c(1, -ar_coef))
   } else {
@@ -440,12 +445,15 @@ if (nrow(root_table)) {
   cat(&quot;所選模型沒有 AR 或 MA 根需要檢查。\n&quot;)
 }
 </code></pre>
-<p>AR 根在單位圓外表示估計模型具有因果定態表示；MA 根在單位圓外表示可逆。根接近 1 時，有限樣本推論與遠期預測仍可能不穩定。</p>
+<p>所選 AR(1) 的 AR 係數約為 -0.2029，標準誤約為 0.0377；<code>intercept</code> 約為 0.001906，這裡代表訓練期估計的序列平均數。負的 AR 係數表示報酬偏離平均數後，下一日的條件平均有短期反向調整，但它只是樣本內的縮減式動態，不能解讀成可交易策略或因果反應。</p>
+<p>AR 根在單位圓外時，估計模型具有因果定態表示；若模型含 MA 項，MA 根在單位圓外則表示可逆。根通過條件是採用模型的必要檢查，還不是充分診斷；根接近 1 時，有限樣本推論與遠期預測仍可能不穩定。</p>
 <h2 id="_4">訓練期殘差診斷<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
+<p>資訊準則選出相對勝者後，要問的是它是否已把可預測的平均動態留在殘差之外。第一列 Ljung–Box 檢查殘差前 20 階的線性相依，並扣除已估的 AR 與 MA 參數自由度；第二列檢查平方殘差，尋找尚未處理的波動群聚。</p>
 <pre><code class="language-r">selected_residual &lt;- as.numeric(residuals(selected_fit))
 selected_residual &lt;- selected_residual[is.finite(selected_residual)]
 p_plus_q &lt;- selected_order[1] + selected_order[3]
 
+# 平均方程的檢定扣除 p+q；平方殘差列用來診斷波動，不沿用同一 fitdf。
 q_mean &lt;- Box.test(
   selected_residual, lag = 20, type = &quot;Ljung-Box&quot;,
   fitdf = p_plus_q
@@ -487,7 +495,7 @@ knitr::kable(diagnostic_table, digits = 6)
 </tr>
 </tbody>
 </table>
-<p>本次 AR(1) 殘差的 Ljung--Box $p$ 值約為 $3.1\times10^{-5}$，平方殘差的數值更接近零。也就是說，BIC 所選模型只是候選集合內的相對勝者，並未清除全部平均與波動相依。</p>
+<p>本次 AR(1) 殘差的 Ljung–Box $p$ 值約為 $3.1\times10^{-5}$，平方殘差的 $p$ 值更接近零。這是明確的診斷警訊：BIC 所選模型只是候選集合內的相對勝者，並未清除全部平均與波動相依。平均殘差的結果提示可以檢查其他低階規格；平方殘差則提示把 ARCH/GARCH 類模型納入後續分析。</p>
 <pre><code class="language-r">matched_order &lt;- forecast::arimaorder(fit_auto_matched)[c(&quot;p&quot;, &quot;d&quot;, &quot;q&quot;)]
 matched_residual &lt;- as.numeric(residuals(fit_auto_matched))
 matched_residual &lt;- matched_residual[is.finite(matched_residual)]
@@ -506,7 +514,7 @@ matched_q_square &lt;- Box.test(
 )
 
 diagnostic_comparison &lt;- data.frame(
-  方法 = rep(c(&quot;手動候選集&quot;, &quot;forecast 受限搜尋&quot;), each = 2),
+  方法 = rep(c(&quot;手動候選集&quot;, &quot;forecast 同階數範圍搜尋&quot;), each = 2),
   檢查對象 = rep(c(&quot;殘差&quot;, &quot;平方殘差&quot;), 2),
   Q20 = c(
     unname(q_mean$statistic), unname(q_square$statistic),
@@ -544,23 +552,23 @@ knitr::kable(diagnostic_comparison, digits = 7)
 <td style="text-align: right;">0.00e+00</td>
 </tr>
 <tr>
-<td style="text-align: left;">forecast 受限搜尋</td>
+<td style="text-align: left;">forecast 同階數範圍搜尋</td>
 <td style="text-align: left;">殘差</td>
 <td style="text-align: right;">54.19123</td>
 <td style="text-align: right;">3.09e-05</td>
 </tr>
 <tr>
-<td style="text-align: left;">forecast 受限搜尋</td>
+<td style="text-align: left;">forecast 同階數範圍搜尋</td>
 <td style="text-align: left;">平方殘差</td>
 <td style="text-align: right;">355.02619</td>
 <td style="text-align: right;">0.00e+00</td>
 </tr>
 </tbody>
 </table>
-<pre><code class="language-r"># 原課程使用的一行診斷：同時列出殘差圖、ACF 與 Ljung--Box 檢定。
+<pre><code class="language-r"># 原課程使用的一行診斷，同時呈現殘差路徑、ACF 與聯合檢定。
 forecast::checkresiduals(fit_auto_matched, lag = 20)
 </code></pre>
-<p><img alt="forecast::checkresiduals() 對受限 BIC 自動選階模型的殘差診斷。" src="./R05_arma_estimation_diagnostics_forecasting_files/figure-gfm/course-auto-arima-diagnostics-1.png"></p>
+<p><img alt="forecast::checkresiduals() 對同階數範圍 BIC 自動選階模型的殘差診斷。" src="./R05_arma_estimation_diagnostics_forecasting_files/figure-gfm/course-auto-arima-diagnostics-1.png"></p>
 <pre><code>## 
 ##  Ljung-Box test
 ## 
@@ -569,7 +577,7 @@ forecast::checkresiduals(fit_auto_matched, lag = 20)
 ## 
 ## Model df: 1.   Total lags used: 20
 </code></pre>
-<p>若受限搜尋與手動程式選到相同模型，上表應幾乎重合。小數點差異可來自套件的初始化與數值容差；若模型或自由度不同，則必須先統一階數、估計法與 <code>fitdf</code>，才能比較 Ljung--Box 數值。</p>
+<p>若同階數範圍搜尋與手動程式不只選到相同階數，也採用相同的平均數規格，上表的兩組診斷才應幾乎重合。小數點差異可能來自初始化與數值容差；若模型階數、平均數規格或自由度不同，就要先統一這些設定、估計法與 <code>fitdf</code>，才能把 Ljung–Box 數值放在同一基準上比較。<code>checkresiduals()</code> 替我們排好圖與檢定，仍需由讀者根據殘差或平方殘差的警訊決定下一步。</p>
 <pre><code class="language-r">old_par &lt;- par(
   mfrow = c(1, 3), mar = c(4.5, 3.5, 4, 1),
   family = plot_family, cex.main = 0.88
@@ -585,9 +593,11 @@ acf(selected_residual^2, lag.max = 30, main = &quot;平方殘差 ACF&quot;)
 <p><img alt="BIC 所選模型的訓練期殘差、殘差 ACF 與平方殘差 ACF。" src="./R05_arma_estimation_diagnostics_forecasting_files/figure-gfm/diagnostics-plots-1.png"></p>
 <pre><code class="language-r">par(old_par)
 </code></pre>
-<p>若殘差仍有線性相依，所選低階平均數模型只是候選集合中的相對勝者，不是充分模型。平方殘差的相依則是第 11--12 章 ARCH/GARCH 模型的動機。</p>
-<h2 id="_5">鎖定模型的一次多步預測<a class="headerlink" href="#_5" title="Permanent link">#</a></h2>
+<p>圖形補上檢定數字沒有呈現的資訊：殘差時間圖可以看出警訊集中在哪些日期，兩張 ACF 則顯示相依落在何種期距。由於殘差仍有線性相依，所選低階平均數模型只能視為候選集合中的相對勝者；平方殘差的明顯相依則是第 11–12 章 ARCH/GARCH 模型的直接動機。</p>
+<h2 id="_5">選定模型後的一次多步預測<a class="headerlink" href="#_5" title="Permanent link">#</a></h2>
+<p>現在才讓模型面對保留的 175 筆測試資料。<code>predict()</code> 在訓練期末使用已估的 AR(1) 係數，一次產生整段多步預測；測試期內即使已經觀察到新的實際報酬，也不把它加入模型。這個設計回答「若在 2021-10-11 只估計一次，遠期預測會如何」，與每日更新的一步預測是不同問題。</p>
 <pre><code class="language-r">h &lt;- length(y_test)
+# 模型、參數與預測起點都在讀取測試答案前選定。
 forecast_object &lt;- predict(selected_fit, n.ahead = h)
 
 forecast_table &lt;- data.frame(
@@ -693,6 +703,7 @@ knitr::kable(head(forecast_table, 8), digits = 6)
 </tr>
 </tbody>
 </table>
+<p>表中每一列是一個測試交易日：<code>ARMA預測</code> 是訓練期末可形成的條件平均預測，<code>預測標準誤</code> 隨期距反映未來創新累積，<code>實際值</code> 只在事後計分時使用。任何一列的實際值都沒有回流到後面日期的預測。</p>
 <pre><code class="language-r">score_row &lt;- function(actual, forecast, label) {
   error &lt;- actual - forecast
   data.frame(
@@ -752,10 +763,10 @@ knitr::kable(score_table, digits = 6)
 </tr>
 </tbody>
 </table>
-<p>在這 175 筆固定測試資料中，零報酬基準的 RMSE 與 MAE 都略低於訓練期 BIC 所選的 AR(1)。這個負結果很重要：樣本內模型選擇準則較佳，不保證樣本外預測勝過簡單基準。</p>
-<h2 id="forecast-accuracy">原課程套件捷徑：<code>forecast()</code> 與 <code>accuracy()</code><a class="headerlink" href="#forecast-accuracy" title="Permanent link">#</a></h2>
-<p>下列程式對前面兩個 <code>auto.arima()</code> 模型執行原課程的
-<code>forecast()</code> 與 <code>accuracy()</code> 工作流。兩個階數都在訓練期鎖定；測試期只用來計分。</p>
+<p>RMSE 對較大的預測錯誤給予更高權重，MAE 則以絕對誤差計分，平均誤差用來觀察預測是否整體偏高或偏低。在這 175 筆固定測試資料中，零報酬基準的 RMSE 與 MAE 都略低於訓練期 BIC 所選的 AR(1)。這個結果很有教學價值：樣本內資訊準則較佳，不保證樣本外預測勝過簡單基準。既然測試答案已經看過，就不應再為了追上零報酬基準而回頭改階數。</p>
+<h2 id="forecast-accuracy">套件作法：用 <code>forecast()</code> 形成預測並以 <code>accuracy()</code> 計分<a class="headerlink" href="#forecast-accuracy" title="Permanent link">#</a></h2>
+<p>下列程式對前面兩個 <code>auto.arima()</code> 模型執行原課程採用的
+<code>forecast()</code> 與 <code>accuracy()</code> 工作流程。<code>forecast()</code> 會整理點預測與區間，<code>accuracy()</code> 會依實際值計算常用誤差指標；兩者都不會替我們維持樣本外紀律。因此，兩個模型的階數仍在訓練期選定，測試期只用來計分。</p>
 <pre><code class="language-r">course_forecast_matched &lt;- forecast::forecast(
   fit_auto_matched,
   h = h,
@@ -768,6 +779,7 @@ course_forecast_aic &lt;- forecast::forecast(
 )
 
 accuracy_row &lt;- function(object, actual, label) {
+  # accuracy() 可能同時回報訓練與測試列；此處明確取最後一列測試結果。
   package_accuracy &lt;- forecast::accuracy(object, actual)
   test_accuracy &lt;- package_accuracy[nrow(package_accuracy), , drop = FALSE]
   data.frame(
@@ -801,7 +813,7 @@ package_forecast_comparison &lt;- rbind(
   accuracy_row(
     course_forecast_matched,
     y_test,
-    paste0(&quot;forecast 受限BIC：&quot;, order_text(fit_auto_matched))
+    paste0(&quot;forecast 同階數範圍BIC：&quot;, order_text(fit_auto_matched))
   ),
   accuracy_row(
     course_forecast_aic,
@@ -832,7 +844,7 @@ knitr::kable(package_forecast_comparison, digits = 7)
 <td style="text-align: right;">0.9771429</td>
 </tr>
 <tr>
-<td style="text-align: left;">forecast 受限BIC：ARIMA(1,0,0)</td>
+<td style="text-align: left;">forecast 同階數範圍BIC：ARIMA(1,0,0)</td>
 <td style="text-align: right;">0.0208091</td>
 <td style="text-align: right;">0.0160361</td>
 <td style="text-align: right;">-0.0021907</td>
@@ -854,7 +866,7 @@ knitr::kable(package_forecast_comparison, digits = 7)
 </tr>
 </tbody>
 </table>
-<p>若手動 BIC 與受限 <code>auto.arima()</code> 選到同一階數，兩者點預測與評分應幾乎相同；這是程式實作的交叉核對。原課程 AIC 版本可能選到不同階數，因而產生不同預測。<code>accuracy()</code> 讓計分更簡短，卻不會改變樣本外紀律：模型、資訊準則與預測起點仍必須在讀取測試答案以前固定。</p>
+<p>若手動 BIC 與同階數範圍的 <code>auto.arima()</code> 不只選到同一階數，也採用相同平均數規格，兩者點預測與評分才應幾乎相同。只看階數相同，還不足以宣稱兩套程式估的是同一個模型。原課程 AIC 版本可能選到不同階數，因而產生不同預測。比較表要連同模型標籤一起讀，不能只挑 RMSE 最小的一列，事後把它說成事前選定的模型。</p>
 <pre><code class="language-r">old_par &lt;- par(family = plot_family)
 plot(
   forecast_table$日期, 100 * forecast_table$實際值,
@@ -883,9 +895,9 @@ legend(
 <p><img alt="訓練期末一次形成的 AAPL 多步預測與 95% 常態近似區間。" src="./R05_arma_estimation_diagnostics_forecasting_files/figure-gfm/forecast-plot-1.png"></p>
 <pre><code class="language-r">par(old_par)
 </code></pre>
-<p>常態區間主要反映未來創新，沒有完整納入參數、階數選擇、厚尾與條件異質變異的不確定性。固定測試期涵蓋率也不是母體涵蓋率的證明。</p>
-<h2 id="_6">小型模擬只作單元檢查<a class="headerlink" href="#_6" title="Permanent link">#</a></h2>
-<p>最後用已知 ARMA(1,1) 真值檢查 <code>arima()</code> 的符號慣例與估計流程。它不參與 AAPL 的模型選擇或實證結論。</p>
+<p>圖中帶狀區域是以所選 ARMA 模型與常態近似形成的 95% 區間，主要反映未來創新的不確定性。它沒有完整納入參數估計、階數選擇、厚尾與條件異質變異造成的不確定性。表中的固定測試期涵蓋率只能描述這 175 筆觀察值；若涵蓋不足，下一步應檢查創新分配與波動模型，而不是任意加寬區間到看起來理想。</p>
+<h2 id="_6">用已知真值確認符號與估計流程<a class="headerlink" href="#_6" title="Permanent link">#</a></h2>
+<p>最後另生成一條 5,000 期的 ARMA(1,1) 模擬序列。因為 AR 與 MA 真值已知，我們可以確認 <code>arima()</code> 的係數符號與名稱是否和課文一致。這條模擬序列只檢查程式流程，不參與 AAPL 的模型選擇、預測評分或實證結論。</p>
 <pre><code class="language-r">set.seed(20260721)
 truth &lt;- c(ar1 = 0.55, ma1 = -0.35)
 simulated_check &lt;- as.numeric(arima.sim(
@@ -930,23 +942,25 @@ knitr::kable(check_table, digits = 4)
 </table>
 <pre><code class="language-r">stopifnot(max(abs(check_table$估計值 - check_table$真值)) &lt; 0.10)
 </code></pre>
-<h2 id="_7">建模紀錄<a class="headerlink" href="#_7" title="Permanent link">#</a></h2>
-<p>可重現報告至少保留固定資料版本、訓練截止日、候選集合、估計方法、截距參數化、BIC、根、殘差診斷、預測期距與區間假設。若看過測試結果後再換模型，該期間就必須重新歸類為驗證期。</p>
+<p>兩個估計值與真值的差距都應小於事前設定的 0.10 容許範圍。若沒有通過，應先檢查 MA 符號慣例、係數名稱與模擬長度，而不能據此修改 AAPL 的實證模型。</p>
+<h2 id="_7">如何延伸這次結果<a class="headerlink" href="#_7" title="Permanent link">#</a></h2>
+<p>這份 AAPL 固定樣本顯示，訓練期 BIC 在既定候選集合中選出 AR(1)，但殘差與平方殘差仍有明顯相依，而且一次形成的多步預測沒有勝過零報酬基準。可以得到的結論是：這個低階條件平均模型尚不足以完整描述資料，也沒有展現穩健的樣本外優勢；我們還不能把負 AR 係數解讀成可交易規律。</p>
+<p>下一步可在新的訓練／驗證設計中納入其他平均規格與 ARCH/GARCH 波動模型，再保留另一段未見期間評估。報告時應保存固定資料版本、訓練截止日、候選集合、估計方法、截距參數化、資訊準則、根、殘差診斷、預測期距與區間假設。若看過這 175 筆測試結果後再換模型，這段期間就只能當作驗證資料；新的主張需要另一段真正未見的測試期。</p>
       </article>
-      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R04_ar_ma_arma_simulation.html">← AR、MA 與 ARMA：理論與真實報酬</a><a rel="next" href="R06_leak_free_out_of_sample_evaluation.html">無資料洩漏的樣本外評估 →</a></nav>
+      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R04_ar_ma_arma_simulation.html">← AR、MA、ARMA 與真實報酬的 ACF</a><a rel="next" href="R06_leak_free_out_of_sample_evaluation.html">TWD／JPY 的無資料洩漏樣本外評估 →</a></nav>
       <footer>© 陳釗而　《財務時間序列分析》</footer>
     </main>
     <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
 <ul>
 <li><a href="#_1">固定資料與時間切分</a></li>
 <li><a href="#_2">只在訓練期比較低階候選模型</a></li>
-<li><a href="#autoarima">原課程套件捷徑：auto.arima()</a></li>
+<li><a href="#autoarima">套件作法：用 auto.arima() 比較候選階數</a></li>
 <li><a href="#_3">係數、定態根與可逆根</a></li>
 <li><a href="#_4">訓練期殘差診斷</a></li>
-<li><a href="#_5">鎖定模型的一次多步預測</a></li>
-<li><a href="#forecast-accuracy">原課程套件捷徑：forecast() 與 accuracy()</a></li>
-<li><a href="#_6">小型模擬只作單元檢查</a></li>
-<li><a href="#_7">建模紀錄</a></li>
+<li><a href="#_5">選定模型後的一次多步預測</a></li>
+<li><a href="#forecast-accuracy">套件作法：用 forecast() 形成預測並以 accuracy() 計分</a></li>
+<li><a href="#_6">用已知真值確認符號與估計流程</a></li>
+<li><a href="#_7">如何延伸這次結果</a></li>
 </ul>
 </div>
 </aside>

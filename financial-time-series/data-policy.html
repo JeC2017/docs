@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="《財務時間序列分析》R 線上附錄：資料與重現政策">
-  <title>資料與重現政策｜財務時間序列分析</title>
+  <meta name="description" content="《財務時間序列分析》R 線上附錄：資料來源與重現說明">
+  <title>資料來源與重現說明｜財務時間序列分析</title>
   <link rel="stylesheet" href="assets/site.css">
   <script>
     window.MathJax = {
@@ -21,56 +21,56 @@
   <header class="site-header">
     <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
     <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
-    <a class="policy-link" href="data-policy.html">資料政策</a>
+    <a class="policy-link" href="data-policy.html">資料說明</a>
   </header>
   <div class="layout">
     <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
       <p class="sidebar-title">線上附錄</p>
       <ol><li><a href="index.html">首頁</a></li>
 <li><a href="data.html">實證資料下載</a></li>
-<li><a href="data-policy.html" aria-current="page" class="active">資料與重現政策</a></li>
+<li><a href="data-policy.html" aria-current="page" class="active">資料來源與重現說明</a></li>
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
 <li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與實證特徵</a></li>
-<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
-<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
-<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
-<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
-<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
-<li><a href="R09_portfolio_capm_factors.html">R09　投資組合、CAPM 與財務因子</a></li>
-<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
-<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
-<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA、ARMA 與真實報酬的 ACF</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　AAPL 的 ARMA 估計、診斷與預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　TWD／JPY 的無資料洩漏樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　TWD／JPY 的單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　AAPL 的 ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html">R09　美國十產業投資組合、CAPM 與 Fama–French 三因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　真實股票報酬的 PCA、低秩重建與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　S&amp;P 500 平衡子樣本的 PCA 與跨股票落後值修正</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC–ICAPM 的第二階段個案研究</a></li>
 <li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
-<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
-<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　機器學習的金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　加州學校資料的雙重選擇與 DML 式殘差化</a></li>
 <li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
 <li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
 <li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
     </nav>
     <main id="main-content" class="content">
       <div class="publication-note">
-        本網站提供作者執行後的教學內容、程式原始檔與本書實證使用的固定資料版本。
-        詳見<a href="data-policy.html">資料與重現政策</a>。
+        想自己重算，可以從頁首下載 R Markdown 與執行結果。所有實證例都使用隨書提供的固定資料；
+        檔案來源、變數單位與已知限制請見<a href="data-policy.html">資料來源與重現說明</a>。
       </div>
       <article>
-        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>資料與重現政策</h1></header>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>資料來源與重現說明</h1></header>
         
 <section>
-  <h2>公開範圍</h2>
-  <p>公開網站包含十九份執行後的 HTML、相對應的 R Markdown／Markdown 原始檔、作者程式產生的圖表、十個實證 CSV、資料 manifest、資料字典及來源說明。學生名冊、學生作業、評分檔、合約、行政資料與個人資料均不在公開範圍。</p>
-  <h2>資料授權與來源</h2>
-  <p>作者同意公開本課程用於教學與研究重現的工作資料。部分欄位源自 FRED、Kenneth French Data Library、global-q、Welch--Goyal 與 Ruey S. Tsay 教科書網站；本站保留來源識別及轉換紀錄，使用者仍須遵守原始供應者條款。公開固定版本是為了核對本書結果，並非替第三方授權作一般性保證。</p>
-  <h2>如何重現</h2>
+  <h2>網站裡可以找到什麼？</h2>
+  <p>網站收錄十九份可直接閱讀的附錄頁面。每頁可以下載相對應的 R Markdown 與執行結果（Markdown），資料下載區另有十個實證 CSV、<code>manifest.csv</code>、資料字典與來源說明。這些檔案供讀者重算書中的分析；下載區不含原課程的學生或行政紀錄。</p>
+  <h2>固定資料版本從哪裡來？</h2>
+  <p>部分欄位源自 FRED、Kenneth French Data Library、global-q、Welch–Goyal 與 Ruey S. Tsay 教科書網站，另有幾份資料保留自原課程工作檔。網站提供的是本書實際使用的固定版本，來源與轉換方式以目前留下的紀錄為準。若要延伸到新的研究問題或再發布資料，請回到原始來源確認最新的變數定義、資料版本與使用說明。</p>
+  <h2>如何重跑一份附錄？</h2>
   <ol>
     <li>從<a href="data.html">實證資料下載頁</a>取得 CSV，維持原檔名與 `data/processed/` 目錄。</li>
-    <li>先依 R00 安裝所需套件，再下載相應的 R Markdown，從教科書專案根目錄執行；程式會核對必要欄位、時間順序與部分 MD5。</li>
-    <li>需要已知真值的演算法檢查仍使用固定亂數種子；估計結論則以真實資料區段為主。</li>
+    <li>先依 R00 安裝所需套件並確認固定資料的 MD5，再把相應的 R Markdown 放回 `online_appendix/`，從教科書專案根目錄執行。</li>
+    <li>依頁面順序執行程式，留意樣本期間、變數單位、模型設定與主要輸出。固定亂數種子的模擬用來理解方法與檢查運算；實證解讀則以真實資料結果為主。</li>
   </ol>
-  <h2>手動版與套件版</h2>
-  <p>原課程套件捷徑依作者教師講義中的實際函數流程移植，並在各頁標出 script 來源；學生解答不納入。舊稿的即時下載改成作者公開的固定資料，個人工作目錄與執行中的套件安裝也不沿用。手動版保留作為原理、診斷與資訊洩漏檢查，兩條路線不是互相取代。</p>
-  <div class="callout"><strong>重要：</strong>MD5、列數與欄數只用來識別作者工作版本，不能代替資料來源、經濟意義與識別假設的查核。臺灣 ICAPM 檔只支援第二階段部分重現，不能冒充完整 DCC／PQR 第一階段。</div>
+  <h2>手動建構與套件作法怎麼搭配？</h2>
+  <p>手動建構版攤開估計式、遞迴與資料時點，適合用來理解計算原理；套件版沿用原課程常用的函數流程，示範較精簡的實務作法。套件會代做數值最佳化或矩陣運算，資料能否使用、樣本如何切分、診斷結果如何處理，以及結論是否具有因果含意，仍要由分析者判斷。</p>
+  <div class="callout"><strong>讀取固定資料時：</strong>MD5、列數與欄數可以確認目前讀入的是哪一個版本，仍要另外理解變數定義、經濟意義與識別假設。臺灣 ICAPM 資料只保留第二階段，因此該頁重算的是第二階段分析，不包含完整的 DCC／PQR 第一階段。</div>
 </section>
 
       </article>

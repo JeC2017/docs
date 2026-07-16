@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="《財務時間序列分析》R 線上附錄：R15：雙重選擇、正交化與 DML">
-  <title>R15：雙重選擇、正交化與 DML｜財務時間序列分析</title>
+  <meta name="description" content="《財務時間序列分析》R 線上附錄：R15：加州學校資料的雙重選擇與 DML 式殘差化">
+  <title>R15：加州學校資料的雙重選擇與 DML 式殘差化｜財務時間序列分析</title>
   <link rel="stylesheet" href="assets/site.css">
   <script>
     window.MathJax = {
@@ -21,43 +21,44 @@
   <header class="site-header">
     <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
     <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
-    <a class="policy-link" href="data-policy.html">資料政策</a>
+    <a class="policy-link" href="data-policy.html">資料說明</a>
   </header>
   <div class="layout">
     <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
       <p class="sidebar-title">線上附錄</p>
       <ol><li><a href="index.html">首頁</a></li>
 <li><a href="data.html">實證資料下載</a></li>
-<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="data-policy.html">資料來源與重現說明</a></li>
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
 <li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與實證特徵</a></li>
-<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
-<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
-<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
-<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
-<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
-<li><a href="R09_portfolio_capm_factors.html">R09　投資組合、CAPM 與財務因子</a></li>
-<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
-<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
-<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA、ARMA 與真實報酬的 ACF</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　AAPL 的 ARMA 估計、診斷與預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　TWD／JPY 的無資料洩漏樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　TWD／JPY 的單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　AAPL 的 ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html">R09　美國十產業投資組合、CAPM 與 Fama–French 三因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　真實股票報酬的 PCA、低秩重建與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　S&amp;P 500 平衡子樣本的 PCA 與跨股票落後值修正</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC–ICAPM 的第二階段個案研究</a></li>
 <li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
-<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
-<li><a href="R15_double_selection_dml.html" aria-current="page" class="active">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　機器學習的金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html" aria-current="page" class="active">R15　加州學校資料的雙重選擇與 DML 式殘差化</a></li>
 <li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
 <li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
 <li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
     </nav>
     <main id="main-content" class="content">
       <div class="publication-note">
-        本網站提供作者執行後的教學內容、程式原始檔與本書實證使用的固定資料版本。
-        詳見<a href="data-policy.html">資料與重現政策</a>。
+        想自己重算，可以從頁首下載 R Markdown 與執行結果。所有實證例都使用隨書提供的固定資料；
+        檔案來源、變數單位與已知限制請見<a href="data-policy.html">資料來源與重現說明</a>。
       </div>
       <article>
-        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R15：雙重選擇、正交化與 DML</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R15_double_selection_dml.Rmd">R Markdown 原始檔</a><a href="source/R15_double_selection_dml.md">執行後 Markdown</a></div></header>
-        <p>本附錄對應選讀第 20 章，改用真實的 California school-level 橫斷面資料。應變數是五年級英文／語文與數學分數合計 <code>testscore</code>，單位為<strong>測驗分數點</strong>；焦點解釋變數 <code>str_s</code> 是學校的<strong>每位全職當量教師所對應學生數</strong>。我們用 93 個學校、學區與郵遞區號背景變數示範 double selection 與交叉配適的 DML-style partialling。</p>
-<p>所有主要結果都是真實資料的<strong>條件關聯</strong>，不是因果效果。要把係數解讀為班級規模或師生比的因果效果，至少還要有可信的處置時點、無未觀察混淆、適當且非處置後的控制集合、重疊、穩定單位處置值，以及對學區內相依的有效推論；本資料與本附錄沒有驗證這些條件。</p>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R15：加州學校資料的雙重選擇與 DML 式殘差化</h1><div class="source-links" aria-label="下載本頁檔案"><a href="source/R15_double_selection_dml.Rmd">下載 R Markdown</a><a href="source/R15_double_selection_dml.md">下載執行結果（Markdown）</a></div></header>
+        <p>本附錄要回答一個高維迴歸問題：控制 93 個學校、學區與郵遞區號背景變數後，師生比與五年級測驗分數之間還剩下多少線性關聯？資料是加州學校的橫斷面，每一列代表一所學校。應變數 <code>testscore</code> 是英文／語文與數學分數合計，單位為<strong>測驗分數點</strong>；焦點解釋變數 <code>str_s</code> 是<strong>每位全職當量教師所對應的學生數</strong>。我們依序使用雙重選擇（double selection）與交叉配適的雙重／去偏機器學習（double/debiased machine learning, DML）式殘差化來估計這項條件關聯。本頁借用 DML 的交叉配適與正交評分想法，但不把它誤寫成已具備因果識別的完整 DML 研究。</p>
+<p>這裡的目標參數是指定控制字典下的部分線性投影係數。資料沒有可核實的觀察年度或處置先後，也沒有驗證無未觀察混淆、重疊、穩定單位處置值及控制變數皆在處置前決定。因此主結果應讀成師生比與測驗分數的<strong>條件關聯</strong>；交叉配適與正交評分函數改善高維估計程序，並不自行建立班級規模的因果識別。</p>
+<p>這不是樣本外預測比較，所以不另留最終測試樣本。3,932 所學校共同構成目標樣本；雙重選擇用學區分組的交叉驗證挑選懲罰參數，DML 式殘差化則以外層折產生交叉配適殘差、再在每個外層訓練樣本內用內層折調校。外層保留折的角色是避免同一筆觀察同時訓練干擾函數與計算自身分數，不是看完後挑選模型的測試樣本。</p>
 <pre><code class="language-r">knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
   fig.width = 8, fig.height = 5,
@@ -89,9 +90,9 @@ if (!&quot;cwTeX Online&quot; %in% systemfonts::registry_fonts()$family) {
 }
 plot_family &lt;- &quot;cwTeX Online&quot;
 </code></pre>
-<h2 id="1">1. 資料、樣本與識別界線<a class="headerlink" href="#1" title="Permanent link">#</a></h2>
-<p>資料來源是原課程的 Stock and Watson《Introduction to Econometrics》第四版 California school test-score 資料與變數表。每列是一所學校，<code>schoolcode</code> 在檔內唯一；樣本有 3,932 所學校。凍結檔沒有可供本附錄核實的觀察年度欄位，因此不自行推定年份，也不把橫斷面差異寫成時間變化。</p>
-<p>公開版隨附作者授權的 <code>california_schools.csv</code> processed 快照，因此本附錄可離線自含重跑。若另由教材來源重建，仍須保存教材版次、資料檔版本、下載日與變數表。</p>
+<h2 id="_1">一列資料代表什麼？<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
+<p>資料來源是原課程的 Stock and Watson《Introduction to Econometrics》第四版 California school test-score 資料與變數表。每列是一所學校，<code>schoolcode</code> 在檔內唯一；樣本有 3,932 所學校。固定檔沒有可供本附錄核實的觀察年度欄位，因此不自行推定年份，也不把橫斷面差異寫成時間變化。</p>
+<p>本頁直接讀取專案內保存的 <code>california_schools.csv</code> 整理後快照。若要由教材來源重新建檔，仍須記錄教材版次、資料檔版本、下載日與變數表。</p>
 <pre><code class="language-r">locate_project_file &lt;- function(relative_path) {
   candidates &lt;- c(
     relative_path,
@@ -122,21 +123,20 @@ stopifnot(
 )
 
 data.frame(
-  schools = nrow(school),
-  districts = length(unique(school$districtcode)),
-  unique_school_codes = length(unique(school$schoolcode)),
-  outcome_unit = &quot;test-score points&quot;,
-  exposure_unit = &quot;students per teacher FTE&quot;,
-  observed_year = &quot;not recorded in frozen file&quot;,
-  md5 = actual_md5
+  學校數 = nrow(school),
+  學區數 = length(unique(school$districtcode)),
+  不重複學校代碼數 = length(unique(school$schoolcode)),
+  應變數單位 = &quot;測驗分數點&quot;,
+  焦點解釋變數單位 = &quot;每位全職當量教師所對應的學生數&quot;,
+  觀察年度 = &quot;固定檔未記錄&quot;,
+  MD5 = actual_md5,
+  check.names = FALSE
 )
 </code></pre>
-<pre><code>##   schools districts unique_school_codes      outcome_unit
-## 1    3932       464                3932 test-score points
-##              exposure_unit               observed_year
-## 1 students per teacher FTE not recorded in frozen file
-##                                md5
-## 1 28b3dff5db50448608925cad32feb18a
+<pre><code>##   學校數 學區數 不重複學校代碼數 應變數單位               焦點解釋變數單位
+## 1   3932    464             3932 測驗分數點 每位全職當量教師所對應的學生數
+##       觀察年度                              MD5
+## 1 固定檔未記錄 28b3dff5db50448608925cad32feb18a
 </code></pre>
 <pre><code class="language-r">summary(school[c(&quot;testscore&quot;, &quot;str_s&quot;)])
 </code></pre>
@@ -148,9 +148,10 @@ data.frame(
 ##  3rd Qu.:792.4   3rd Qu.:26.25  
 ##  Max.   :983.1   Max.   :33.71
 </code></pre>
-<h2 id="2">2. 建立高維背景控制字典<a class="headerlink" href="#2" title="Permanent link">#</a></h2>
-<p>不把英文與數學分項分數放進控制，因為它們機械地組成 <code>testscore</code>；也排除姓名、代碼、郵遞區號、師生比本身、學區師生比，以及直接構成學校師生比的學生數與教師 FTE。剩餘數值欄涵蓋餐費資格、英語學習、族群組成、教師經驗、學區財務與郵遞區號人口背景。</p>
-<p>這個字典仍可能含同步決定或處置後變數，所以它只是明示的<strong>條件調整集合</strong>，不是已證成的因果混淆集合。</p>
+<p>輸出核對三件事：3,932 所學校分布在 464 個學區、學校編號沒有重複，而且 <code>testscore</code>、<code>str_s</code> 與學區編號皆無缺值。摘要表也保留兩個原始單位；後面 <code>str_s</code> 的係數一律解讀為「每位教師所對應學生數增加 1 人時，測驗分數相差多少點」。</p>
+<h2 id="_2">建立高維背景控制字典<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
+<p>控制字典先排除英文與數學分項分數，因為兩者機械地組成 <code>testscore</code>；名稱、行政區與學校編號、郵遞區號、師生比本身、學區師生比，以及直接構成學校師生比的學生數與全職當量教師數也不進入。留下的數值欄涵蓋餐費資格、英語學習、族群組成、教師經驗、學區財務與郵遞區號人口背景。</p>
+<p>這 93 欄構成一組明示的<strong>條件調整集合</strong>。其中仍可能有與師生比同步決定或在其後形成的變數，所以本頁用它來比較條件關聯，不把它當成已由研究設計證成的因果混淆集合。</p>
 <pre><code class="language-r">excluded &lt;- c(
   &quot;countyname&quot;, &quot;districtname&quot;, &quot;schoolname&quot;,
   &quot;countycode&quot;, &quot;districtcode&quot;, &quot;schoolcode&quot;, &quot;charternumber&quot;, &quot;zipcode&quot;,
@@ -180,8 +181,8 @@ stopifnot(
   length(Y) == nrow(X_raw)
 )
 
-# 保留控制變數的原始數值；glmnet 會在每一個實際訓練樣本內部重新標準化。
-# 這樣外層保留學區的控制變數分布也不會進入 nuisance learner 的前處理。
+# 保留控制變數的原始數值；glmnet 會在每一個實際訓練樣本內重新標準化。
+# 因此，外層保留學區的分布不會參與干擾函數學習器的前處理。
 X &lt;- X_raw
 data.frame(
   observations = nrow(X),
@@ -194,8 +195,8 @@ data.frame(
 <pre><code>##   observations controls   outcome focal_exposure clustering_level
 ## 1         3932       93 testscore          str_s     districtcode
 </code></pre>
-<h2 id="3-lasso-learner">3. 群組折與 LASSO learner<a class="headerlink" href="#3-lasso-learner" title="Permanent link">#</a></h2>
-<p>內外層折都把同一學區的學校放在同一折，避免同一學區同時進入訓練與保留資料。<code>lambda.1se</code> 用於較簡約的 double selection；DML-style nuisance fitting 使用 <code>lambda.min</code>，而每個外層訓練樣本都重新內層調校。</p>
+<h2 id="cvglmnet">套件作法：用 <code>cv.glmnet()</code> 選擇與預測背景變數<a class="headerlink" href="#cvglmnet" title="Permanent link">#</a></h2>
+<p>這段沿用原課程以 LASSO 處理高維控制的工作流程。<code>cv.glmnet()</code> 代做係數路徑、訓練樣本內的標準化與給定折下的交叉驗證；分析者仍要決定哪些欄可進控制字典、折如何形成，以及採用 <code>lambda.1se</code> 或 <code>lambda.min</code>。本頁把同一學區的學校放在同一折，讓學區共同環境不會同時出現在訓練資料與保留資料中。雙重選擇採較簡約的 <code>lambda.1se</code>；DML 式干擾函數配適採 <code>lambda.min</code>，而且每個外層訓練樣本都重新做一次內層調校。</p>
 <pre><code class="language-r">make_group_folds &lt;- function(group, K, seed) {
   set.seed(seed)
   groups &lt;- sample(unique(group))
@@ -219,8 +220,8 @@ fit_lasso_cv &lt;- function(X, y, fold_id, s = &quot;lambda.1se&quot;) {
   )
 }
 </code></pre>
-<h2 id="4-double-selection">4. Double selection 的真實條件關聯<a class="headerlink" href="#4-double-selection" title="Permanent link">#</a></h2>
-<p>先分別用 LASSO 選擇與 <code>testscore</code>、<code>str_s</code> 有關的控制，再取聯集重估 <code>testscore</code> 對 <code>str_s</code> 與所選控制的線性投影。標準誤按學區叢聚；這是相依調整，不會創造因果識別。</p>
+<h2 id="_3">雙重選擇：兩條路徑都可能找到重要控制<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<p>若某個控制變數主要預測師生比、卻只弱度預測測驗分數，只沿應變數路徑選變數便可能漏掉它。雙重選擇先分別用 LASSO 找出與 <code>testscore</code>、<code>str_s</code> 有關的控制，再取兩者聯集，重估 <code>testscore</code> 對 <code>str_s</code> 與所選控制的線性投影。標準誤按學區叢聚，用來處理同一學區學校的相關性；但一般的叢聚穩健三明治公式不會自動處理所有變數選擇不確定性。要把它當成具有名目涵蓋率的高維推論，還需要近似稀疏性、適當懲罰率、設計條件與足夠群組數等假設。因此本頁把它標成描述性的後選擇 OLS 標準誤，並把後面的交叉配適正交分數作為較主要的高維估計結果。</p>
 <pre><code class="language-r">selection_fold &lt;- make_group_folds(cluster, K = 10L, seed = 1515)
 fit_y &lt;- fit_lasso_cv(X, Y, selection_fold, s = &quot;lambda.1se&quot;)
 fit_d &lt;- fit_lasso_cv(X, D, selection_fold, s = &quot;lambda.1se&quot;)
@@ -250,7 +251,7 @@ data.frame(
   }
   Z &lt;- cbind(Intercept = 1, str_s = D, X_selected)
 
-  # 移除可能的精確／近精確線性相依欄；焦點 D 固定保留。
+  # 移除精確或近精確線性相依欄，避免反矩陣不穩；焦點 D 固定保留。
   qrz &lt;- qr(Z, tol = 1e-5, LAPACK = FALSE)
   keep &lt;- sort(qrz$pivot[seq_len(qrz$rank)])
   if (!(&quot;str_s&quot; %in% colnames(Z)[keep])) stop(&quot;焦點變數在降秩時被移除。&quot;)
@@ -258,6 +259,7 @@ data.frame(
 
   fit &lt;- lm.fit(Z_use, Y)
   residual &lt;- fit$residuals
+  # 先在學區內加總分數，再形成 sandwich 估計量的中間矩陣，保留學區內相依。
   cluster_score &lt;- rowsum(Z_use * residual, cluster, reorder = FALSE)
   bread &lt;- solve(crossprod(Z_use))
   G &lt;- nrow(cluster_score)
@@ -270,7 +272,8 @@ data.frame(
   j &lt;- match(&quot;str_s&quot;, colnames(Z_use))
   c(
     estimate = fit$coefficients[j],
-    district_cluster_se = sqrt(V_cluster[j, j]),
+    post_selection_district_cluster_se_descriptive =
+      sqrt(V_cluster[j, j]),
     selected_controls = length(selected),
     regression_rank = ncol(Z_use)
   )
@@ -288,16 +291,19 @@ rbind(
   double_selection_projection = double_selection
 )
 </code></pre>
-<pre><code>##                              estimate.str_s district_cluster_se
-## unadjusted_linear_projection       1.904961           0.5591443
-## double_selection_projection        0.254675           0.2783569
+<pre><code>##                              estimate.str_s
+## unadjusted_linear_projection       1.904961
+## double_selection_projection        0.254675
+##                              post_selection_district_cluster_se_descriptive
+## unadjusted_linear_projection                                      0.5591443
+## double_selection_projection                                       0.2783569
 ##                              selected_controls regression_rank
 ## unadjusted_linear_projection                 0               2
 ## double_selection_projection                 28              30
 </code></pre>
-<p>未調整與調整後係數不同，顯示背景組成很重要；但無論正負或顯著與否，都只能解讀為指定控制字典下的線性條件關聯。</p>
-<h2 id="5-dml-style-partialling">5. 學區群組交叉配適的 DML-style partialling<a class="headerlink" href="#5-dml-style-partialling" title="Permanent link">#</a></h2>
-<p>令 \(\ell(X)=E[Y\mid X]\)、\(m(X)=E[D\mid X]\)。每個外層保留學區只接受其他學區訓練出的預測，然後以</p>
+<p>未調整投影斜率約為 1.90；加入雙重選擇得到的 28 個控制後，斜率降到約 0.25。變化幅度顯示學校背景組成與師生比、測驗分數都有密切關係。調整後估計值相對其描述性後選擇學區叢聚標準誤並不大，適合保守地描述為接近零的條件線性關聯；它仍不是師生比的因果效果，也不能只因表中附有叢聚標準誤就視為已處理全部選擇不確定性。</p>
+<h2 id="dml">學區群組交叉配適的 DML 式殘差化<a class="headerlink" href="#dml" title="Permanent link">#</a></h2>
+<p>令 \(\ell(X)=E[Y\mid X]\)、\(m(X)=E[D\mid X]\)。每個外層保留學區只接受其他學區訓練出的預測，因此同一所學校不會同時參與干擾函數配適與自身殘差計算。接著以</p>
 <p>\[
 \widehat\theta=
 \frac{\sum_i \widehat v_i\widehat u_i}
@@ -305,19 +311,21 @@ rbind(
 \widehat u_i=Y_i-\widehat\ell(X_i),\quad
 \widehat v_i=D_i-\widehat m(X_i)
 \]</p>
-<p>估計 partialling-out 係數。</p>
+<p>估計殘差化係數。分子比較「背景變數無法預測的師生比」與「背景變數無法預測的測驗分數」是否共同變動；分母則衡量控制背景後還剩多少師生比變異。</p>
 <pre><code class="language-r">K &lt;- 5L
 outer_fold &lt;- make_group_folds(cluster, K = K, seed = 5151)
 u_hat &lt;- v_hat &lt;- rep(NA_real_, nrow(X))
 nuisance_summary &lt;- vector(&quot;list&quot;, K)
 
 for (k in seq_len(K)) {
+  # 外層第 k 折只負責產生折外殘差；其學校不參與本折學習器估計。
   test_k &lt;- which(outer_fold == k)
   train_k &lt;- which(outer_fold != k)
   inner_fold &lt;- make_group_folds(
     cluster[train_k], K = 5L, seed = 6000L + k
   )
 
+  # 每個外層訓練樣本內另做學區分組調校，避免 lambda 偷看外層資料。
   learner_y &lt;- fit_lasso_cv(
     X[train_k, , drop = FALSE], Y[train_k],
     inner_fold, s = &quot;lambda.min&quot;
@@ -358,11 +366,12 @@ nuisance_summary
 ## 4    4    1074        93 1846.106 7.264534         25         33
 ## 5    5     736        92 1598.094 8.387645         19         39
 </code></pre>
+<p><code>Y_MSE</code> 與 <code>D_MSE</code> 是各折真正折外的預測誤差，<code>Y_selected</code> 與 <code>D_selected</code> 則顯示干擾函數複雜度是否隨折大幅改變。若某一折誤差特別大或選取數暴增，應先回查該折學區組成，而不是只看最後一個 \(\widehat\theta\)。</p>
 <pre><code class="language-r">theta_dml &lt;- sum(v_hat * u_hat) / sum(v_hat^2)
 orthogonal_score &lt;- v_hat * (u_hat - theta_dml * v_hat)
 J_hat &lt;- mean(v_hat^2)
 
-# 以學區 score 加總估計群組穩健不確定性。
+# 先在學區內加總正交分數，再形成學區叢聚的大樣本參考標準誤。
 clustered_score &lt;- rowsum(orthogonal_score, cluster, reorder = FALSE)
 G &lt;- nrow(clustered_score)
 se_cluster &lt;- sqrt(
@@ -371,22 +380,24 @@ se_cluster &lt;- sqrt(
 )
 
 data.frame(
-  estimator = &quot;cross-fitted DML-style partialling&quot;,
+  estimator = &quot;交叉配適的 DML 式殘差化&quot;,
   estimate_score_points_per_extra_student_per_FTE = theta_dml,
-  district_cluster_se = se_cluster,
+  district_cluster_se_large_sample_reference = se_cluster,
   residual_exposure_variance = var(v_hat),
   out_of_fold_Y_R2 = 1 - sum(u_hat^2) / sum((Y - mean(Y))^2),
   out_of_fold_D_R2 = 1 - sum(v_hat^2) / sum((D - mean(D))^2)
 )
 </code></pre>
-<pre><code>##                            estimator
-## 1 cross-fitted DML-style partialling
-##   estimate_score_points_per_extra_student_per_FTE district_cluster_se
-## 1                                      0.07487483           0.3254664
-##   residual_exposure_variance out_of_fold_Y_R2 out_of_fold_D_R2
-## 1                   8.273584        0.5848237        0.3514682
+<pre><code>##                 estimator estimate_score_points_per_extra_student_per_FTE
+## 1 交叉配適的 DML 式殘差化                                      0.07487483
+##   district_cluster_se_large_sample_reference residual_exposure_variance
+## 1                                  0.3254664                   8.273584
+##   out_of_fold_Y_R2 out_of_fold_D_R2
+## 1        0.5848237        0.3514682
 </code></pre>
-<p><code>var(v_hat)</code> 是剩餘暴露變異的診斷：若它接近零，partialling 係數會缺乏可識別的剩餘比較。本例的正值只表示演算法仍有橫斷面變異，並不驗證條件重疊或因果可比性。</p>
+<p>折外 \(R^2\) 顯示背景變數可解釋約 58% 的測驗分數變異與 35% 的師生比變異。DML 式殘差化斜率約為 0.075，學區叢聚的大樣本參考標準誤約為 0.325；控制高維背景後，剩餘線性關聯很小，而且估計不確定性相對較大。</p>
+<p>這裡的 0.325 只能稱為學區叢聚的<strong>大樣本參考標準誤</strong>。若要讓它支撐名目涵蓋率，需要有足夠多且彼此近似獨立的學區、沒有單一學區支配分數總和，交叉配適的干擾函數也必須符合相應的乘積收斂率、矩條件與其他正則性條件。本附錄尚未逐項驗證這些假設，因此只把 0.325 當成描述性的不確定性指標。</p>
+<p><code>var(v_hat)</code> 是剩餘師生比變異的診斷：若它接近零，殘差化係數便缺少可供估計的橫斷面比較。本例的正值表示演算法仍留下變異，尚不能據此判定因果重疊或不同學校具有可比的處置條件。</p>
 <pre><code class="language-r">old_par &lt;- par(family = plot_family)
 plot(
   v_hat, u_hat,
@@ -397,11 +408,11 @@ plot(
 )
 abline(a = 0, b = theta_dml, col = &quot;#A34045&quot;, lwd = 2)
 </code></pre>
-<p><img alt="交叉配適後的真實結果殘差與師生比殘差；直線只呈現 partialling 斜率。" src="./R15_double_selection_dml_files/figure-gfm/orthogonality-check-1.png"></p>
+<p><img alt="交叉配適後的測驗分數殘差與師生比殘差；直線只呈現殘差化斜率。" src="./R15_double_selection_dml_files/figure-gfm/orthogonality-check-1.png"></p>
 <pre><code class="language-r">par(old_par)
 </code></pre>
-<h2 id="6">6. 小型真值單元測試<a class="headerlink" href="#6" title="Permanent link">#</a></h2>
-<p>下列合成資料只核對 Frisch--Waugh partialling 公式；不進入加州學校主結果。</p>
+<h2 id="_4">用已知真值確認殘差化公式<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
+<p>下列合成資料把真實係數固定為 0.6，用來確認 Frisch–Waugh 殘差化公式與程式方向。它只是一個程式核對單元，不進入加州學校的實證結論。</p>
 <pre><code class="language-r">set.seed(1516)
 n_unit &lt;- 5000L
 X_unit &lt;- matrix(rnorm(n_unit * 3L), ncol = 3L)
@@ -421,27 +432,24 @@ data.frame(truth = theta_true, partialling_estimate = theta_unit)
 <pre><code>##   truth partialling_estimate
 ## 1   0.6            0.5957778
 </code></pre>
-<h2 id="7">7. 診斷與不可省略的限制<a class="headerlink" href="#7" title="Permanent link">#</a></h2>
+<h2 id="_5">診斷圖如何幫我們下結論？<a class="headerlink" href="#_5" title="Permanent link">#</a></h2>
+<p>第一張圖檢查控制背景後的師生比是否仍有足夠變異，也能看出少數極端殘差是否主導斜率。第二張圖把正交分數按學區加總；若少數學區遠離其餘分布，叢聚標準誤與點估計都可能對那些學區敏感，下一步應做逐學區影響診斷。</p>
 <pre><code class="language-r">hist(
   v_hat, breaks = 35, col = &quot;#DDE8EA&quot;, border = &quot;white&quot;,
-  xlab = &quot;Out-of-fold str_s residual&quot;,
-  main = &quot;Residual exposure variation&quot;
+  xlab = &quot;折外師生比殘差&quot;,
+  main = &quot;控制背景後的師生比變異&quot;
 )
 hist(
   as.numeric(clustered_score), breaks = 35,
   col = &quot;#E8D7D5&quot;, border = &quot;white&quot;,
-  xlab = &quot;District score sum&quot;,
-  main = &quot;District-level score sum&quot;
+  xlab = &quot;學區正交分數加總&quot;,
+  main = &quot;學區層級的分數分布&quot;
 )
 </code></pre>
-<p><img alt="交叉配適暴露殘差與學區 score 加總的分布。" src="./R15_double_selection_dml_files/figure-gfm/diagnostics-1.png"><img alt="交叉配適暴露殘差與學區 score 加總的分布。" src="./R15_double_selection_dml_files/figure-gfm/diagnostics-2.png"></p>
-<ol>
-<li>本資料是學校橫斷面，沒有可核實的處置先後與觀察年度；不能由 cross-fitting 補出時間順序。</li>
-<li>93 個控制是教學字典，不是已證成的 back-door set；其中可能有共同結果、同步決定或處置後變數。</li>
-<li>LASSO 選取與 DML-style residualization 降低高維函數估計偏誤，不會修復未觀察混淆、測量誤差或干擾。</li>
-<li>標準誤按學區叢聚，但這不涵蓋資料版本選擇、字典設計與調校規則的全部不確定性。</li>
-<li>因此主係數只能寫成「控制所列背景後，<code>str_s</code> 每增加一名學生／教師 FTE，<code>testscore</code> 平均相差若干點的估計條件關聯」。</li>
-</ol>
+<p><img alt="交叉配適後的師生比殘差與學區正交分數加總分布。" src="./R15_double_selection_dml_files/figure-gfm/diagnostics-1.png"><img alt="交叉配適後的師生比殘差與學區正交分數加總分布。" src="./R15_double_selection_dml_files/figure-gfm/diagnostics-2.png"></p>
+<p>這份資料顯示：納入高維背景後，未調整的正向關聯大幅縮小，DML 式殘差化的點估計更接近零。適合的文字是：「在所列背景變數的部分線性投影中，<code>str_s</code> 每增加 1，<code>testscore</code> 的投影值約增加 0.075 點；學區叢聚的大樣本參考標準誤約為 0.325。這項標準誤尚未核實高維與群組漸近理論所需的全部條件，因此只作描述性參考。」</p>
+<p>這項描述仍受資料設計限制。橫斷面檔案沒有可核實的觀察年度與處置先後；93 個控制中也可能含同步決定或處置後變數。LASSO、交叉配適與正交評分函數可以降低高維干擾函數的過度配適影響，卻不會補出時間順序、未觀察混淆或測量誤差。</p>
+<p>若要進一步研究因果效果，下一步應先建立可信的處置時點與處置前控制集合，再檢查重疊、學區內相依及對控制字典的敏感度。統計上也可逐一移除影響較大的學區，確認點估計與大樣本參考標準誤是否由少數群組主導。</p>
 <pre><code class="language-r">sessionInfo()
 </code></pre>
 <pre><code>## R version 4.5.2 (2025-10-31)
@@ -462,26 +470,47 @@ hist(
 ## [1] stats     graphics  grDevices utils     datasets  methods   base     
 ## 
 ## loaded via a namespace (and not attached):
-##  [1] codetools_0.2-20  shape_1.4.6.1     xfun_0.57         Matrix_1.7-4     
-##  [5] lattice_0.22-7    splines_4.5.2     iterators_1.0.14  knitr_1.51       
-##  [9] lifecycle_1.0.5   cli_3.6.5         foreach_1.5.2     grid_4.5.2       
-## [13] textshaping_1.0.5 systemfonts_1.3.2 compiler_4.5.2    tools_4.5.2      
-## [17] ragg_1.5.2        evaluate_1.0.5    survival_3.8-3    Rcpp_1.1.0       
-## [21] otel_0.2.0        rlang_1.1.7       glmnet_4.1-10
+##  [1] shape_1.4.6.1       gtable_0.3.6        xfun_0.57          
+##  [4] ggplot2_4.0.3       collapse_2.1.7      lattice_0.22-7     
+##  [7] quadprog_1.5-8      vctrs_0.7.2         tools_4.5.2        
+## [10] Rdpack_2.6.6        generics_0.1.4      curl_7.1.0         
+## [13] parallel_4.5.2      sandwich_3.1-2      tibble_3.3.0       
+## [16] xts_0.14.2          pkgconfig_2.0.3     gbutils_0.5.1      
+## [19] Matrix_1.7-4        tidyverse_2.0.0     RColorBrewer_1.1-3 
+## [22] S7_0.2.2            lifecycle_1.0.5     compiler_4.5.2     
+## [25] farver_2.1.2        MatrixModels_0.5-4  maxLik_1.5-2.2     
+## [28] textshaping_1.0.5   codetools_0.2-20    SparseM_1.84-2     
+## [31] quantreg_6.1        htmltools_0.5.9     glmnet_4.1-10      
+## [34] Formula_1.2-5       pillar_1.11.1       MASS_7.3-65        
+## [37] plm_2.6-7           iterators_1.0.14    foreach_1.5.2      
+## [40] nlme_3.1-168        fracdiff_1.5-4      pls_2.9-0          
+## [43] fBasics_4052.98     tidyselect_1.2.1    bdsmatrix_1.3-7    
+## [46] digest_0.6.39       dplyr_1.2.1         labeling_0.4.3     
+## [49] splines_4.5.2       tseries_0.10-62     miscTools_0.6-30   
+## [52] fastmap_1.2.0       grid_4.5.2          colorspace_2.1-3   
+## [55] cli_3.6.5           magrittr_2.0.4      survival_3.8-3     
+## [58] withr_3.0.3         scales_1.4.0        forecast_9.0.2     
+## [61] TTR_0.24.4          rmarkdown_2.31      quantmod_0.4.29    
+## [64] otel_0.2.0          timeDate_4052.112   ragg_1.5.2         
+## [67] zoo_1.8-15          timeSeries_4052.112 fGarch_4052.93     
+## [70] urca_1.3-4          evaluate_1.0.5      knitr_1.51         
+## [73] rbibutils_2.4.1     lmtest_0.9-40       rlang_1.1.7        
+## [76] spatial_7.3-18      Rcpp_1.1.0          glue_1.8.0         
+## [79] R6_2.6.1            cvar_0.6            systemfonts_1.3.2
 </code></pre>
       </article>
-      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R14_financial_factor_selection.html">← 金融因子選擇</a><a rel="next" href="R16_var_irf.html">VAR、識別與衝擊反應函數 →</a></nav>
+      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R14_financial_factor_selection.html">← 機器學習的金融因子選擇</a><a rel="next" href="R16_var_irf.html">VAR、識別與衝擊反應函數 →</a></nav>
       <footer>© 陳釗而　《財務時間序列分析》</footer>
     </main>
     <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
 <ul>
-<li><a href="#1">1. 資料、樣本與識別界線</a></li>
-<li><a href="#2">2. 建立高維背景控制字典</a></li>
-<li><a href="#3-lasso-learner">3. 群組折與 LASSO learner</a></li>
-<li><a href="#4-double-selection">4. Double selection 的真實條件關聯</a></li>
-<li><a href="#5-dml-style-partialling">5. 學區群組交叉配適的 DML-style partialling</a></li>
-<li><a href="#6">6. 小型真值單元測試</a></li>
-<li><a href="#7">7. 診斷與不可省略的限制</a></li>
+<li><a href="#_1">一列資料代表什麼？</a></li>
+<li><a href="#_2">建立高維背景控制字典</a></li>
+<li><a href="#cvglmnet">套件作法：用 cv.glmnet() 選擇與預測背景變數</a></li>
+<li><a href="#_3">雙重選擇：兩條路徑都可能找到重要控制</a></li>
+<li><a href="#dml">學區群組交叉配適的 DML 式殘差化</a></li>
+<li><a href="#_4">用已知真值確認殘差化公式</a></li>
+<li><a href="#_5">診斷圖如何幫我們下結論？</a></li>
 </ul>
 </div>
 </aside>

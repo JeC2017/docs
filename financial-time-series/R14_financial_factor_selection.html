@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="《財務時間序列分析》R 線上附錄：R14：金融因子選擇">
-  <title>R14：金融因子選擇｜財務時間序列分析</title>
+  <meta name="description" content="《財務時間序列分析》R 線上附錄：R14：機器學習的金融因子選擇">
+  <title>R14：機器學習的金融因子選擇｜財務時間序列分析</title>
   <link rel="stylesheet" href="assets/site.css">
   <script>
     window.MathJax = {
@@ -21,59 +21,61 @@
   <header class="site-header">
     <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
     <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
-    <a class="policy-link" href="data-policy.html">資料政策</a>
+    <a class="policy-link" href="data-policy.html">資料說明</a>
   </header>
   <div class="layout">
     <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
       <p class="sidebar-title">線上附錄</p>
       <ol><li><a href="index.html">首頁</a></li>
 <li><a href="data.html">實證資料下載</a></li>
-<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="data-policy.html">資料來源與重現說明</a></li>
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
 <li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與實證特徵</a></li>
-<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
-<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
-<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
-<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
-<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
-<li><a href="R09_portfolio_capm_factors.html">R09　投資組合、CAPM 與財務因子</a></li>
-<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
-<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
-<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA、ARMA 與真實報酬的 ACF</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　AAPL 的 ARMA 估計、診斷與預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　TWD／JPY 的無資料洩漏樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　TWD／JPY 的單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　AAPL 的 ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html">R09　美國十產業投資組合、CAPM 與 Fama–French 三因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　真實股票報酬的 PCA、低秩重建與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　S&amp;P 500 平衡子樣本的 PCA 與跨股票落後值修正</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC–ICAPM 的第二階段個案研究</a></li>
 <li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
-<li><a href="R14_financial_factor_selection.html" aria-current="page" class="active">R14　金融因子選擇</a></li>
-<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R14_financial_factor_selection.html" aria-current="page" class="active">R14　機器學習的金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　加州學校資料的雙重選擇與 DML 式殘差化</a></li>
 <li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
 <li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
 <li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
     </nav>
     <main id="main-content" class="content">
       <div class="publication-note">
-        本網站提供作者執行後的教學內容、程式原始檔與本書實證使用的固定資料版本。
-        詳見<a href="data-policy.html">資料與重現政策</a>。
+        想自己重算，可以從頁首下載 R Markdown 與執行結果。所有實證例都使用隨書提供的固定資料；
+        檔案來源、變數單位與已知限制請見<a href="data-policy.html">資料來源與重現說明</a>。
       </div>
       <article>
-        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R14：金融因子選擇</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R14_financial_factor_selection.Rmd">R Markdown 原始檔</a><a href="source/R14_financial_factor_selection.md">執行後 Markdown</a></div></header>
-        <p>本附錄對應第 19 章。它使用 1967 年 1 月至 2021 年 11 月、659 個月乘 10 產業的真實凍結因子面板，以標示為第 \(t\) 月的事後凍結金融因子與標示為第 \(t-1\) 月的總體變數，預測製造業第 \(t+1\) 月超額報酬。<code>ret</code>、Fama--French 與 Global-q 因子均為月小數報酬，例如 0.01 代表 1%；總體預測變數則沿用各自定義的比率、利差或對數尺度。重點是保守的月份標籤對齊、只依訓練資料進行前處理、擴展視窗驗證、基準比較與選取穩定性。</p>
-<p>資料來源方面，原課程 <code>fffqmacro.R</code> 從 Kenneth French Data Library 取得 FF3 與十產業投資組合、從 Global-q 取得 q5 因子、從 Welch--Goyal 工作簿取得總體預測變數，並以 FRED <code>CPIAUCNS</code> 輔助建檔；<code>ret</code> 是十產業總報酬減去當月 FF 無風險利率。原課程快照沒有保留每一個月總體欄的首次發布日與當時版本，所以本附錄將全部 13 個總體欄一律再落後一個月。因子欄同樣沒有保存逐月發布／可重建時點、歷史形成權重與成分版本；使用 \(F_t\) 等於假設預測形成時第 \(t\) 月因子已實現且可取得。這些處理降低部分前視風險，卻不能還原歷史資料修訂或驗證完整的即時資訊集，因此本結果只是在指定可得性假設下、按月份標籤排序的擬樣本外評估，不是已驗證的即時可交易回測。各供應者版本與再散布條款仍必須分別保存。尤其 Fama--French 建構法後來由 CRSP FIZ 改為 CIZ，現在即時重抓不保證等於本 2021 工作快照。以下只評估固定時間切分下的預測表現；因子被選入不識別因果效果或風險價格，也不構成投資建議。</p>
-<h2 id="_1">執行條件<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R14：機器學習的金融因子選擇</h1><div class="source-links" aria-label="下載本頁檔案"><a href="source/R14_financial_factor_selection.Rmd">下載 R Markdown</a><a href="source/R14_financial_factor_selection.md">下載執行結果（Markdown）</a></div></header>
+        <p>本附錄要問的是：面對 125 個因子、總體變數與交互作用，我們能否從當時可用的資訊中挑出一組變數，改善下一個月的製造業超額報酬預測？資料涵蓋 1967 年 1 月至 2021 年 11 月，共 659 個月份、10 個產業；每一列是一個「產業 × 月份」觀察。本頁先固定製造業，讓第 \(t\) 月的金融因子與第 \(t-1\) 月的總體變數預測第 \(t+1\) 月 <code>ret</code>。<code>ret</code>、Fama–French 與 global-q 因子都是月小數報酬，例如 0.01 代表 1%；總體變數則保留各自的比率、利差或對數尺度。</p>
+<p>原課程的 <code>fffqmacro.R</code> 從 Kenneth French Data Library 取得 FF3 與十產業投資組合、從 global-q 取得 q5 因子、從 Welch–Goyal 工作簿取得總體預測變數，並以 FRED <code>CPIAUCNS</code> 輔助建檔；<code>ret</code> 是十產業總報酬減去當月 FF 無風險利率。快照沒有保留每一個總體欄的首次發布日與當時版本，因此 13 個總體欄一律再落後一個月。因子欄也只有月份標籤與事後整理的固定值；使用 \(F_t\) 等於假設第 \(t\) 月因子已經實現且可在形成預測時取得。</p>
+<p>這套對齊方式降低了部分前視風險，仍無法還原歷史資料修訂、因子形成權重或逐月發布時點。以下結果因此是在明示可得性假設下的擬樣本外比較，尚不足以稱為即時可交易回測。Fama–French 建構法後來也由 CRSP FIZ 改為 CIZ；這項變更牽涉資料格式與月報酬累積方式，現在重新下載的序列未必等於這份 2021 年快照。被 LASSO 選入只代表對這項預測任務有用，沒有因果效果或風險價格的含義。</p>
+<h2 id="_1">先準備套件與固定資料<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
 <ul>
-<li>主線手算版使用 base R 與 <code>knitr</code>；原課程捷徑另使用 <code>glmnet</code>。</li>
+<li>手動版使用 R 內建函數與 <code>knitr</code>；套件版使用原課程採用的 <code>glmnet</code>。</li>
 <li>執行時不安裝套件、不呼叫網路、不使用 <code>setwd()</code>。</li>
 <li>固定資料：<code>data/processed/ff_qf_macro_industries_1967_2021.csv</code>。</li>
 <li>資料建置與再散布注意事項：<code>data/DATA_SOURCES.md</code>。</li>
-<li>公開界線：repo 隨附作者授權的 processed 合併 CSV、程式與執行結果，可離線自含重跑；若另由上游來源重建，必須固定各供應者版本與轉換規則。</li>
+<li>本頁直接使用專案內保存的合併 CSV；若另由上游來源重建，必須記錄各供應者版本與轉換規則。</li>
 </ul>
 <pre><code class="language-r">knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
   fig.width = 7, fig.height = 4.5
 )
 if (!requireNamespace(&quot;glmnet&quot;, quietly = TRUE)) {
-  stop(&quot;本附錄的原課程套件捷徑需要 glmnet；請先在合法可重現環境中安裝。&quot;)
+  stop(&quot;本附錄的套件作法需要 glmnet；請先在合法可重現環境中安裝。&quot;)
 }
 </code></pre>
+<p>讀檔後先依產業與月份排序，再核對面板大小。這一步確認每個產業都有同樣的 659 個月份，也讓稍後的落後值確實留在同一產業內。</p>
 <pre><code class="language-r">locate_project_file &lt;- function(relative_path) {
   candidates &lt;- c(
     relative_path,
@@ -114,7 +116,9 @@ table(d$industry)
 <pre><code>##   first_month last_month months industries       return_unit
 ## 1  1967-01-01 2021-11-01    659         10 decimal per month
 </code></pre>
-<h2 id="_2">日期與面板完整性<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
+<p>輸出應顯示 6,590 列、10 個產業與 659 個月份。報酬欄的單位是每月小數報酬；後面的 MSE 因此也是「月小數報酬平方」，不宜直接和百分比尺度的損失比較。</p>
+<h2 id="_2">先確認月份鍵與共同預測變數<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
+<p>同一產業、同一月份只能有一列；每個產業也必須涵蓋相同月份。因子與總體變數是全市場共同資訊，所以在同一月份的十個產業列上應完全相同。若這些條件不成立，可能是鍵結重複、月份漏列或變數在合併時錯位。</p>
 <pre><code class="language-r">key &lt;- paste(d$industry, d$month)
 stopifnot(!anyDuplicated(key))
 
@@ -124,7 +128,7 @@ stopifnot(length(unique(months_by_industry)) == 1L)
 common_predictors &lt;- grep(&quot;^(factor_|macro_)&quot;, names(d), value = TRUE)
 stopifnot(length(common_predictors) == 21L)
 
-# 同一月份的 common predictors 應在十個產業完全相同。
+# 同一月份的共同預測變數應在十個產業完全相同；否則表示合併鍵有問題。
 check_common &lt;- aggregate(
   d[, common_predictors],
   by = list(month = d$month),
@@ -132,8 +136,8 @@ check_common &lt;- aggregate(
 )
 stopifnot(max(as.matrix(check_common[, -1]), na.rm = TRUE) &lt; 1e-12)
 </code></pre>
-<h2 id="x_trightarrow-y_t1">建立 (X_t\rightarrow Y_{t+1})<a class="headerlink" href="#x_trightarrow-y_t1" title="Permanent link">#</a></h2>
-<p>本示範先固定 <code>Manuf</code>。若改產業，必須保持同一測試起點與調校規則。</p>
+<h2 id="ftsmathtoken00005zz">建立 \(X_t\rightarrow Y_{t+1}\) 的預測字典<a class="headerlink" href="#ftsmathtoken00005zz" title="Permanent link">#</a></h2>
+<p>本示範先固定 <code>Manuf</code>。目標是下一個月的製造業超額報酬，資訊集包含固定快照中的當月因子、再落後一個月的總體變數，以及兩者交互作用。若改成其他產業，仍要沿用相同測試起點、驗證折與調校規則，才可公平比較產業間結果。</p>
 <pre><code class="language-r">industry_name &lt;- &quot;Manuf&quot;
 one &lt;- d[d$industry == industry_name, ]
 one &lt;- one[order(one$month), ]
@@ -141,8 +145,9 @@ one &lt;- one[order(one$month), ]
 factor_names &lt;- grep(&quot;^factor_&quot;, names(one), value = TRUE)
 macro_names &lt;- grep(&quot;^macro_&quot;, names(one), value = TRUE)
 
-# 金融因子使用標示為 t 月的事後凍結值；其歷史可得時點未保存。
-# 總體欄因首次發布日與 real-time vintage 未完整保留，一律再落後一個月。
+# 金融因子使用固定快照中標示為 t 月的值；這是本頁明示的可得性假設。
+# 總體欄缺少首次發布日與歷史版本，所以統一再落後一個月，
+# 避免把同月稍晚才公布的數值放進較早形成的預測。
 X_factor &lt;- as.matrix(one[, factor_names, drop = FALSE])
 X_macro_lag1 &lt;- rbind(
   rep(NA_real_, length(macro_names)),
@@ -166,8 +171,8 @@ X_int &lt;- do.call(cbind, interaction_list)
 colnames(X_int) &lt;- interaction_names
 X &lt;- cbind(X_main, X_int)
 
-# 在指定可得性假設下，以第 t 月因子與 t-1 月總體欄預測 t+1 月報酬；
-# 第一列沒有落後總體欄，最後一列沒有 target。
+# 在指定可得性假設下，以第 t 月因子與 t-1 月總體欄預測 t+1 月報酬。
+# 第一列沒有落後總體欄，最後一列沒有次月目標，因此兩列不進入估計。
 y &lt;- c(one$ret[-1], NA_real_)
 keep &lt;- complete.cases(X, y)
 X &lt;- X[keep, , drop = FALSE]
@@ -191,10 +196,13 @@ c(observations = nrow(X), dictionary_columns = ncol(X))
 ## 2   1967-03-01              1967-02-01      0.0342
 ## 3   1967-04-01              1967-03-01     -0.0405
 </code></pre>
-<h2 id="lasso">LASSO 座標下降與只依訓練資料進行的標準化<a class="headerlink" href="#lasso" title="Permanent link">#</a></h2>
+<p>最後得到 657 個可用預測起點與 125 欄字典：21 個主效果加上 \(8\times13=104\) 個交互作用。<code>head()</code> 同時列出因子月份、總體資訊月份與次月應變數，讓讀者直接核對三個時點是否符合研究問題。</p>
+<h2 id="lasso">手動作法：看懂 LASSO 如何更新係數<a class="headerlink" href="#lasso" title="Permanent link">#</a></h2>
+<p>LASSO 的懲罰取決於變數尺度，所以每一個訓練視窗都要自行估計平均數與標準差，再把同一轉換套到緊接其後的驗證期。以下座標下降法逐欄更新係數；手動寫出來的目的，是看清楚軟門檻如何把小係數設為零，以及截距為何不受懲罰。</p>
 <pre><code class="language-r">soft_threshold &lt;- function(z, lambda) sign(z) * pmax(abs(z) - lambda, 0)
 
 standardize_train &lt;- function(X_train, X_new = NULL) {
+  # 中心、尺度與近常數欄的判定都只使用當次訓練視窗。
   mu &lt;- colMeans(X_train)
   s &lt;- apply(X_train, 2, sd)
   keep &lt;- is.finite(s) &amp; s &gt; 1e-10
@@ -202,6 +210,7 @@ standardize_train &lt;- function(X_train, X_new = NULL) {
                  2, s[keep], &quot;/&quot;)
   ans &lt;- list(train = train, mean = mu[keep], sd = s[keep], keep = keep)
   if (!is.null(X_new)) {
+    # 驗證期與測試期沿用訓練期轉換，避免未來分布洩漏。
     ans$new &lt;- sweep(sweep(X_new[, keep, drop = FALSE], 2, mu[keep]),
                      2, s[keep], &quot;/&quot;)
   }
@@ -217,6 +226,7 @@ lasso_cd &lt;- function(X, y_centered, lambda, max_iter = 5000L, tol = 1e-7) {
   for (iter in seq_len(max_iter)) {
     old &lt;- beta
     for (j in seq_len(p)) {
+      # 加回第 j 欄舊貢獻後，對部分殘差做一次軟門檻更新。
       residual &lt;- residual + X[, j] * beta[j]
       z &lt;- sum(X[, j] * residual) / n
       beta[j] &lt;- soft_threshold(z, lambda) / x2[j]
@@ -241,8 +251,10 @@ fit_predict_lasso &lt;- function(X_train, y_train, X_new, lambda) {
   )
 }
 </code></pre>
-<h2 id="_3">保留測試集，再用擴展視窗折調校<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<h2 id="_3">先保留測試期，再用擴展視窗調校<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<p>最後 20% 的月份只用於一次最終評量。前 80% 內建立五個擴展視窗折：每折都用較早月份訓練，再以緊接其後的 24 個月驗證。這裡選的是對未來月份預測誤差較小的 \(\lambda\)，而不是讓訓練配適最好看的 \(\lambda\)。</p>
 <pre><code class="language-r">n &lt;- length(y)
+# 測試期在 best_lambda 決定前不參與任何前處理或模型選擇。
 test_start &lt;- floor(0.80 * n) + 1L
 tv &lt;- seq_len(test_start - 1L)
 test &lt;- test_start:n
@@ -295,32 +307,41 @@ data.frame(best_lambda = best_lambda, validation_mse = min(mean_loss))
 <pre><code>##   best_lambda validation_mse
 ## 1 0.006898709    0.002519735
 </code></pre>
-<h2 id="glmnet">原課程套件捷徑：以 <code>glmnet</code> 跑相同的時序折<a class="headerlink" href="#glmnet" title="Permanent link">#</a></h2>
-<p>原課程 <code>slides/L11_Factor selection_via_ML/fffqmacro.R</code> 第 381--397 行直接以
-<code>glmnet()</code> 估 LASSO／Ridge 路徑，第 428--497 行再以時間序列折調校；精簡版
-<code>lasso_ff_fq_macro.R</code> 第 85--116 行則示範以統一工作流程呼叫同一個 <code>glmnet</code>
-引擎。本節採最少依賴的第一種作法：保留上面完全相同的 expanding-window
-<code>folds</code>、<code>lambda_grid</code>、預測期距與最終測試集，只把手寫標準化與座標下降換成
-<code>glmnet::glmnet()</code>。不能直接使用隨機 K-fold 的 <code>cv.glmnet()</code>，因為那會讓較晚
-月份進入較早月份的訓練資料。</p>
+<p>驗證結果選出約 0.0069 的 \(\lambda\)，平均驗證 MSE 約為 0.00252。這個數字只用來在同一組驗證月份中比較候選懲罰，真正的預測表現仍要留到測試期判斷。</p>
+<h2 id="glmnet-lasso">套件作法：用 <code>glmnet()</code> 完成 LASSO 路徑估計<a class="headerlink" href="#glmnet-lasso" title="Permanent link">#</a></h2>
+<p>原課程 <code>slides/L11_Factor selection_via_ML/fffqmacro.R</code> 第 381–397 行直接以
+<code>glmnet()</code> 估 LASSO／Ridge 路徑，第 428–497 行再以時間序列折調校；精簡版
+<code>lasso_ff_fq_macro.R</code> 第 85–116 行則示範以統一工作流程呼叫同一個 <code>glmnet</code>
+引擎。本節沿用這套原課程工作流程，保留上面完全相同的擴展視窗
+<code>folds</code>、<code>lambda_grid</code>、預測期距與最終測試期，並讓套件版套用和手動版相同的訓練期中心與尺度。<code>glmnet::glmnet()</code> 代做係數路徑與數值最佳化；分析者仍要決定應變數時點、折的時間順序、\(\lambda\) 網格、測試期與評量指標。本頁自行傳入時間折，不採 <code>cv.glmnet()</code> 的隨機 K 折，避免較晚月份進入較早月份的訓練資料。和 R13 相同，這裡傳入 <code>family = stats::gaussian()</code>，避免內部重新縮放應變數，使套件版與手動版的 \(\lambda\) 使用同一尺度。</p>
 <pre><code class="language-r">glmnet_fold_loss &lt;- matrix(
   NA_real_, nrow = length(folds), ncol = length(lambda_grid)
 )
 for (v in seq_along(folds)) {
   tr &lt;- folds[[v]]$train
   va &lt;- folds[[v]]$validation
+  pp_glmnet &lt;- standardize_train(
+    X[tr, , drop = FALSE], X[va, , drop = FALSE]
+  )
+  y_bar_glmnet &lt;- mean(y[tr])
   glmnet_fold_fit &lt;- glmnet::glmnet(
-    x = X[tr, , drop = FALSE],
-    y = y[tr],
+    x = pp_glmnet$train,
+    y = y[tr] - y_bar_glmnet,
+    family = stats::gaussian(),
     alpha = 1,
     lambda = lambda_grid,
-    standardize = TRUE,
-    intercept = TRUE,
-    thresh = 1e-10
+    standardize = FALSE,
+    intercept = FALSE,
+    thresh = 1e-10,
+    maxit = 1000000L
   )
-  glmnet_fold_prediction &lt;- predict(
+  stopifnot(
+    glmnet_fold_fit$jerr == 0L,
+    length(glmnet_fold_fit$lambda) == length(lambda_grid)
+  )
+  glmnet_fold_prediction &lt;- y_bar_glmnet + predict(
     glmnet_fold_fit,
-    newx = X[va, , drop = FALSE],
+    newx = pp_glmnet$new,
     s = lambda_grid
   )
   glmnet_fold_loss[v, ] &lt;- colMeans(
@@ -333,61 +354,72 @@ glmnet_mean_loss &lt;- colMeans(glmnet_fold_loss)
 glmnet_best_lambda &lt;- lambda_grid[which.min(glmnet_mean_loss)]
 
 data.frame(
-  implementation = c(&quot;manual coordinate descent&quot;, &quot;glmnet package&quot;),
-  best_lambda = c(best_lambda, glmnet_best_lambda),
-  validation_MSE = c(min(mean_loss), min(glmnet_mean_loss)),
-  same_time_folds = TRUE
+  作法 = c(&quot;手動座標下降&quot;, &quot;glmnet 套件&quot;),
+  最佳lambda = c(best_lambda, glmnet_best_lambda),
+  驗證期MSE = c(min(mean_loss), min(glmnet_mean_loss)),
+  使用相同時間折 = TRUE,
+  check.names = FALSE
 )
 </code></pre>
-<pre><code>##              implementation best_lambda validation_MSE same_time_folds
-## 1 manual coordinate descent 0.006898709    0.002519735            TRUE
-## 2            glmnet package 0.006898709    0.002519738            TRUE
+<pre><code>##           作法  最佳lambda   驗證期MSE 使用相同時間折
+## 1 手動座標下降 0.006898709 0.002519735           TRUE
+## 2  glmnet 套件 0.006898709 0.002519735           TRUE
 </code></pre>
-<p>兩個版本使用相同目標函數族與資料切分，但停止準則、標準化細節及路徑計算的
-數值實作不必逐位元相同。公平的對照是驗證／測試預測與非零集合；手算版係數
-位於標準化尺度，<code>coef.glmnet()</code> 則已轉回原始變數尺度，不能直接逐格相減。</p>
+<p>兩個版本現在使用相同目標函數、時間折、訓練期標準化與 \(\lambda\) 尺度；剩下的差異主要來自停止準則與路徑計算方式，因此數值結果應非常接近，但不要求逐位完全相同。兩版係數都位於相同的標準化尺度，還可以進一步核對預測與非零集合。</p>
 <pre><code class="language-r">plot(log(lambda_grid), mean_loss, type = &quot;l&quot;, lwd = 2,
-     xlab = &quot;log(lambda)&quot;, ylab = &quot;Mean validation MSE&quot;,
+     xlab = expression(log(lambda)), ylab = &quot;平均驗證期 MSE&quot;,
      col = &quot;#173B57&quot;)
 lines(log(lambda_grid), glmnet_mean_loss, lwd = 1.5,
       lty = 3, col = &quot;#1D6D73&quot;)
 abline(v = log(best_lambda), lty = 2, col = &quot;#A34045&quot;)
 abline(v = log(glmnet_best_lambda), lty = 3, col = &quot;#1D6D73&quot;)
 legend(
-  &quot;topleft&quot;, c(&quot;Manual coordinate descent&quot;, &quot;glmnet&quot;),
+  &quot;topleft&quot;, c(&quot;手動座標下降&quot;, &quot;glmnet&quot;),
   col = c(&quot;#173B57&quot;, &quot;#1D6D73&quot;), lty = c(1, 3),
   lwd = c(2, 1.5), bty = &quot;n&quot;
 )
 </code></pre>
-<h2 id="_4">最終測試評量<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
+<p><img alt="製造業擴展視窗的平均驗證損失。" src="./R14_financial_factor_selection_files/figure-gfm/cv-plot-1.png"></p>
+<h2 id="_4">對保留的測試期做最後評量<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
+<p>調校完成後，手動版與 <code>glmnet</code> 版各自在「訓練期加驗證期」重新估計一次，再預測最後 20% 月份。歷史平均基準同樣固定在測試起點以前；如此比較的差異來自模型，而不是資訊更新規則不同。</p>
 <pre><code class="language-r">final &lt;- fit_predict_lasso(
   X[tv, , drop = FALSE], y[tv],
   X[test, , drop = FALSE], best_lambda
 )
 
+pp_glmnet_final &lt;- standardize_train(
+  X[tv, , drop = FALSE], X[test, , drop = FALSE]
+)
+y_bar_glmnet_final &lt;- mean(y[tv])
 glmnet_final_fit &lt;- glmnet::glmnet(
-  x = X[tv, , drop = FALSE],
-  y = y[tv],
+  x = pp_glmnet_final$train,
+  y = y[tv] - y_bar_glmnet_final,
+  family = stats::gaussian(),
   alpha = 1,
   lambda = lambda_grid,
-  standardize = TRUE,
-  intercept = TRUE,
-  thresh = 1e-10
+  standardize = FALSE,
+  intercept = FALSE,
+  thresh = 1e-10,
+  maxit = 1000000L
 )
-glmnet_prediction &lt;- as.numeric(predict(
+stopifnot(
+  glmnet_final_fit$jerr == 0L,
+  length(glmnet_final_fit$lambda) == length(lambda_grid)
+)
+glmnet_prediction &lt;- as.numeric(y_bar_glmnet_final + predict(
   glmnet_final_fit,
-  newx = X[test, , drop = FALSE],
+  newx = pp_glmnet_final$new,
   s = glmnet_best_lambda
 ))
 
 # 固定在「手算版選到的同一 lambda」再比一次，隔離調校差異與估計器差異。
-glmnet_prediction_at_manual_lambda &lt;- as.numeric(predict(
+glmnet_prediction_at_manual_lambda &lt;- as.numeric(y_bar_glmnet_final + predict(
   glmnet_final_fit,
-  newx = X[test, , drop = FALSE],
+  newx = pp_glmnet_final$new,
   s = best_lambda
 ))
 
-# 固定 forecast origin 可實現的歷史平均基準。
+# 固定在共同預測起點可實現的歷史平均基準。
 baseline &lt;- rep(mean(y[tv]), length(test))
 actual &lt;- y[test]
 
@@ -406,10 +438,10 @@ rbind(
   LASSO_glmnet = score(actual, glmnet_prediction, baseline)
 )
 </code></pre>
-<pre><code>##                        MSE        MAE        OOS_R2
-## HistoricalMean 0.002112716 0.03413743  0.000000e+00
-## LASSO_manual   0.002112716 0.03413743  0.000000e+00
-## LASSO_glmnet   0.002112716 0.03413743 -2.220446e-16
+<pre><code>##                        MSE        MAE OOS_R2
+## HistoricalMean 0.002112716 0.03413743      0
+## LASSO_manual   0.002112716 0.03413743      0
+## LASSO_glmnet   0.002112716 0.03413743      0
 </code></pre>
 <pre><code class="language-r">glmnet_coef &lt;- as.matrix(stats::coef(
   glmnet_final_fit, s = glmnet_best_lambda
@@ -426,55 +458,59 @@ selected_overlap &lt;- if (length(selected_union) == 0L) {
 }
 
 data.frame(
-  comparison = c(
-    &quot;chosen-lambda test prediction&quot;,
-    &quot;same-manual-lambda test prediction&quot;,
-    &quot;selected-variable overlap&quot;
+  比較項目 = c(
+    &quot;各自選擇 lambda 後的測試期預測&quot;,
+    &quot;固定使用手動版 lambda 的測試期預測&quot;,
+    &quot;入選變數重疊比例&quot;
   ),
-  value = c(
+  數值 = c(
     max(abs(final$pred - glmnet_prediction)),
     max(abs(final$pred - glmnet_prediction_at_manual_lambda)),
     selected_overlap
   ),
-  interpretation = c(
-    &quot;includes any difference in selected lambda&quot;,
-    &quot;isolates numerical implementation at a fixed lambda&quot;,
-    &quot;Jaccard share; undefined when both nonzero sets are empty&quot;
-  )
+  解讀 = c(
+    &quot;同時包含調校結果與數值實作的差異&quot;,
+    &quot;固定 lambda，只比較兩種數值實作&quot;,
+    &quot;Jaccard 比例；兩邊都沒有非零斜率時不定義&quot;
+  ),
+  check.names = FALSE
 )
 </code></pre>
-<pre><code>##                           comparison        value
-## 1      chosen-lambda test prediction 8.673617e-19
-## 2 same-manual-lambda test prediction 8.673617e-19
-## 3          selected-variable overlap           NA
-##                                              interpretation
-## 1                includes any difference in selected lambda
-## 2       isolates numerical implementation at a fixed lambda
-## 3 Jaccard share; undefined when both nonzero sets are empty
+<pre><code>##                             比較項目 數值
+## 1     各自選擇 lambda 後的測試期預測    0
+## 2 固定使用手動版 lambda 的測試期預測    0
+## 3                   入選變數重疊比例   NA
+##                                       解讀
+## 1         同時包含調校結果與數值實作的差異
+## 2          固定 lambda，只比較兩種數值實作
+## 3 Jaccard 比例；兩邊都沒有非零斜率時不定義
 </code></pre>
 <pre><code class="language-r">data.frame(
-  implementation = c(&quot;manual&quot;, &quot;glmnet&quot;),
-  nonzero_predictors = c(length(manual_selected), length(glmnet_selected)),
-  best_lambda = c(best_lambda, glmnet_best_lambda)
+  作法 = c(&quot;手動座標下降&quot;, &quot;glmnet&quot;),
+  非零斜率數 = c(length(manual_selected), length(glmnet_selected)),
+  最佳lambda = c(best_lambda, glmnet_best_lambda),
+  check.names = FALSE
 )
 </code></pre>
-<pre><code>##   implementation nonzero_predictors best_lambda
-## 1         manual                  0 0.006898709
-## 2         glmnet                  0 0.006898709
+<pre><code>##           作法 非零斜率數  最佳lambda
+## 1 手動座標下降          0 0.006898709
+## 2       glmnet          0 0.006898709
 </code></pre>
 <p>歷史平均相對自己的 <code>OOS_R2</code> 分母與分子相同，故為 0。保守地將總體欄再落後一個月後，兩個 LASSO 版本在最終訓練樣本都沒有留下非零斜率，因而與截距專屬的歷史平均預測一致；<code>glmnet</code> 的
-\(-2.22\times10^{-16}\) <code>OOS_R2</code> 只是浮點數誤差，在報告精度下為 0。這個結果不可因不理想而移動測試起點或重新選字典。</p>
+\(-2.22\times10^{-16}\) <code>OOS_R2</code> 只是浮點數誤差，在報告精度下為 0。資料在這個時點對齊與驗證設計下支持簡單基準；看見結果後若再移動測試起點或重選字典，便需要另一段未見月份重新評量。</p>
 <pre><code class="language-r">plot(dates[test], actual, type = &quot;l&quot;, lwd = 1.8, col = &quot;black&quot;,
-     xlab = &quot;Predictor month&quot;, ylab = &quot;Next-month excess return&quot;)
+     xlab = &quot;預測起點月份&quot;, ylab = &quot;次月超額報酬&quot;)
 lines(dates[test], final$pred, col = &quot;#A34045&quot;, lwd = 1.5)
 lines(dates[test], glmnet_prediction, col = &quot;#1D6D73&quot;, lwd = 1.3, lty = 3)
 lines(dates[test], baseline, col = &quot;#62717E&quot;, lty = 2)
-legend(&quot;topleft&quot;, c(&quot;Actual&quot;, &quot;LASSO (manual)&quot;, &quot;LASSO (glmnet)&quot;,
-                     &quot;Historical mean&quot;),
+legend(&quot;topleft&quot;, c(&quot;實現值&quot;, &quot;LASSO（手動）&quot;, &quot;LASSO（glmnet）&quot;,
+                     &quot;歷史平均&quot;),
        col = c(&quot;black&quot;, &quot;#A34045&quot;, &quot;#1D6D73&quot;, &quot;#62717E&quot;),
        lty = c(1, 1, 3, 2), lwd = c(1.8, 1.5, 1.3, 1), bty = &quot;n&quot;)
 </code></pre>
+<p><img alt="固定測試期的製造業次月超額報酬預測。" src="./R14_financial_factor_selection_files/figure-gfm/prediction-plot-1.png"></p>
 <h2 id="_5">非零係數與跨折選取頻率<a class="headerlink" href="#_5" title="Permanent link">#</a></h2>
+<p>最終係數回答「合併訓練期與驗證期後，哪些欄被留下」；跨折頻率則回答「同一欄在不同歷史訓練終點是否反覆被留下」。兩者合看，才能分辨穩定訊號與對特定樣本切分敏感的選擇。</p>
 <pre><code class="language-r">selected_final &lt;- data.frame(
   predictor = final$names,
   coefficient = final$beta
@@ -490,6 +526,7 @@ head(selected_final, 20)
                     dimnames = list(NULL, colnames(X)))
 for (v in seq_along(folds)) {
   tr &lt;- folds[[v]]$train
+  # 每一折重新標準化並估計，選取頻率才不會偷用較晚月份的尺度。
   pp &lt;- standardize_train(X[tr, , drop = FALSE])
   b &lt;- lasso_cd(pp$train, y[tr] - mean(y[tr]), best_lambda)
   selection[v, pp$keep] &lt;- as.integer(abs(b) &gt; 1e-8)
@@ -520,20 +557,18 @@ head(data.frame(predictor = names(frequency), selection_frequency = frequency), 
 ## macro_bm                               macro_bm                 0.0
 </code></pre>
 <p>選取頻率是這組歷史折、字典與固定 <code>best_lambda</code> 下的描述，不是 \(p\) 值或「被定價機率」。本次最高選取頻率只有 0.4，而且最終完整訓練樣本沒有任何非零斜率；這比「挑出一張因子名單」更支持簡單基準。高度相關的預測變數仍可能互相替代，所以不可把單一欄的低頻率反向解讀為經濟上完全無關。</p>
-<h2 id="_6">累積損失差與結構穩定性<a class="headerlink" href="#_6" title="Permanent link">#</a></h2>
+<h2 id="_6">模型在哪些月份贏過基準？<a class="headerlink" href="#_6" title="Permanent link">#</a></h2>
+<p>平均 MSE 會把整段測試期壓成一個數字。累積損失差保留時間順序：曲線下降表示 LASSO 在該段累積少犯錯，上升則表示歷史平均較好。若勝負只集中在少數月份，模型的實務穩定性就值得再檢查。</p>
 <pre><code class="language-r">loss_difference &lt;- (actual - final$pred)^2 - (actual - baseline)^2
 plot(dates[test], cumsum(loss_difference), type = &quot;l&quot;, lwd = 2,
-     col = &quot;#1D6D73&quot;, xlab = &quot;Predictor month&quot;,
-     ylab = &quot;Cumulative loss difference&quot;)
+     col = &quot;#1D6D73&quot;, xlab = &quot;預測起點月份&quot;,
+     ylab = &quot;累積平方損失差&quot;)
 abline(h = 0, lty = 2, col = &quot;#62717E&quot;)
 </code></pre>
-<h2 id="_7">延伸到十產業的安全規則<a class="headerlink" href="#_7" title="Permanent link">#</a></h2>
-<ol>
-<li>預先固定預測期距、測試月份、字典、折與 lambda 網格。</li>
-<li>每個產業可在自己的驗證折選 lambda；不得看測試結果後另改網格。</li>
-<li>報告全部十產業，包括負的樣本外表現。</li>
-<li>公開版直接使用固定 processed CSV 與 manifest；若另作上游重建，應保存建置說明與版本，不可把即時下載默認為同一份歷史快照。</li>
-</ol>
+<p><img alt="LASSO 相對歷史平均的累積平方損失差；下降表示 LASSO 在該段累積較佳。" src="./R14_financial_factor_selection_files/figure-gfm/cumulative-loss-1.png"></p>
+<h2 id="_7">若要把分析擴大到十個產業<a class="headerlink" href="#_7" title="Permanent link">#</a></h2>
+<p>十個產業可以各自用驗證折選擇 \(\lambda\)，但預測期距、測試月份、字典、折法與候選網格應事先固定。最後要把所有產業一起報告，包括樣本外表現為負的產業；只挑成功案例會誇大方法的穩定性。</p>
+<p>這份固定 CSV 適合重跑書中的同一個比較。若改由上游來源重新建檔，還要保存建置說明、下載日期與 Fama–French 版本，並重新檢查資料可得時點。即時下載所得序列不應在未核對前視為同一份歷史快照。</p>
 <pre><code class="language-r">sessionInfo()
 </code></pre>
 <pre><code>## R version 4.5.2 (2025-10-31)
@@ -553,54 +588,29 @@ abline(h = 0, lty = 2, col = &quot;#62717E&quot;)
 ## attached base packages:
 ## [1] stats     graphics  grDevices utils     datasets  methods   base     
 ## 
-## other attached packages:
-## [1] tibble_3.3.0 dplyr_1.2.1 
-## 
 ## loaded via a namespace (and not attached):
-##  [1] shape_1.4.6.1       gtable_0.3.6        xfun_0.57          
-##  [4] ggplot2_4.0.3       collapse_2.1.7      lattice_0.22-7     
-##  [7] quadprog_1.5-8      vctrs_0.7.2         tools_4.5.2        
-## [10] Rdpack_2.6.6        generics_0.1.4      curl_7.0.0         
-## [13] parallel_4.5.2      sandwich_3.1-1      xts_0.14.2         
-## [16] pkgconfig_2.0.3     gbutils_0.5.1       Matrix_1.7-4       
-## [19] tidyverse_2.0.0     RColorBrewer_1.1-3  S7_0.2.1           
-## [22] lifecycle_1.0.5     compiler_4.5.2      farver_2.1.2       
-## [25] MatrixModels_0.5-4  maxLik_1.5-2.2      textshaping_1.0.5  
-## [28] codetools_0.2-20    SparseM_1.84-2      quantreg_6.1       
-## [31] htmltools_0.5.9     glmnet_4.1-10       Formula_1.2-5      
-## [34] pillar_1.11.1       MASS_7.3-65         plm_2.6-7          
-## [37] iterators_1.0.14    foreach_1.5.2       nlme_3.1-168       
-## [40] fracdiff_1.5-4      pls_2.9-0           fBasics_4052.98    
-## [43] tidyselect_1.2.1    bdsmatrix_1.3-7     digest_0.6.39      
-## [46] labeling_0.4.3      splines_4.5.2       tseries_0.10-62    
-## [49] miscTools_0.6-30    fastmap_1.2.0       grid_4.5.2         
-## [52] colorspace_2.1-2    cli_3.6.5           magrittr_2.0.4     
-## [55] utf8_1.2.6          survival_3.8-3      withr_3.0.2        
-## [58] scales_1.4.0        forecast_9.0.2      TTR_0.24.4         
-## [61] rmarkdown_2.31      quantmod_0.4.29     otel_0.2.0         
-## [64] timeDate_4052.112   ragg_1.5.2          zoo_1.8-15         
-## [67] timeSeries_4052.112 fGarch_4052.93      urca_1.3-4         
-## [70] evaluate_1.0.5      knitr_1.51          rbibutils_2.4.1    
-## [73] lmtest_0.9-40       rlang_1.1.7         spatial_7.3-18     
-## [76] Rcpp_1.1.0          glue_1.8.0          R6_2.6.1           
-## [79] cvar_0.6            systemfonts_1.3.2
+##  [1] codetools_0.2-20 shape_1.4.6.1    xfun_0.57        Matrix_1.7-4    
+##  [5] lattice_0.22-7   splines_4.5.2    iterators_1.0.14 knitr_1.51      
+##  [9] cli_3.6.5        foreach_1.5.2    grid_4.5.2       compiler_4.5.2  
+## [13] tools_4.5.2      evaluate_1.0.5   Rcpp_1.1.0       survival_3.8-3  
+## [17] otel_0.2.0       rlang_1.1.7      glmnet_4.1-10
 </code></pre>
       </article>
-      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R13_regularization.html">← Ridge、LASSO、Elastic Net 與 post-LASSO</a><a rel="next" href="R15_double_selection_dml.html">雙重選擇、正交化與 DML →</a></nav>
+      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R13_regularization.html">← Ridge、LASSO、Elastic Net 與 post-LASSO</a><a rel="next" href="R15_double_selection_dml.html">加州學校資料的雙重選擇與 DML 式殘差化 →</a></nav>
       <footer>© 陳釗而　《財務時間序列分析》</footer>
     </main>
     <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
 <ul>
-<li><a href="#_1">執行條件</a></li>
-<li><a href="#_2">日期與面板完整性</a></li>
-<li><a href="#x_trightarrow-y_t1">建立 (X_t\rightarrow Y_{t+1})</a></li>
-<li><a href="#lasso">LASSO 座標下降與只依訓練資料進行的標準化</a></li>
-<li><a href="#_3">保留測試集，再用擴展視窗折調校</a></li>
-<li><a href="#glmnet">原課程套件捷徑：以 glmnet 跑相同的時序折</a></li>
-<li><a href="#_4">最終測試評量</a></li>
+<li><a href="#_1">先準備套件與固定資料</a></li>
+<li><a href="#_2">先確認月份鍵與共同預測變數</a></li>
+<li><a href="#ftsmathtoken00005zz">建立 \(X_t\rightarrow Y_{t+1}\) 的預測字典</a></li>
+<li><a href="#lasso">手動作法：看懂 LASSO 如何更新係數</a></li>
+<li><a href="#_3">先保留測試期，再用擴展視窗調校</a></li>
+<li><a href="#glmnet-lasso">套件作法：用 glmnet() 完成 LASSO 路徑估計</a></li>
+<li><a href="#_4">對保留的測試期做最後評量</a></li>
 <li><a href="#_5">非零係數與跨折選取頻率</a></li>
-<li><a href="#_6">累積損失差與結構穩定性</a></li>
-<li><a href="#_7">延伸到十產業的安全規則</a></li>
+<li><a href="#_6">模型在哪些月份贏過基準？</a></li>
+<li><a href="#_7">若要把分析擴大到十個產業</a></li>
 </ul>
 </div>
 </aside>

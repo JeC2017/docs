@@ -6,11 +6,13 @@ output:
     toc_depth: 3
 ---
 
-本附錄對應第 11--12 章，使用真實 AAPL 日對數報酬估計 GARCH(1,1) 與 GJR--GARCH(1,1)。資料源自原課程 S&P 500 價格檔；有效樣本為 2019-01-03 至 2022-06-22，共 874 筆，單位是小數日對數報酬。固定版本與建置方式見 `data/DATA_SOURCES.md`。
+AAPL 報酬的方向可能很難預測，波動幅度卻會連續幾天偏高。這種「報酬弱相關、平方報酬強相關」的資料特徵，是否能由 GARCH 描述？同樣幅度的負報酬是否對下一期波動帶來較大的條件關聯？本附錄對應第 11–12 章，以真實 AAPL 日對數報酬估計 GARCH(1,1) 與 GJR–GARCH(1,1)，並把答案放到最後的測試期比較。
 
-最後 20% 樣本保留作一次性測試。平均數、變異數參數與初始尺度都只由前 80% 訓練期估計；測試期每一期先形成波動預測，才讀入當期實現報酬更新下一期狀態。主線先用 R 內建的 `optim()` 透明重建遞迴與目標函數，再加入原課程教師講義使用的 `fGarch::garchFit()` 捷徑；兩條路徑都只使用固定資料與相同訓練期。
+資料源自原課程 S&P 500 價格檔的固定版本。每筆觀察值是一個交易日的 AAPL 對數報酬，有效樣本從 2019-01-03 到 2022-06-22，共 874 筆，原始單位為小數；圖中乘以 100 後才是百分比。價格調整與建檔方式見 `data/DATA_SOURCES.md`。
 
-條件波動模型描述歷史上的條件變異動態；正負報酬的不對稱關聯不能自動解讀成「壞消息造成波動」的因果效果，也不構成投資建議。
+程式按日期排序後，把前 80% 定為訓練期，最後 20% 保留為一次性測試期；本例沒有另設驗證期。平均數、變異數參數與初始尺度都只由訓練期估計。進入測試期後，程式在目標日報酬出現以前先形成一步波動預測，再用實現報酬更新下一日狀態。手動版用 R 內建的 `optim()` 展開條件變異遞迴與目標函數；套件版沿用原課程的 `fGarch::garchFit()` 工作流程，並使用同一訓練期核對結果。
+
+這些模型估計的是歷史條件變異動態與樣本外預測損失。正負報酬的不對稱參數可以描述條件關聯，若要把它命名為「壞消息造成波動」，還需要可信的消息度量與因果識別設計。
 
 
 ``` r
@@ -44,7 +46,9 @@ if (!"cwTeX Online" %in% systemfonts::registry_fonts()$family) {
 plot_family <- "cwTeX Online"
 ```
 
-## 讀取資料並鎖定訓練期
+## 先確認資料與預測時間線
+
+波動預測最容易在切分時洩漏未來資訊。下列程式先排序日期、排除無效報酬，再一次固定訓練與測試分界。平均報酬只在訓練期計算；否則使用全樣本平均數中心化，已經讓測試期資訊進入模型。
 
 
 ``` r
@@ -52,6 +56,7 @@ aapl <- read.csv(project_path(
   "data", "processed", "aapl_adjusted_daily_2019_2022.csv"
 ))
 aapl$date <- as.Date(aapl$date)
+# 落後殘差與條件變異遞迴都假設列已按日期先後排列。
 aapl <- aapl[order(aapl$date), ]
 aapl <- aapl[is.finite(aapl$log_return), ]
 row.names(aapl) <- NULL
@@ -103,9 +108,11 @@ data.frame(
 ## 1          0.001879715       0.02195292
 ```
 
-以下 $a_t=r_t-\widehat{\mu}_{\mathrm{train}}$。固定訓練期平均數可讓波動預測的資訊邊界一目了然；它不是平均數與變異數聯合最大概似估計。
+切分表給出了實際的訓練起迄日、測試起迄日與各段樣本數。以下定義 $a_t=r_t-\widehat{\mu}_{\mathrm{train}}$，並在後續模型中固定這個訓練期平均數。這種做法可以清楚交代形成波動預測時可用到哪些資料；它和同時估計平均數與變異數方程的聯合最大概似規格是兩個不同的比較基準。
 
-## 報酬與平方報酬的相依
+## 報酬方向與波動幅度有不同的時間結構嗎？
+
+第一張圖把訓練與測試分界當作時間軸上的參考點，用報酬與絕對中心化報酬觀察波動群聚。ACF 只在訓練期計算，因為我們不希望根據測試期圖形回頭改選模型。
 
 
 ``` r
@@ -149,9 +156,11 @@ acf(train^2, lag.max = 30, main = "平方報酬 ACF")
 par(old_par)
 ```
 
-方向相關與波動相關是不同問題。平均數模型沒有明顯相關，不代表條件變異數是常數。
+中心化報酬的 ACF 主要檢查方向性的線性關聯，平方報酬 ACF 則檢查幅度是否有持續性。若第一張 ACF 大多接近零，第二張卻有多個落後期明顯偏離零，接下來的合理決定是保持簡單平均數規格，並另建條件變異數模型。
 
-## ARCH--LM 輔助迴歸
+## ARCH–LM：殘差平方中還有可預測結構嗎？
+
+ARCH–LM 以訓練期殘差平方的落後值作為解釋變數。虛無假設是這些落後項的係數同時為零，也就是這項檢定沒有發現 ARCH 結構。
 
 
 ``` r
@@ -159,6 +168,7 @@ arch_lm <- function(residual, lags = 10L) {
   stopifnot(lags >= 1L, length(residual) > 5L * lags)
   x2 <- residual^2
   n <- length(x2)
+  # 前 lags 期沒有完整的落後向量，因此從 lags + 1 期開始共同對齊。
   response <- x2[(lags + 1L):n]
   X <- sapply(seq_len(lags), function(j) {
     x2[(lags + 1L - j):(n - j)]
@@ -185,11 +195,11 @@ knitr::kable(arch_lm(train, lags = 10), digits = 6)
 |--------:|--------:|-----------:|
 |       10| 166.9343|           0|
 
-訓練期 ARCH--LM 統計量約為 166.93，卡方近似 $p$ 值在目前數值精度下顯示為 0，清楚反對常數條件變異的簡化模型。
+訓練期 ARCH–LM 統計量約為 166.93，卡方近似 $p$ 值在目前數值精度下顯示為 0。這是強烈的樣本證據，顯示常數條件變異沒有捕捉到殘差平方的落後關聯。因此下一步估計 GARCH 類模型是有資料依據的；但階數、不對稱項與創新分配仍需要以理論、殘差診斷和樣本外損失一起選擇。
 
-ARCH--LM 的小 $p$ 值只是反對「指定落後的平方殘差係數同時為零」，不會自動決定 GARCH 階數或創新分配。
+## 手動作法：建立 GARCH 與 GJR–GARCH 條件變異遞迴
 
-## GARCH 與 GJR--GARCH 規格
+對稱 GARCH 先回答「大幅度衝擊是否會讓波動持續」；GJR–GARCH 再加上衝擊符號，查看同樣幅度的負殘差是否對下一期變異數有額外關聯。以下將參數轉換、變異數濾波與概似目標分開寫，讓每個限制可以直接檢查。
 
 對稱 GARCH(1,1) 設定 $\gamma=0$；GJR 模型使用
 
@@ -230,6 +240,7 @@ map_gjr <- function(eta) {
 filter_variance <- function(a, par) {
   n <- length(a)
   h <- numeric(n)
+  # 初始變異數只由傳入的訓練資料計算，避免用到未來尺度。
   h[1] <- var(a)
   for (t in 2:n) {
     h[t] <- par["omega"] +
@@ -249,11 +260,11 @@ gaussian_nll <- function(eta, a, model = c("garch", "gjr")) {
 }
 ```
 
-常態準最大概似（quasi-maximum likelihood, QML）不宣稱 AAPL 創新服從常態分配。這裡也沒有計算穩健 sandwich 標準誤，因此重點放在條件變異遞迴與樣本外損失，而不是係數顯著性。
+這裡使用常態準最大概似（quasi-maximum likelihood, QML）來估計條件變異遞迴。常態密度在這裡是目標函數，不是對 AAPL 無條件報酬分配的描述。由於程式沒有計算穩健的三明治型標準誤（sandwich standard errors），下面將重點放在參數方向、條件變異遞迴、診斷與樣本外損失，不以這份輸出做係數顯著性推論。
 
-## 多起點最佳化
+## 為什麼要用多個起點做數值最佳化？
 
-手動最佳化可能受初始值影響。以下為每個模型使用三組具經濟意義的起點，保留收斂且目標函數最小的結果。
+條件變異模型的目標函數可能對初始值敏感。若只跑一次 `optim()`，「成功收斂」只表示演算法在那個起點附近停下，未必是可比較的最佳解。下面為每個模型使用三組具經濟意義的起點，檢查收斂碼與目標函數，再保留可接受解中的最小值。
 
 
 ``` r
@@ -281,6 +292,7 @@ gjr_start <- function(v, alpha, beta, gamma) {
 }
 
 fit_multistart <- function(starts, a, model) {
+  # 同一模型的所有起點共用同一訓練樣本與目標函數，才能直接比較。
   fits <- lapply(starts, function(start) {
     optim(
       start, gaussian_nll, a = a, model = model,
@@ -351,18 +363,18 @@ stopifnot(
 
 GJR 的不對稱係數估計值約為 0.1614，訓練期高斯 QML 目標函數也較低；這是條件關聯與配適結果，沒有穩健標準誤時不作顯著性宣稱，更不能作因果解讀。
 
-兩個模型的目標函數可以在同一訓練資料上比較，但多一個參數會提高彈性；不能只看訓練期目標函數就宣告 GJR 必然有較佳預測。
+兩個模型使用同一訓練資料與常態 QML 目標，因此目標函數可直接比較。GJR 多了一個不對稱參數，訓練期彈性也較高；是否對預測有實際幫助，要留到固定測試期，用共同損失函數回答。
 
-## 原課程套件捷徑：`fGarch::garchFit()`
+## 套件作法：用 `garchFit()` 完成平均數與波動模型估計
 
-本節取自原課程教師程式
-`slides/L07_ARCH_GARCH/W2L2_R_template_GARCH.R`。該程式以
+原課程在
+`slides/L07_ARCH_GARCH/W2L2_R_template_GARCH.R` 使用這套工作流程。程式以
 `garchFit(~ arma(1,0) + garch(1,1), cond.dist = "QMLE")` 聯合估計
 AR(1) 平均數與 GARCH(1,1)，並以
 `garchFit(~ arma(1,0) + aparch(1,1), delta = 2)` 示範非對稱規格。
-以下保留兩個公式，但把即時下載的 AAPL 換成同一份固定 CSV，且一律只用訓練期。
+以下保留兩個公式，但把即時下載的 AAPL 換成同一份固定 CSV，且一律只用訓練期。`garchFit()` 代為處理條件變異遞迴、參數限制與數值最佳化；研究者仍須決定平均數階數、波動規格、創新分配、訓練截止日，以及哪些診斷結果足以支持下一步。
 
-為了與前面的手動 GARCH 作公平核對，另外配適一個「對齊規格」：先扣除已凍結的
+為了與前面的手動 GARCH 作公平核對，另外配適一個「對齊規格」：先扣除已固定的
 $\widehat{\mu}_{\mathrm{train}}$，再設定 `include.mean = FALSE`。這個版本與手動
 GARCH 使用相同的固定平均數與變異數方程；兩者仍可能因初始變異數與概似實作細節而有
 小幅差異。APARCH 的 `gamma1` 則屬於套件的符號與冪次參數化，不能直接當成前面
@@ -374,6 +386,7 @@ stopifnot(requireNamespace("fGarch", quietly = TRUE))
 
 raw_train <- aapl$log_return[seq_len(train_end)]
 
+# 先重現原課程的對稱規格：平均數與 GARCH 方程一起估計。
 fgarch_lecture_garch <- fGarch::garchFit(
   ~ arma(1, 0) + garch(1, 1),
   data = raw_train,
@@ -381,6 +394,8 @@ fgarch_lecture_garch <- fGarch::garchFit(
   trace = FALSE
 )
 
+# 再重現原課程的非對稱 APARCH 規格。這裡的 gamma1 採 APARCH
+# 參數化，不能直接和前面 GJR 指標函數中的 gamma 比大小。
 fgarch_lecture_aparch <- fGarch::garchFit(
   ~ arma(1, 0) + aparch(1, 1),
   data = raw_train,
@@ -390,6 +405,8 @@ fgarch_lecture_aparch <- fGarch::garchFit(
   trace = FALSE
 )
 
+# 最後另估一個固定平均數的對齊規格，目的在和手動 GARCH
+# 比較同一條變異數方程，而不是拿不同平均數模型硬作比較。
 fgarch_aligned <- fGarch::garchFit(
   ~ garch(1, 1),
   data = train,
@@ -410,6 +427,8 @@ coef_lecture_garch <- fgarch_lecture_garch@fit$coef
 coef_lecture_aparch <- fgarch_lecture_aparch@fit$coef
 coef_aligned <- fgarch_aligned@fit$coef
 
+# 先把三種規格的共同參數排在同一張表；不適用的欄位保留 NA，
+# 免得學生誤以為三種模型使用完全相同的參數化。
 fgarch_specification_table <- data.frame(
   規格 = c(
     "原課程 AR(1)-GARCH；QMLE",
@@ -465,6 +484,7 @@ knitr::kable(fgarch_specification_table, digits = 7)
 |對齊手動版：固定平均 GARCH；QMLE |固定訓練期平均數 | 0.0018797|         NA| 1.96e-05| 0.1485739| 0.8064884|            NA|
 
 ``` r
+# 套件對齊版必須滿足正變異數與定態限制，才值得進入下一步比較。
 par_fgarch_aligned <- c(
   omega = coefficient_or_na(coef_aligned, "omega"),
   alpha = coefficient_or_na(coef_aligned, "alpha1"),
@@ -479,6 +499,8 @@ stopifnot(
   par_fgarch_aligned["alpha"] + par_fgarch_aligned["beta"] < 1
 )
 
+# fGarch 與手動 optim 的內部目標函數定義未必完全相同；因此兩組
+# 估計值都代回同一個高斯目標函數，才有可直接比較的數值基準。
 common_gaussian_objective <- function(a, par) {
   h <- filter_variance(a, par)
   0.5 * sum(
@@ -486,6 +508,8 @@ common_gaussian_objective <- function(a, par) {
   )
 }
 
+# 這張表只比較「固定平均數」的兩個對齊版本；原課程的 AR(1)
+# 平均數規格留在上表，不混入這項數值核對。
 aligned_comparison <- rbind(
   手動_optim固定平均 = c(
     par_garch[c("omega", "alpha", "beta")],
@@ -515,6 +539,8 @@ knitr::kable(aligned_comparison, digits = 7)
 前一張規格表的第一、二列回答原課程的聯合平均數—波動問題；第三列才是用來核對本附錄手動固定平均版本的橋梁。緊接著的兩列對照表只比較後者與手動 `optim()`。若兩個對齊版本的參數不完全相同，應先查看初始化與概似定義，而不是把差異誤認為資料或公式錯誤。
 
 ## 標準化殘差診斷
+
+估計完成後，先問兩件事：標準化殘差 $z_t=a_t/\sqrt{h_t}$ 是否仍有線性相依？其平方 $z_t^2$ 是否仍保留波動群聚？前者若顯著，應回頭檢討平均數模型；後者若顯著，表示條件變異方程還沒有吸收完可預測的波動結構。
 
 
 ``` r
@@ -551,9 +577,11 @@ knitr::kable(diagnostic_table, digits = 6)
 |GJR                   |       23.05409|     0.286146|           18.75490|         0.537805|
 |fGarch 固定平均 GARCH |       24.40605|     0.225105|           19.26644|         0.504573|
 
-Ljung--Box 結果是診斷線索，不是模型正確的證明；尾端形狀、符號不對稱、參數邊界與樣本穩定性仍需另查。
+三個規格的 $z_t$ 與 $z_t^2$ Ljung–Box $p$ 值都高於 0.20；在落後 20 期的這項檢查中，沒有明顯證據顯示線性相依或平方相依仍未被吸收。表中使用 `fitdf = 0`，沒有扣除平均數與波動參數的估計自由度，因此應把它讀成方便比較的**近似診斷**，而不是已完整校正的規格檢定。這不代表模型已經正確，仍要查看尾端形狀、符號不對稱、參數是否貼近邊界，以及結果在不同樣本期間是否穩定。若其他樣本出現 $z_t$ 顯著，應先檢討平均數模型；若 $z_t^2$ 顯著，則應修改波動規格。
 
 ## 無資料洩漏的一步波動預測
+
+現在把問題從樣本內配適改成真正的預測：在目標日 $t$ 的報酬尚未出現時，只用截至 $t-1$ 日的資訊形成 $h_{t\mid t-1}$。第一個測試日以訓練期最後一日為預測起點，後續各日才依序納入已實現的測試期報酬；歷史 60 期變異數則提供一個簡單、同樣遵守時間邊界的基準。
 
 
 ``` r
@@ -636,9 +664,9 @@ knitr::kable(loss_table, digits = 8)
 |GJR                   | -6.806984|      43.85074|           2.041123|
 |fGarch 固定平均 GARCH | -6.794924|      42.33644|           1.988171|
 
-上表分別以 QLIKE 與放大 $10^8$ 倍後的平方損失排序；兩個指標的最小值直接由表中的數字判讀。套件對齊版也使用相同的固定平均數、逐期資訊集合與損失函數，因此這一列比較的是估計實作差異，不是額外看過測試期後才選出的新模型。
+兩種損失都是越小越好。QLIKE 由 GJR 最低（約 $-6.807$），平方損失則由手動 GARCH 最低（放大後約 42.29）；兩個指標沒有選出同一模型。套件對齊版與手動 GARCH 的結果很接近，因為兩者使用相同固定平均數、逐期資訊集合與損失函數；這一列主要反映估計實作與初始化差異。
 
-`test^2` 是不可觀察條件變異數的高雜訊代理，因此 QLIKE 與平方損失可能給不同排序。這正是同時報告多種損失函數、避免只挑有利指標的理由。
+`test^2` 是不可觀察條件變異數的高雜訊代理，因此 QLIKE 與平方損失給出不同排序並不意外。合宜的結論是：GJR 的不對稱項改善了 QLIKE，卻沒有同時改善平方損失；不能事後只挑其中一個指標宣告全面勝出。
 
 
 ``` r
@@ -672,7 +700,7 @@ legend(
 par(old_par)
 ```
 
-### 時間邊界檢查
+### 用日期確認每個預測真的只看過去
 
 
 ``` r
@@ -773,9 +801,13 @@ stopifnot(
 )
 ```
 
-## 可重現結論
+## 從結果回到波動預測決定
 
-本附錄把真實實證與模擬檢查分開：AAPL 係數、診斷與測試損失全部由固定資料實跑；模擬只檢查符號與遞迴。手動 `optim()` 與教師講義的 `fGarch::garchFit()` 結果並列，且套件對齊版沿用同一個固定平均數與測試期資訊邊界。正式報告還應保存 R 版本、`fGarch` 版本、訓練截止日、多起點設定、所有收斂碼、損失函數與逐期預測。
+AAPL 的估計、殘差診斷與測試期損失都來自同一份固定資料；最後的模擬只用來確認遞迴方向與正變異數，不參與實證模型排名。手動 `optim()` 與原課程採用的 `garchFit()` 並列後，可以分辨結果差異究竟來自模型規格，還是初始化與概似實作。
+
+實際選模時，先依標準化殘差診斷排除明顯遺漏，再以固定測試期的 QLIKE 與平方損失比較預測。若損失函數給出不同排序，應如實報告，而不是事後挑選有利指標。這個練習仍只涵蓋單一股票與一次時間切割；要判斷結論能否推廣，還需要滾動視窗、多個資產與不同市場期間。
+
+若要在報告中重做同一結果，請一併記錄 R 與 `fGarch` 版本、訓練截止日、多起點設定、所有收斂碼、損失函數及逐期預測值。這些資訊讓讀者知道模型在何時、看過哪些資料後形成每一個預測。
 
 
 ``` r
@@ -800,34 +832,21 @@ sessionInfo()
 ## attached base packages:
 ## [1] stats     graphics  grDevices utils     datasets  methods   base     
 ## 
-## other attached packages:
-## [1] tibble_3.3.0 dplyr_1.2.1 
-## 
 ## loaded via a namespace (and not attached):
-##  [1] shape_1.4.6.1       gtable_0.3.6        xfun_0.57          
-##  [4] ggplot2_4.0.3       collapse_2.1.7      lattice_0.22-7     
-##  [7] quadprog_1.5-8      vctrs_0.7.2         tools_4.5.2        
-## [10] Rdpack_2.6.6        generics_0.1.4      curl_7.0.0         
-## [13] parallel_4.5.2      sandwich_3.1-1      xts_0.14.2         
-## [16] pkgconfig_2.0.3     gbutils_0.5.1       Matrix_1.7-4       
-## [19] tidyverse_2.0.0     RColorBrewer_1.1-3  S7_0.2.1           
-## [22] lifecycle_1.0.5     compiler_4.5.2      farver_2.1.2       
-## [25] maxLik_1.5-2.2      textshaping_1.0.5   codetools_0.2-20   
-## [28] htmltools_0.5.9     glmnet_4.1-10       Formula_1.2-5      
-## [31] pillar_1.11.1       MASS_7.3-65         plm_2.6-7          
-## [34] iterators_1.0.14    foreach_1.5.2       nlme_3.1-168       
-## [37] fracdiff_1.5-4      pls_2.9-0           fBasics_4052.98    
-## [40] tidyselect_1.2.1    bdsmatrix_1.3-7     digest_0.6.39      
-## [43] labeling_0.4.3      splines_4.5.2       tseries_0.10-62    
-## [46] miscTools_0.6-30    fastmap_1.2.0       grid_4.5.2         
-## [49] colorspace_2.1-2    cli_3.6.5           magrittr_2.0.4     
-## [52] utf8_1.2.6          survival_3.8-3      withr_3.0.2        
-## [55] scales_1.4.0        forecast_9.0.2      TTR_0.24.4         
-## [58] rmarkdown_2.31      quantmod_0.4.29     otel_0.2.0         
-## [61] timeDate_4052.112   ragg_1.5.2          zoo_1.8-15         
-## [64] timeSeries_4052.112 fGarch_4052.93      urca_1.3-4         
-## [67] evaluate_1.0.5      knitr_1.51          rbibutils_2.4.1    
-## [70] lmtest_0.9-40       rlang_1.1.7         spatial_7.3-18     
-## [73] Rcpp_1.1.0          glue_1.8.0          R6_2.6.1           
-## [76] cvar_0.6            systemfonts_1.3.2
+##  [1] Matrix_1.7-4        gtable_0.3.6        dplyr_1.2.1        
+##  [4] compiler_4.5.2      gbutils_0.5.1       fBasics_4052.98    
+##  [7] tidyselect_1.2.1    Rcpp_1.1.0          cvar_0.6           
+## [10] parallel_4.5.2      systemfonts_1.3.2   scales_1.4.0       
+## [13] timeSeries_4052.112 textshaping_1.0.5   lattice_0.22-7     
+## [16] ggplot2_4.0.3       R6_2.6.1            generics_0.1.4     
+## [19] fGarch_4052.93      knitr_1.51          rbibutils_2.4.1    
+## [22] tibble_3.3.0        spatial_7.3-18      forecast_9.0.2     
+## [25] timeDate_4052.112   pillar_1.11.1       RColorBrewer_1.1-3 
+## [28] rlang_1.1.7         urca_1.3-4          xfun_0.57          
+## [31] S7_0.2.2            otel_0.2.0          cli_3.6.5          
+## [34] magrittr_2.0.4      Rdpack_2.6.6        grid_4.5.2         
+## [37] lifecycle_1.0.5     nlme_3.1-168        fracdiff_1.5-4     
+## [40] vctrs_0.7.2         evaluate_1.0.5      glue_1.8.0         
+## [43] farver_2.1.2        ragg_1.5.2          zoo_1.8-15         
+## [46] colorspace_2.1-3    tools_4.5.2         pkgconfig_2.0.3
 ```

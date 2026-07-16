@@ -6,36 +6,42 @@ output:
     toc_depth: 3
 ---
 
-本附錄對應第 1 章。目標是建立可審核的專案習慣：固定資料版本、使用相對路徑、記錄執行環境、讓亂數可重現，並讓錯誤在資料入口立即停止。全文不連線下載資料，也不在執行期間變更套件環境。
+本附錄對應第 1 章。先想像一個很實際的情境：半年後重新打開這個專案時，我們能不能確定讀到的是同一份資料，並在另一部電腦上算出相同結果？要回答這個問題，光是保留 R 程式還不夠；資料版本、檔案路徑、亂數種子與套件版本都要一併留下。
+
+這一頁不估計金融模型，而是先把後續實證分析的工作環境整理好。我們會確認固定資料是否齊全、使用相對路徑讀檔、記錄執行環境，並讓日期或價格問題在資料入口就顯示出來。全文不連線下載資料，也不在執行期間安裝或更新套件，因此不會因當天的網路狀況或套件版本變動而改寫分析環境。
 
 ## 執行前提
 
 - R 4.1 以上，並已具備 knitr 與 rmarkdown。
 - 從教科書專案根目錄或 online_appendix 目錄執行皆可。
-- 十個公開實證資料位於 data/processed，建置紀錄位於 manifest.csv；網站的「實證資料下載」頁提供相同版本。
+- 十份固定實證資料位於 `data/processed`，建置紀錄位於 `manifest.csv`；網站的「實證資料下載」頁提供相同版本。
 
-## 兩條 R 學習路線
+本頁的觀察單位是「一個資料檔」，不是一天或一檔股票；`manifest.csv` 的每一列描述一份檔案的大小與指紋。由於本頁尚未進行預測，沒有訓練期、驗證期與測試期之分。這三種期間的角色會在 R05 與 R06 中正式使用。
+
+## 本書如何安排手動與套件作法
 
 每份相關附錄保留兩種互補做法：
 
-1. **手動建構版**把估計式、遞迴、損失函數與資訊邊界寫出來，適合用來理解方法與除錯；
-2. **原課程套件捷徑**移植作者以前授課 R scripts 中實際使用的高階函數，例如 `forecast::auto.arima()`、`forecast::tsCV()`、`tseries::adf.test()`、`fGarch::garchFit()`、`stats::prcomp()` 與 `glmnet::glmnet()`。
+1. **手動建構版**把估計式、遞迴、損失函數與每個時點可使用的資料寫出來，適合用來理解方法與除錯；
+2. **套件作法**沿用原課程 R 程式中實際使用的高階函數，例如 `forecast::auto.arima()`、`forecast::tsCV()`、`tseries::adf.test()`、`fGarch::garchFit()`、`stats::prcomp()`、`glmnet::glmnet()` 與 `quantreg::rq()`。
 
-套件版不重新從 Yahoo、FRED 或其他網站下載資料，而是讀取本書公開的固定 CSV。這項調整保留原課程的估計工作流，同時避免資料供應者日後修訂、交易日不同或網路中斷造成答案漂移。兩版結果若不同，附錄會交代模型集合、估計法、初始化或有限樣本修正的差異，不把「套件輸出」當作無條件正解。
+套件作法不重新從 Yahoo、FRED 或其他網站下載資料，而是讀取本書提供的固定 CSV。這樣仍可學到原課程的估計流程，也不會因供應者日後修訂歷史資料、交易日對齊方式改變或網路中斷而得到另一個答案。高階函數會替我們完成許多計算，卻不會替研究者決定資料版本、模型集合或資訊可得時點；兩種作法若出現差異，後文會從估計法、初始化與有限樣本修正逐項找原因。
 
 ### 一次安裝必要套件
 
-安裝只在環境設定階段執行一次，不應放進正式分析 chunk。以下程式因此不會在製作網站時自動執行；學生可在 R console 執行。
+安裝只需在環境設定階段做一次，不宜放進正式分析的程式區塊。以下程式因此不會隨網站頁面自動執行；第一次使用本專案時，可將它貼到 R 主控台執行。
 
 ```{r install-packages, eval=FALSE}
 install.packages(c(
   "knitr", "rmarkdown", "ragg", "systemfonts",
   "tidyverse", "fBasics", "forecast", "tseries",
-  "urca", "fGarch", "plm", "glmnet", "pls"
+  "urca", "fGarch", "plm", "glmnet", "quantreg", "pls"
 ))
 ```
 
-`phtt` 與完整 `tidymodels` 工作流只在相應進階段落使用；若該段明列需要，再依附錄指示另行安裝。正式 Rmd 只檢查套件是否存在，不在執行中偷偷改變環境。
+`phtt` 與完整的 `tidymodels` 工作流程只出現在相應的進階段落；讀到該段時再依指示安裝即可。正式 Rmd 只檢查套件是否存在，不會在分析途中自動變更環境。
+
+接下來的 `setup` 區塊先設定全頁共用的圖形選項，再從目前目錄與上一層目錄尋找專案根目錄。這一步讓同一份 Rmd 從兩個常見位置執行時，都會指向同一批資料；若找不到 `main.tex` 與 `manifest.csv`，程式會立刻停止，避免悄悄讀到其他同名檔案。
 
 ```{r setup}
 knitr::opts_chunk$set(
@@ -47,6 +53,7 @@ knitr::opts_chunk$set(
 )
 
 root_candidates <- c(".", "..")
+# 專案根目錄必須同時含主檔與資料清冊，單靠資料夾名稱不夠可靠。
 is_root <- vapply(
   root_candidates,
   function(x) file.exists(file.path(x, "main.tex")) &&
@@ -55,12 +62,13 @@ is_root <- vapply(
 )
 stopifnot(any(is_root))
 project_root <- root_candidates[which(is_root)[1]]
+# 後續路徑都從同一個根目錄組成，搬動整個專案時不必逐行修改。
 project_path <- function(...) file.path(project_root, ...)
 ```
 
-## 專案結構是一項研究設計
+## 先讓每一類檔案各就各位
 
-建議把外部輸入、清理後資料、分析程式、圖表與正文分開。程式只讀固定輸入，產出寫到指定資料夾；不要讓手動修改的試算表成為無法追蹤的中間步驟。
+一份實證專案通常同時包含外部輸入、整理後資料、分析程式、圖表與正文。把它們分開存放，日後看到一個檔案時，才知道它是原始輸入、可由程式重建的產出，還是需要人工撰寫的文字。下列程式先檢查後續附錄會用到的幾個關鍵路徑；只要缺少其中一項，就先補齊專案，而不要讓分析執行到一半才失敗。
 
 ```{r project-tree}
 required_paths <- c(
@@ -77,12 +85,13 @@ path_check <- data.frame(
   row.names = NULL
 )
 path_check
+# 缺少任何必要檔案時立即停止，避免後續錯把空白或舊檔當成輸入。
 stopifnot(all(path_check$exists))
 ```
 
-## 用 manifest 核對固定資料
+## 用 `manifest.csv` 確認拿到的是同一批資料
 
-manifest.csv 記錄十個公開實證檔的檔名、列數、欄數、MD5、內容說明與建立時間。MD5 不能證明資料正確，但能確認讀者拿到的位元內容是否與教科書版本相同。
+`manifest.csv` 記錄十份實證檔的檔名、列數、欄數、MD5、內容說明與建立時間。這裡要回答的是「目前電腦上的檔案，是否與本書製作時使用的版本完全相同」。MD5 相同表示檔案的位元內容一致；它不會告訴我們資料來源是否可靠，也不會替代經濟意義與建檔方法的檢查。
 
 ```{r verify-manifest}
 manifest <- read.csv(
@@ -91,6 +100,7 @@ manifest <- read.csv(
 )
 
 actual_md5 <- unname(tools::md5sum(project_path(manifest$file)))
+# 同時保留宣告值與實際值；不一致時才看得出問題出在哪一個檔案。
 verification <- transform(
   manifest,
   actual_md5 = actual_md5,
@@ -101,10 +111,11 @@ verification
 stopifnot(all(verification$file_exists), all(verification$md5_match))
 ```
 
-再核對宣告的列數與欄數。這一步只讀資料，不修改正式檔。
+輸出的 `md5_match` 若全為 `TRUE`，表示目前的十份檔案與清冊版本相同。接著再比較列數與欄數，因為檔案若在試算表中被截短或多存了一欄，資料形狀會立刻改變。這一步只讀檔，不修改任何資料。
 
 ```{r verify-dimensions}
 dimensions <- lapply(manifest$file, function(f) {
+  # 每次重新讀取一份固定輸入，直接量測實際列數與欄數。
   x <- read.csv(project_path(f), check.names = FALSE)
   c(rows = nrow(x), columns = ncol(x))
 })
@@ -116,9 +127,11 @@ dimensions[, c("file", "rows", "columns", "row_match", "column_match")]
 stopifnot(all(dimensions$row_match), all(dimensions$column_match))
 ```
 
+`row_match` 與 `column_match` 全為 `TRUE` 時，代表檔案形狀也符合清冊。若程式在這裡停止，合理的下一步是重新取得固定資料或查明哪個檔案曾被修改，而不是直接更新清冊來配合手上的檔案。
+
 ## 亂數種子與可重現模擬
 
-同一個亂數種子、R 版本與亂數產生器設定會重現同一串模擬值。種子不是讓答案顯著的旋鈕；應在分析前固定，敏感度分析則另列多個事前指定種子或增加模擬次數。
+模擬結果會隨亂數改變，所以在比較兩段程式以前，先固定亂數種子。相同種子配合相同的 R 版本與亂數產生器設定，應得到同一串模擬值。種子的用途是讓別人重做計算，不是反覆嘗試直到結果看起來理想；若擔心單一次抽樣太偶然，可以事前指定多個種子或提高模擬次數。
 
 ```{r reproducible-rng}
 set.seed(20260716)
@@ -131,12 +144,15 @@ data.frame(draw_a, draw_b, exactly_equal = draw_a == draw_b)
 stopifnot(identical(draw_a, draw_b))
 ```
 
+五列 `exactly_equal` 都應是 `TRUE`。這項結果只確認亂數流程可以重做，不表示模擬設計或統計結論已經正確。
+
 ## 讓錯誤提早發生
 
-以下函數示範金融時間序列的最小資料契約：日期可轉換、嚴格遞增、沒有重複，價格為正且有限。
+真正開始估計以前，先問一個更基本的問題：每一列資料是否代表清楚而且唯一的「資產—日期」觀察值？以下函數示範價格資料最基本的入口條件：日期可轉換、同一資產同一天不重複，價格為正且有限。函數最後依資產與日期排序，讓後續的落後值確實對應上一個觀察日。
 
 ```{r data-contract}
 validate_price_data <- function(x) {
+  # 先確認欄位，否則後面的日期與價格檢查可能針對錯誤物件。
   needed <- c("date", "asset", "price")
   stopifnot(all(needed %in% names(x)))
 
@@ -145,8 +161,10 @@ validate_price_data <- function(x) {
   stopifnot(all(is.finite(x$price)), all(x$price > 0))
 
   key <- paste(x$asset, x$date)
+  # 同一資產同一天只能有一筆價格，否則報酬的上一期無法唯一決定。
   stopifnot(!anyDuplicated(key))
 
+  # 先排序再檢查時間方向，避免原始列順序誤導 lag 或 diff。
   ordered <- x[order(x$asset, x$date), ]
   increasing <- vapply(
     split(ordered$date, ordered$asset),
@@ -165,7 +183,9 @@ toy_prices <- data.frame(
 validate_price_data(toy_prices)
 ```
 
-故意建立重複日期時，函數會停止。為了讓整份附錄仍能執行，這裡捕捉預期錯誤。
+`toy_prices` 的觀察單位是一個資產在一個日曆日的價格，價格尺度是任意的教學單位。函數沒有填補休市日，也沒有計算報酬；它只確定資料已具備進入下一步的條件。
+
+接著故意放入一筆重複日期。正常分析遇到這種情況應停止並回查來源；為了讓整份附錄仍可繼續執行，這裡用 `try()` 留下錯誤訊號。
 
 ```{r expected-error}
 bad_prices <- rbind(toy_prices, toy_prices[2, ])
@@ -173,15 +193,17 @@ bad_result <- try(validate_price_data(bad_prices), silent = TRUE)
 inherits(bad_result, "try-error")
 ```
 
+輸出為 `TRUE`，表示重複鍵確實被攔下。這類入口檢查應放在計算報酬以前；若先排序、取落後值再發現重複資料，錯誤可能已經傳到所有後續結果。
+
 ## 記錄環境
 
-網站版輸出應保留 R 版本、作業系統與主要套件版本。若結果日後不同，這些資訊是追查起點。
+最後記下 R 版本、作業系統、亂數產生器與主要套件版本。若同一份資料與程式日後出現不同結果，這些資訊可以幫助我們分辨差異來自資料、程式，還是執行環境。
 
 ```{r session-record}
 teaching_packages <- c(
   "knitr", "rmarkdown", "ragg", "systemfonts",
   "tidyverse", "fBasics", "forecast", "tseries",
-  "urca", "fGarch", "plm", "glmnet", "pls"
+  "urca", "fGarch", "plm", "glmnet", "quantreg", "pls"
 )
 package_record <- data.frame(
   package = teaching_packages,
@@ -211,14 +233,10 @@ environment_record <- list(
 environment_record
 ```
 
-## 可重現研究檢核表
+`package_record` 會把尚未安裝的套件標成 `FALSE`，並將版本留為缺值；這時只需安裝後續附錄真正會用到的套件。`environment_record` 則是本次執行的時間戳記與環境摘要，適合與分析結果一起保存。
 
-1. 原始或固定資料的來源、公開範圍與建立方式有書面說明。
-2. 分析只讀固定檔，路徑由專案結構推導。
-3. 日期、主鍵、單位、缺值與排序在入口檢查。
-4. 模擬固定種子，正式結果記錄 R 與套件版本。
-5. 預測的訓練、驗證、測試期間依時間分開。
-6. 中間結果可由程式重建，不靠手動複製貼上。
-7. 錯誤與警告被理解後處理，不以全域關閉訊息掩蓋。
+## 把這些習慣帶到後續分析
 
-本附錄只驗證「相同輸入與環境能否重算」，不等同驗證研究問題、模型假設或因果解讀正確。
+到這裡，我們確認的是：相同的固定輸入、程式與執行環境，應能重算出相同結果。MD5、檔案形狀與亂數種子都通過，仍不代表研究問題選得恰當，也不代表模型假設或因果解讀成立；它們處理的是「能不能重做」，而不是「結論對不對」。
+
+後續每次加入新資料時，先寫清楚觀察單位、期間、尺度、缺值與排序方式，再決定哪些資訊在預測起點已經可得。若要評估預測，訓練期、驗證期與測試期也要依時間分開。中間表格與圖形盡量由程式產生，遇到警告則先找出原因，再決定是否需要調整資料或模型。這樣即使分析結果不如預期，讀者仍能看懂它是如何得到的，以及下一步該從哪裡查起。

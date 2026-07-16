@@ -6,9 +6,11 @@ output:
     toc_depth: 3
 ---
 
-本附錄對應第 3--4 章。先以固定種子比較常態與標準化 Student-$t$ 分配，再分析兩組真實日簡單報酬：1986--2008 年的 Microsoft（MSFT），以及由 89 檔股票組成的 2013--2022 年等權教學投資組合。MSFT 資料源自 Ruey S. Tsay 教科書網站的 `d-msft8608.txt`；股票面板源自原課程 S&P 500 價格檔。固定版本與建置方式見 `data/DATA_SOURCES.md`。
+本附錄對應第 3–4 章，要回答兩個彼此相關的問題：金融報酬的尾端是否比常態分配厚，以及大幅波動是否會在時間上成群出現？我們先用固定種子模擬常態與標準化 Student-$t$ 分配，確認「變異數相同，尾端仍可很不一樣」；再把同一套描述工具用在兩組真實日簡單報酬上。
 
-兩組報酬都以小數表示，0.01 代表 1%。等權序列不是官方 S&P 500 指數，也沒有校正成分股生存者偏誤。以下分配與相依性結果是歷史描述，不能解讀成任何市場事件對報酬的因果效果。
+第一組資料是 1986–2008 年的 Microsoft（MSFT），每一列代表一個交易日；第二組是由 89 檔股票組成的 2013–2022 年等權教學投資組合，每一列先記錄同一共同交易日的 89 個個股報酬，再取橫斷面平均。MSFT 資料源自 Ruey S. Tsay 教科書網站的 `d-msft8608.txt`，股票面板源自原課程 S&P 500 價格檔；固定版本與建置方式見 `data/DATA_SOURCES.md`。
+
+兩組報酬都以小數表示，0.01 代表 1%。等權序列是教學用組合，不是官方 S&P 500 指數，也沒有校正成分股生存者偏誤。本頁使用完整歷史樣本做分配與相依性描述，不進行預測，因此不分訓練期、驗證期與測試期；結果也沒有識別任何市場事件對報酬的因果效果。
 
 ```{r setup}
 knitr::opts_chunk$set(
@@ -39,12 +41,13 @@ if (!"cwTeX Online" %in% systemfonts::registry_fonts()$family) {
 plot_family <- "cwTeX Online"
 ```
 
-## 描述統計與 Jarque--Bera 函數
+## 描述統計與 Jarque–Bera 函數
 
-以下峰度採用「常態分配等於 3」的定義；超額峰度是峰度減 3。有限樣本偏態與峰度有不同修正版本，因此正式報告必須交代公式。
+先寫兩個小函數，目的是讓每一個輸出都能與公式對上。`sample_moments()` 接受一條報酬序列，輸出有效觀察值數、平均數、標準差、偏態、峰度與尾端分位數；`jarque_bera()` 再用偏態與超額峰度組成檢定統計量。以下峰度採用「常態分配等於 3」的定義，超額峰度則是峰度減 3。有限樣本偏態與峰度有不同修正版本，因此比較手動版與套件版以前，必須先確認定義。
 
 ```{r functions}
 sample_moments <- function(x) {
+  # 描述同一條序列時使用相同的有限值樣本，避免各統計量樣本數不同。
   x <- x[is.finite(x)]
   centered <- x - mean(x)
   m2 <- mean(centered^2)
@@ -67,6 +70,7 @@ sample_moments <- function(x) {
 
 jarque_bera <- function(x) {
   m <- sample_moments(x)
+  # 此處使用教科書中的 iid 漸近式；時間相依性稍後另做診斷。
   statistic <- m["n"] * (
     m["skewness"]^2 / 6 + m["excess_kurtosis"]^2 / 24
   )
@@ -79,13 +83,14 @@ jarque_bera <- function(x) {
 }
 ```
 
-## 常態與厚尾模擬：只用來核對直覺
+## 先用已知分配看懂「厚尾」
 
-自由度 5 的 Student-$t$ 變異數是 $5/(5-2)$。除以理論標準差後，它與標準常態具有相同變異數，但尾端仍較厚。
+模擬的好處是母體分配已知，可以先排除資料建置與模型選擇的干擾。自由度 5 的 Student-$t$ 變異數是 $5/(5-2)$；除以理論標準差後，它與標準常態具有相同變異數，但尾端機率仍較高。這一段要觀察的是峰度、尾端分位數與直方圖形狀，不是檢定金融市場。
 
 ```{r simulate}
 n_sim <- 10000L
 normal_draw <- rnorm(n_sim)
+# 標準化後兩組理論變異數相同，尾端差異才不會只是尺度造成。
 t5_draw <- rt(n_sim, df = 5) / sqrt(5 / 3)
 
 simulation_summary <- rbind(
@@ -94,6 +99,8 @@ simulation_summary <- rbind(
 )
 knitr::kable(round(simulation_summary, 4))
 ```
+
+樣本平均數與變異數會因這一次亂數抽樣略有誤差。標準化 Student-$t_5$ 的 1% 與 99% 分位數通常比常態分位數離零更遠，但 5% 與 95% 分位數反而更靠近零，不能籠統地說所有尾端分位數都更遠。直方圖呈現的是三個一起發生的特徵：中心尖峰較高、肩部較薄，而極端尾端較厚；峰度則把這種極端尾端的差異濃縮成一個數字。
 
 ```{r simulation-plots, fig.cap="相同理論變異數下，標準化 Student-t(5) 的尾端比常態分配厚。"}
 old_par <- par(
@@ -115,15 +122,18 @@ curve(dnorm(x), add = TRUE, lwd = 2, col = "#173B57")
 par(old_par)
 ```
 
-模擬在這裡只說明「相同變異數不代表相同尾端」；真正的實證問題要由以下固定資料回答。
+模擬讓我們看懂「相同變異數不代表相同尾端」，卻沒有提供 MSFT 或投資組合的實證結論。接下來才把這套觀察方式帶到固定的歷史資料。
 
 ## 讀取 MSFT 與股票面板
+
+讀入兩份資料後，先依日期排序並確認沒有缺值。`R` 的每一列是一個共同交易日，每一欄是一檔股票；`rowMeans(R)` 因此是在同一天對 89 檔股票等權平均，而不是跨時間平均。這個方向若弄反，會得到完全不同的研究對象。
 
 ```{r empirical-data}
 msft <- read.csv(project_path(
   "data", "processed", "msft_daily_returns_1986_2008.csv"
 ))
 msft$date <- as.Date(msft$date)
+# ACF 依賴時間次序，所以在任何診斷前先由早到晚排序。
 msft <- msft[order(msft$date), ]
 
 panel <- read.csv(
@@ -161,7 +171,11 @@ data_profile <- data.frame(
 knitr::kable(data_profile)
 ```
 
+`data_profile` 應顯示 MSFT 有 5,752 個交易日，等權組合有 2,384 個共同交易日。兩列的日期範圍不同，因此後面的統計量是在各自樣本內描述，不宜把數值差異全部歸因於資產本身；市場年代、樣本長度與成分股篩選也可能影響結果。
+
 ## 真實報酬的偏態、峰度與尾端
+
+現在用同一組公式整理兩條真實報酬序列。分位數告訴我們左右尾的實際尺度，偏態描述兩側是否對稱，峰度則對極端觀察值特別敏感；三者要放在一起讀，不能只看單一 $p$ 值。
 
 ```{r empirical-summary}
 empirical_summary <- rbind(
@@ -177,16 +191,16 @@ jb_table <- rbind(
 knitr::kable(jb_table, digits = 6)
 ```
 
-MSFT 的樣本峰度約為 12.92，等權教學組合約為 22.94，均遠高於常態分配的 3；兩者的 Jarque--Bera 統計量也都很大。這是厚尾與偏態的實證警訊，不代表某一個替代分配已被唯一選定。
+MSFT 的樣本峰度約為 12.92，等權教學組合約為 22.94，都遠高於常態分配的 3；兩者的 Jarque–Bera 統計量也都很大。就這兩段固定樣本而言，常態分配無法妥善描述偏態與尾端。這項結果只指出常態模型的不足，還沒有在 Student-$t$、偏態 $t$ 或其他厚尾分配之間選出唯一答案。
 
-Jarque--Bera 的卡方近似依賴獨立同分配與有限高階動差。金融報酬常有條件異質變異，因此極小的漸近 $p$ 值可作常態模型的警訊，卻不能取代完整的時間序列診斷。
+Jarque–Bera 的卡方近似依賴獨立同分配與有限高階動差。金融報酬常有條件異質變異，因此極小的漸近 $p$ 值適合當作常態模型的警訊，後面仍要檢查報酬與平方報酬的時間相依性。
 
-## 原課程套件捷徑：`fBasics`
+## 套件作法：用 `basicStats()` 與 `normalTest()` 整理分配特徵
 
 原課程的實作程式在
 `slides/L02_Return_properties/W1L2_R_scripts_Descriptive_stat_returns.R`
 以 `fBasics::basicStats()` 整理描述統計，並以
-`normalTest(..., method = "jb")` 執行 Jarque--Bera 檢定。下列程式保留這個捷徑，但改讀本書的固定公開資料，不在執行期連線下載。
+`normalTest(..., method = "jb")` 執行 Jarque–Bera 檢定。下列程式沿用這個工作流程，但改讀本書的固定資料，不在執行時連線下載。套件會代為計算統計量並整理 `fHTEST` 輸出；資料期間、報酬尺度、峰度定義與時間相依性是否可忽略，仍要由使用者判斷。
 
 ```{r course-fbasics-comparison}
 stopifnot(requireNamespace("fBasics", quietly = TRUE))
@@ -206,6 +220,7 @@ basic_row <- function(out, row_name) {
 fbasics_summary <- lapply(empirical_series, fBasics::basicStats)
 manual_summary <- lapply(empirical_series, sample_moments)
 
+# 按統計量名稱取值，避免套件輸出列次序改變時配錯數字。
 moment_comparison <- do.call(rbind, lapply(names(empirical_series), function(nm) {
   package_result <- as.matrix(fbasics_summary[[nm]])
   manual_result <- manual_summary[[nm]]
@@ -233,11 +248,12 @@ moment_comparison <- do.call(rbind, lapply(names(empirical_series), function(nm)
 row.names(moment_comparison) <- NULL
 knitr::kable(moment_comparison, digits = 7)
 
+# 對同一批固定觀察值執行套件版 JB，才能與手動公式比較。
 fbasics_jb <- lapply(empirical_series, function(x) {
   fBasics::normalTest(x, method = "jb")
 })
 
-# 保留原套件的完整列印結果，方便學生認識 fHTEST 輸出。
+# 先看完整 fHTEST，認識統計量、自由度與 p 值在物件中的位置。
 for (nm in names(fbasics_jb)) {
   cat("\n", nm, "\n", sep = "")
   print(fbasics_jb[[nm]])
@@ -267,11 +283,9 @@ row.names(jb_comparison) <- NULL
 knitr::kable(jb_comparison, digits = 7)
 ```
 
-平均數與標準差可用來核對資料與單位；偏態、峰度與 Jarque--Bera
-數值則可能因有限樣本修正與動差定義不同而略有差異。特別是
-`basicStats()` 的 `Kurtosis` 應與上文「常態等於 0」的超額峰度比較，不是直接與「常態等於 3」的峰度比較。兩種做法對這份固定資料的實質結論應一致：兩組報酬都對常態模型提出強烈警訊。
+平均數與標準差先幫我們確認資料與尺度是否一致；偏態、峰度與 Jarque–Bera 數值則可能因有限樣本修正與動差定義不同而略有差異。特別是 `basicStats()` 的 `Kurtosis` 採超額峰度，應與上文「常態等於 0」的欄位比較，不能直接對照「常態等於 3」的峰度。表中若出現小幅數值差，先查定義與修正方式；兩種作法在這份固定資料上的方向應一致，都指出常態模型對尾端的描述不足。
 
-```{r empirical-plots, fig.cap="MSFT 與等權教學投資組合的時間圖、經驗分配與常態 Q--Q 圖。", fig.width=10, fig.height=7.5}
+```{r empirical-plots, fig.cap="MSFT 與等權教學投資組合的時間圖、經驗分配與常態 Q–Q 圖。", fig.width=10, fig.height=7.5}
 series_list <- list(
   MSFT = list(date = msft$date, return = msft$simple_return),
   `S&P 等權教學組合` = list(date = panel$date, return = sp_equal)
@@ -298,16 +312,18 @@ for (nm in names(series_list)) {
   )
   qqnorm(
     z$return, pch = 16, cex = 0.4,
-    col = "#173B57", main = paste(nm, "常態 Q--Q")
+    col = "#173B57", main = paste(nm, "常態 Q–Q")
   )
   qqline(z$return, col = "#A34045", lwd = 2)
 }
 par(old_par)
 ```
 
-Q--Q 圖能分開呈現左尾與右尾的偏離。圖形是診斷證據，不是某個厚尾分配已被證明正確。
+時間圖先告訴我們極端波動落在哪些日期，直方圖比較整體形狀，Q–Q 圖則把左右尾偏離常態的方向分開呈現。若尾端點系統性離開參考線，應考慮厚尾創新或更合適的風險衡量方式；圖形本身還不能決定唯一的替代分配。
 
 ## 報酬與平方報酬的時間相依
+
+厚尾描述的是無條件分配，波動群聚則問「大波動之後是否較常接著大波動」。因此同時畫原報酬與平方報酬的自相關函數（ACF）：前者主要看條件平均的線性相依，後者把正負號拿掉，用來觀察波動大小是否具有持續性。
 
 ```{r acf-diagnostics, fig.cap="MSFT 與等權教學投資組合的報酬 ACF 與平方報酬 ACF。", fig.width=9, fig.height=7}
 old_par <- par(
@@ -343,9 +359,11 @@ diagnostics <- rbind(
 knitr::kable(diagnostics, digits = 6)
 ```
 
-報酬方向的線性相關與平方報酬的波動相依是兩個不同問題。Ljung--Box 結果只檢查指定落後集合的零自相關限制；它不直接證明報酬可交易，也不提供因果機制。
+在這份固定資料中，MSFT 報酬的 $Q(20)$ 約為 41.30，等權組合約為 422.20；平方報酬的統計量更分別達約 1,156.80 與 4,037.73。前 20 階同時為零的限制在兩條序列上都遭拒絕，平方報酬的相依尤其明顯。下一步可分開處理兩個問題：條件平均模型檢查殘差是否仍有線性相依，ARCH/GARCH 類模型則處理波動持續性。這些統計量沒有直接證明報酬可交易，也沒有提供造成波動群聚的因果機制。
 
 ## 定位極端日期
+
+由於峰度對少數極端值很敏感，最後把絕對報酬最大的日期列出來。這一步是為了回查資料來源與理解哪些觀察值主導尾端，而不是根據結果大小自動刪除資料。
 
 ```{r extremes}
 largest_moves <- function(date, x, label, number = 5L) {
@@ -365,4 +383,8 @@ extreme_table <- rbind(
 knitr::kable(extreme_table, digits = 6)
 ```
 
-這張表只定位需要回查的觀察值。確認是資料錯誤才修正；真實市場極端值正是厚尾與風險分析的重要資訊。
+若回查後確認是建檔或價格調整錯誤，應修正資料並重新計算全部統計量；若極端值與原始來源一致，就應保留，因為它們正是厚尾與風險分析要解釋的現象。
+
+## 這兩段歷史資料給我們的訊息
+
+MSFT 與等權教學組合都呈現高峰度、常態 Q–Q 圖尾端偏離，以及顯著的平方報酬相依。這些證據支持在後續模型中正面處理厚尾與條件異質變異，卻還不能判定哪一個厚尾分配最好，也不能把歷史尾端頻率當成不變的未來機率。實務上的下一步，是在明確的訓練期內比較候選分配與波動模型，再用保留的測試期評估預測分配，而不是只依一次常態性檢定作決定。
