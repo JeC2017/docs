@@ -1,280 +1,364 @@
 ---
-title: "R15：雙重選擇、正交化與 DML"
+title: "R15：加州學校資料的雙重選擇與 DML-style partialling"
 output:
   github_document:
     toc: true
     toc_depth: 3
 ---
 
-本附錄對應選讀第 20 章。為了讓真實參數與識別條件可以核對，我們保留固定因子面板的預測變數路徑，但人工生成處置與應變數。這是**半合成教學實驗**，不是對金融市場的因果估計。
+本附錄對應選讀第 20 章，改用真實的 California school-level 橫斷面資料。應變數是五年級英文／語文與數學分數合計 `testscore`，單位為**測驗分數點**；焦點解釋變數 `str_s` 是學校的**每位全職當量教師所對應學生數**。我們用 93 個學校、學區與郵遞區號背景變數示範 double selection 與交叉配適的 DML-style partialling。
 
-## 執行條件與設計界線
-
-- base R 與 `knitr`；不安裝套件、不下載資料。
-- 固定預測變數：`data/processed/ff_qf_macro_industries_1967_2021.csv`。
-- 真實目標設為 \(\theta_0=0.6\)。
-- 人工創新項由固定種子生成，因此可直接比較估計偏誤。
-- 時間區塊用於交叉配適；這不宣稱證明一般相依時間序列 DML 定理。
+所有主要結果都是真實資料的**條件關聯**，不是因果效果。要把係數解讀為班級規模或師生比的因果效果，至少還要有可信的處置時點、無未觀察混淆、適當且非處置後的控制集合、重疊、穩定單位處置值，以及對學區內相依的有效推論；本資料與本附錄沒有驗證這些條件。
 
 ```{r setup}
 knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
   fig.width = 7, fig.height = 4.5
 )
-set.seed(20260716)
+stopifnot(getRversion() >= "4.3.0")
+if (!requireNamespace("glmnet", quietly = TRUE)) {
+  stop("本附錄需要 glmnet；請先在合法可重現環境中安裝。")
+}
+set.seed(1515)
 ```
 
-## 讀取每月一次的共同預測變數
+## 1. 資料、樣本與識別界線
 
-```{r data}
-path <- "data/processed/ff_qf_macro_industries_1967_2021.csv"
-stopifnot(file.exists(path))
-d <- read.csv(path, stringsAsFactors = FALSE, check.names = FALSE)
-d$month <- as.Date(d$month)
+資料來源是原課程的 Stock and Watson《Introduction to Econometrics》第四版 California school test-score 資料與變數表。每列是一所學校，`schoolcode` 在檔內唯一；樣本有 3,932 所學校。凍結檔沒有可供本附錄核實的觀察年度欄位，因此不自行推定年份，也不把橫斷面差異寫成時間變化。
 
-# common predictors 在同月對各產業相同；取 Manuf 只是每月留一列。
-one <- d[d$industry == "Manuf", ]
-one <- one[order(one$month), ]
-x_names <- grep("^(factor_|macro_)", names(one), value = TRUE)
-X0 <- as.matrix(one[, x_names])
-storage.mode(X0) <- "double"
-keep <- complete.cases(X0)
-X0 <- X0[keep, , drop = FALSE]
-dates <- one$month[keep]
+公開版隨附作者授權的 `california_schools.csv` processed 快照，因此本附錄可離線自含重跑。若另由教材來源重建，仍須保存教材版次、資料檔版本、下載日與變數表。
 
-# 加入少量平方項，使干擾函數字典容許非線性。
-X <- cbind(X0, setNames(as.data.frame(X0[, 1:5, drop = FALSE]^2),
-                       paste0(colnames(X0)[1:5], "_sq")))
-X <- as.matrix(X)
-c(observations = nrow(X), dictionary_columns = ncol(X))
+```{r read-data}
+locate_project_file <- function(relative_path) {
+  candidates <- c(
+    relative_path,
+    file.path("..", relative_path),
+    file.path("../..", relative_path)
+  )
+  hit <- candidates[file.exists(candidates)]
+  if (length(hit) == 0L) stop("找不到專案檔案：", relative_path)
+  normalizePath(hit[1], mustWork = TRUE)
+}
+
+school_file <- locate_project_file("data/processed/california_schools.csv")
+manifest_file <- locate_project_file("data/processed/manifest.csv")
+school <- read.csv(school_file, stringsAsFactors = FALSE, check.names = FALSE)
+manifest <- read.csv(manifest_file, stringsAsFactors = FALSE)
+
+manifest_key <- "data/processed/california_schools.csv"
+manifest_row <- manifest[manifest$file == manifest_key, , drop = FALSE]
+actual_md5 <- unname(tools::md5sum(school_file))
+
+stopifnot(
+  nrow(school) == 3932L,
+  ncol(school) == 110L,
+  nrow(manifest_row) == 1L,
+  identical(actual_md5, manifest_row$md5),
+  !anyDuplicated(school$schoolcode),
+  !anyNA(school[c("testscore", "str_s", "districtcode")])
+)
+
+data.frame(
+  schools = nrow(school),
+  districts = length(unique(school$districtcode)),
+  unique_school_codes = length(unique(school$schoolcode)),
+  outcome_unit = "test-score points",
+  exposure_unit = "students per teacher FTE",
+  observed_year = "not recorded in frozen file",
+  md5 = actual_md5
+)
+summary(school[c("testscore", "str_s")])
 ```
 
-## 半合成的處置與應變數
+## 2. 建立高維背景控制字典
 
-我們先用全資料的預測變數建構固定設計尺度，這一步只用來定義教學資料生成過程，不是估計前處理。真正的學習器仍在各訓練折重新估計中心與尺度。
+不把英文與數學分項分數放進控制，因為它們機械地組成 `testscore`；也排除姓名、代碼、郵遞區號、師生比本身、學區師生比，以及直接構成學校師生比的學生數與教師 FTE。剩餘數值欄涵蓋餐費資格、英語學習、族群組成、教師經驗、學區財務與郵遞區號人口背景。
 
-```{r semisynthetic-dgp}
-Xs_dgp <- scale(X)
-n <- nrow(X)
-theta_true <- 0.6
+這個字典仍可能含同步決定或處置後變數，所以它只是明示的**條件調整集合**，不是已證成的因果混淆集合。
 
-# 處置干擾函數 m0(X)：少數線性訊號。
-v <- rnorm(n, sd = 1)
-D <- 0.8 * Xs_dgp[, 1] - 0.6 * Xs_dgp[, 2] +
-  0.4 * Xs_dgp[, 3] + v
+```{r control-dictionary}
+excluded <- c(
+  "countyname", "districtname", "schoolname",
+  "countycode", "districtcode", "schoolcode", "charternumber", "zipcode",
+  "elarts_score", "math_score", "testscore",
+  "str_s", "str_d", "te_fte_s", "te_fte_d",
+  "enrollment_star_s", "enrollment_s"
+)
 
-# 應變數干擾函數 g0(X)：含線性與平方訊號。
-eps <- rnorm(n, sd = 1)
-g0 <- 0.7 * Xs_dgp[, 1] + 0.5 * Xs_dgp[, ncol(X0) + 1] -
-  0.4 * Xs_dgp[, 5]
-Y <- theta_true * D + g0 + eps
+control_names <- setdiff(names(school), excluded)
+control_names <- control_names[vapply(
+  school[control_names], is.numeric, logical(1)
+)]
+X_raw <- as.matrix(school[, control_names, drop = FALSE])
+storage.mode(X_raw) <- "double"
 
-cor(cbind(Y, D, Xs_dgp[, 1:3]))
+nonconstant <- apply(X_raw, 2, sd) > 1e-10
+X_raw <- X_raw[, nonconstant, drop = FALSE]
+control_names <- colnames(X_raw)
+
+Y <- school$testscore
+D <- school$str_s
+cluster <- school$districtcode
+
+stopifnot(
+  !anyNA(X_raw), all(is.finite(X_raw)),
+  ncol(X_raw) == 93L,
+  length(Y) == nrow(X_raw)
+)
+
+# 保留控制變數的原始數值；glmnet 會在每一個實際訓練樣本內部重新標準化。
+# 這樣外層保留學區的控制變數分布也不會進入 nuisance learner 的前處理。
+X <- X_raw
+data.frame(
+  observations = nrow(X),
+  controls = ncol(X),
+  outcome = "testscore",
+  focal_exposure = "str_s",
+  clustering_level = "districtcode"
+)
 ```
 
-由建構可知 \(E(\varepsilon\mid D,X)=0\) 且 \(D-m_0(X)=v\) 有正變異。因果識別是由模擬資料生成過程明示給定，不是 DML 自動產生。
+## 3. 群組折與 LASSO learner
 
-## 透明的 LASSO learner
+內外層折都把同一學區的學校放在同一折，避免同一學區同時進入訓練與保留資料。`lambda.1se` 用於較簡約的 double selection；DML-style nuisance fitting 使用 `lambda.min`，而每個外層訓練樣本都重新內層調校。
 
 ```{r lasso-helpers}
-soft_threshold <- function(z, lambda) sign(z) * pmax(abs(z) - lambda, 0)
-
-prep_train <- function(X_train, X_new = NULL) {
-  mu <- colMeans(X_train)
-  s <- apply(X_train, 2, sd)
-  keep <- is.finite(s) & s > 1e-10
-  train <- sweep(sweep(X_train[, keep, drop = FALSE], 2, mu[keep]),
-                 2, s[keep], "/")
-  ans <- list(train = train, mean = mu[keep], sd = s[keep], keep = keep)
-  if (!is.null(X_new)) {
-    ans$new <- sweep(sweep(X_new[, keep, drop = FALSE], 2, mu[keep]),
-                     2, s[keep], "/")
-  }
-  ans
+make_group_folds <- function(group, K, seed) {
+  set.seed(seed)
+  groups <- sample(unique(group))
+  mapping <- setNames(rep(seq_len(K), length.out = length(groups)), groups)
+  unname(mapping[as.character(group)])
 }
 
-lasso_cd <- function(X, y_centered, lambda, max_iter = 5000L, tol = 1e-8) {
-  n <- nrow(X)
-  beta <- numeric(ncol(X))
-  residual <- y_centered
-  x2 <- colSums(X^2) / n
-  for (iter in seq_len(max_iter)) {
-    old <- beta
-    for (j in seq_along(beta)) {
-      residual <- residual + X[, j] * beta[j]
-      z <- sum(X[, j] * residual) / n
-      beta[j] <- soft_threshold(z, lambda) / x2[j]
-      residual <- residual - X[, j] * beta[j]
-    }
-    if (max(abs(beta - old)) < tol) break
-  }
-  beta
-}
-
-# lambda_ratio 固定為 lambda_max 的比例；目的是核對演算法，
-# 不是宣稱這個比例對所有資料最適。
-lasso_fit_predict <- function(X_train, y_train, X_new,
-                              lambda_ratio = 0.08) {
-  pp <- prep_train(X_train, X_new)
-  y_bar <- mean(y_train)
-  yc <- y_train - y_bar
-  lambda_max <- max(abs(crossprod(pp$train, yc))) / length(yc)
-  lambda <- lambda_ratio * lambda_max
-  beta <- lasso_cd(pp$train, yc, lambda)
+fit_lasso_cv <- function(X, y, fold_id, s = "lambda.1se") {
+  cv <- glmnet::cv.glmnet(
+    x = X, y = y,
+    alpha = 1, standardize = TRUE, intercept = TRUE,
+    foldid = fold_id
+  )
+  beta <- as.matrix(stats::coef(cv, s = s))[-1, 1]
+  names(beta) <- colnames(X)
   list(
-    pred = as.numeric(y_bar + pp$new %*% beta),
+    fit = cv,
     beta = beta,
-    names = colnames(pp$train),
-    lambda = lambda,
-    prep = pp
+    selected = which(abs(beta) > 1e-10),
+    lambda = if (s == "lambda.min") cv$lambda.min else cv$lambda.1se
   )
 }
 ```
 
-## 單一應變數路徑選擇與雙重選擇
+## 4. Double selection 的真實條件關聯
 
-```{r selection-estimators}
-# Outcome selection：只用 Y-on-X 選 controls。
-fit_y <- lasso_fit_predict(X, Y, X)
-S_y <- which(abs(fit_y$beta) > 1e-8)
+先分別用 LASSO 選擇與 `testscore`、`str_s` 有關的控制，再取聯集重估 `testscore` 對 `str_s` 與所選控制的線性投影。標準誤按學區叢聚；這是相依調整，不會創造因果識別。
 
-# Treatment selection：D-on-X。
-fit_d <- lasso_fit_predict(X, D, X)
-S_d <- which(abs(fit_d$beta) > 1e-8)
-S_union <- sort(unique(c(S_y, S_d)))
-
-estimate_target_ols <- function(selected) {
-  Z <- if (length(selected)) cbind(D = D, X[, selected, drop = FALSE]) else cbind(D = D)
-  fit <- lm.fit(cbind(Intercept = 1, Z), Y)
-  residual <- fit$residuals
-  XtX_inv <- solve(crossprod(cbind(1, Z)))
-  meat <- crossprod(cbind(1, Z) * residual)
-  vcov_hc0 <- XtX_inv %*% meat %*% XtX_inv
-  c(theta = fit$coefficients["D"], se_hc0 = sqrt(vcov_hc0[2, 2]))
-}
-
-naive <- estimate_target_ols(S_y)
-double_selection <- estimate_target_ols(S_union)
+```{r double-selection}
+selection_fold <- make_group_folds(cluster, K = 10L, seed = 1515)
+fit_y <- fit_lasso_cv(X, Y, selection_fold, s = "lambda.1se")
+fit_d <- fit_lasso_cv(X, D, selection_fold, s = "lambda.1se")
+selected_union <- sort(unique(c(fit_y$selected, fit_d$selected)))
 
 data.frame(
-  procedure = c("Outcome selection", "Double selection"),
-  theta = c(naive[1], double_selection[1]),
-  se = c(naive[2], double_selection[2]),
-  selected_controls = c(length(S_y), length(S_union)),
-  truth = theta_true
+  path = c("Y on X", "D on X", "union"),
+  selected_controls = c(
+    length(fit_y$selected),
+    length(fit_d$selected),
+    length(selected_union)
+  ),
+  lambda = c(fit_y$lambda, fit_d$lambda, NA_real_)
 )
 ```
 
-## 區塊交叉配適與殘差化
+```{r post-selection-estimator}
+fit_conditional_projection <- function(selected, Y, D, X, cluster) {
+  X_selected <- X[, selected, drop = FALSE]
+  if (length(selected) > 0L) {
+    # 後選擇 OLS 使用全樣本估計；在這裡標準化只改善數值條件，
+    # 不改變焦點變數 str_s 的原始單位。
+    X_selected <- scale(X_selected)
+  }
+  Z <- cbind(Intercept = 1, str_s = D, X_selected)
 
-這裡把月份依序分成五個連續區塊。交叉配適用於參數估計，而不是預測用交叉驗證：每個保留區塊的干擾函數預測來自其餘區塊。真實金融應用還需依相依結構考慮間隔、單側折或其他時間序列理論。
+  # 移除可能的精確／近精確線性相依欄；焦點 D 固定保留。
+  qrz <- qr(Z, tol = 1e-5, LAPACK = FALSE)
+  keep <- sort(qrz$pivot[seq_len(qrz$rank)])
+  if (!("str_s" %in% colnames(Z)[keep])) stop("焦點變數在降秩時被移除。")
+  Z_use <- Z[, keep, drop = FALSE]
 
-```{r dml-folds}
+  fit <- lm.fit(Z_use, Y)
+  residual <- fit$residuals
+  cluster_score <- rowsum(Z_use * residual, cluster, reorder = FALSE)
+  bread <- solve(crossprod(Z_use))
+  G <- nrow(cluster_score)
+  n <- nrow(Z_use)
+  k <- ncol(Z_use)
+  correction <- (G / (G - 1)) * ((n - 1) / (n - k))
+  V_cluster <- correction * bread %*%
+    crossprod(cluster_score) %*% bread
+
+  j <- match("str_s", colnames(Z_use))
+  c(
+    estimate = fit$coefficients[j],
+    district_cluster_se = sqrt(V_cluster[j, j]),
+    selected_controls = length(selected),
+    regression_rank = ncol(Z_use)
+  )
+}
+
+naive_projection <- fit_conditional_projection(
+  integer(0), Y, D, X, cluster
+)
+double_selection <- fit_conditional_projection(
+  selected_union, Y, D, X, cluster
+)
+
+rbind(
+  unadjusted_linear_projection = naive_projection,
+  double_selection_projection = double_selection
+)
+```
+
+未調整與調整後係數不同，顯示背景組成很重要；但無論正負或顯著與否，都只能解讀為指定控制字典下的線性條件關聯。
+
+## 5. 學區群組交叉配適的 DML-style partialling
+
+令 \(\ell(X)=E[Y\mid X]\)、\(m(X)=E[D\mid X]\)。每個外層保留學區只接受其他學區訓練出的預測，然後以
+
+\[
+\widehat\theta=
+\frac{\sum_i \widehat v_i\widehat u_i}
+{\sum_i \widehat v_i^2},\qquad
+\widehat u_i=Y_i-\widehat\ell(X_i),\quad
+\widehat v_i=D_i-\widehat m(X_i)
+\]
+
+估計 partialling-out 係數。
+
+```{r cross-fitted-partialling}
 K <- 5L
-fold_id <- cut(seq_len(n), breaks = K, labels = FALSE)
-u_hat <- v_hat <- rep(NA_real_, n)
-nuisance_mse <- matrix(NA_real_, K, 2,
-                       dimnames = list(paste0("Fold", 1:K), c("Y", "D")))
+outer_fold <- make_group_folds(cluster, K = K, seed = 5151)
+u_hat <- v_hat <- rep(NA_real_, nrow(X))
+nuisance_summary <- vector("list", K)
 
 for (k in seq_len(K)) {
-  test_k <- which(fold_id == k)
-  train_k <- which(fold_id != k)
+  test_k <- which(outer_fold == k)
+  train_k <- which(outer_fold != k)
+  inner_fold <- make_group_folds(
+    cluster[train_k], K = 5L, seed = 6000L + k
+  )
 
-  fy <- lasso_fit_predict(X[train_k, , drop = FALSE], Y[train_k],
-                          X[test_k, , drop = FALSE])
-  fd <- lasso_fit_predict(X[train_k, , drop = FALSE], D[train_k],
-                          X[test_k, , drop = FALSE])
+  learner_y <- fit_lasso_cv(
+    X[train_k, , drop = FALSE], Y[train_k],
+    inner_fold, s = "lambda.min"
+  )
+  learner_d <- fit_lasso_cv(
+    X[train_k, , drop = FALSE], D[train_k],
+    inner_fold, s = "lambda.min"
+  )
 
-  u_hat[test_k] <- Y[test_k] - fy$pred
-  v_hat[test_k] <- D[test_k] - fd$pred
-  nuisance_mse[k, ] <- c(mean(u_hat[test_k]^2), mean(v_hat[test_k]^2))
+  pred_y <- as.numeric(predict(
+    learner_y$fit, newx = X[test_k, , drop = FALSE], s = "lambda.min"
+  ))
+  pred_d <- as.numeric(predict(
+    learner_d$fit, newx = X[test_k, , drop = FALSE], s = "lambda.min"
+  ))
+  u_hat[test_k] <- Y[test_k] - pred_y
+  v_hat[test_k] <- D[test_k] - pred_d
+
+  nuisance_summary[[k]] <- data.frame(
+    fold = k,
+    schools = length(test_k),
+    districts = length(unique(cluster[test_k])),
+    Y_MSE = mean(u_hat[test_k]^2),
+    D_MSE = mean(v_hat[test_k]^2),
+    Y_selected = length(learner_y$selected),
+    D_selected = length(learner_d$selected)
+  )
 }
 
 stopifnot(!anyNA(u_hat), !anyNA(v_hat))
-theta_dml <- sum(v_hat * u_hat) / sum(v_hat^2)
-score <- v_hat * (u_hat - theta_dml * v_hat)
-J_hat <- -mean(v_hat^2)
-se_iid <- sqrt(mean(score^2) / (n * J_hat^2))
-
-c(theta_dml = theta_dml, se_iid = se_iid, truth = theta_true,
-  residual_D_variance = var(v_hat))
-nuisance_mse
+nuisance_summary <- do.call(rbind, nuisance_summary)
+nuisance_summary
 ```
 
-## HAC 評分函數標準誤
+```{r dml-estimate}
+theta_dml <- sum(v_hat * u_hat) / sum(v_hat^2)
+orthogonal_score <- v_hat * (u_hat - theta_dml * v_hat)
+J_hat <- mean(v_hat^2)
 
-即使本例的人工創新項彼此獨立，預測變數仍保留月資料的時間路徑。下列函數示範對正交分數估長期變異數；一般 DML 時間序列推論還需滿足相依性與干擾函數收斂速率條件。
-
-```{r hac}
-long_run_variance <- function(g, bandwidth) {
-  g <- g - mean(g)
-  n <- length(g)
-  out <- sum(g^2) / n
-  if (bandwidth > 0) {
-    for (lag in seq_len(bandwidth)) {
-      weight <- 1 - lag / (bandwidth + 1)
-      gamma <- sum(g[(lag + 1):n] * g[1:(n - lag)]) / n
-      out <- out + 2 * weight * gamma
-    }
-  }
-  out
-}
-
-bandwidth <- 6L
-lrv <- long_run_variance(score, bandwidth)
-se_hac <- sqrt(lrv / (n * J_hat^2))
+# 以學區 score 加總估計群組穩健不確定性。
+clustered_score <- rowsum(orthogonal_score, cluster, reorder = FALSE)
+G <- nrow(clustered_score)
+se_cluster <- sqrt(
+  (G / (G - 1)) * sum(clustered_score^2) /
+    (length(Y)^2 * J_hat^2)
+)
 
 data.frame(
-  estimator = "Cross-fitted partialling-out",
-  theta = theta_dml,
-  se_iid = se_iid,
-  se_hac_L6 = se_hac,
-  truth = theta_true
+  estimator = "cross-fitted DML-style partialling",
+  estimate_score_points_per_extra_student_per_FTE = theta_dml,
+  district_cluster_se = se_cluster,
+  residual_exposure_variance = var(v_hat),
+  out_of_fold_Y_R2 = 1 - sum(u_hat^2) / sum((Y - mean(Y))^2),
+  out_of_fold_D_R2 = 1 - sum(v_hat^2) / sum((D - mean(D))^2)
 )
 ```
 
-## 正交分數的數值敏感度
+`var(v_hat)` 是剩餘暴露變異的診斷：若它接近零，partialling 係數會缺乏可識別的剩餘比較。本例的正值只表示演算法仍有橫斷面變異，並不驗證條件重疊或因果可比性。
 
-小幅擾動干擾函數預測，比較正交矩與未正交殘差迴歸分子的變化。這只是有限樣本數值示範。
-
-```{r orthogonality-check}
-moment <- function(theta, ell_error = 0, m_error = 0) {
-  v_perturbed <- v_hat - m_error
-  u_perturbed <- u_hat - ell_error
-  mean(v_perturbed * (u_perturbed - theta * v_perturbed))
-}
-
-delta <- seq(-0.10, 0.10, length.out = 21)
-moments_ell <- vapply(delta, function(a) moment(theta_dml, ell_error = a), numeric(1))
-moments_m <- vapply(delta, function(a) moment(theta_dml, m_error = a), numeric(1))
-
-plot(delta, moments_ell, type = "l", lwd = 2, col = "#173B57",
-     xlab = "Constant nuisance perturbation", ylab = "Sample orthogonal moment")
-lines(delta, moments_m, lwd = 2, col = "#A34045")
-abline(h = 0, lty = 2)
-legend("topleft", c("Perturb outcome nuisance", "Perturb treatment nuisance"),
-       col = c("#173B57", "#A34045"), lwd = 2, bty = "n")
+```{r orthogonality-check, fig.cap="交叉配適後的真實結果殘差與師生比殘差；直線只呈現 partialling 斜率。"}
+plot(
+  v_hat, u_hat,
+  pch = 16, cex = 0.45, col = grDevices::adjustcolor("#173B57", 0.25),
+  xlab = "Out-of-fold str_s residual",
+  ylab = "Out-of-fold testscore residual",
+  main = "加州學校：DML-style residual-on-residual"
+)
+abline(a = 0, b = theta_dml, col = "#A34045", lwd = 2)
 ```
 
-## 診斷與不可省略的限制
+## 6. 小型真值單元測試
 
-```{r diagnostics}
-data.frame(
-  date = dates,
-  treatment = D,
-  treatment_residual = v_hat,
-  score = score
-) |> head()
+下列合成資料只核對 Frisch--Waugh partialling 公式；不進入加州學校主結果。
 
-acf(v_hat, main = "Out-of-fold treatment residual ACF")
-acf(score, main = "Orthogonal score ACF")
+```{r truth-unit-test}
+set.seed(1516)
+n_unit <- 5000L
+X_unit <- matrix(rnorm(n_unit * 3L), ncol = 3L)
+v_unit <- rnorm(n_unit)
+eps_unit <- rnorm(n_unit)
+D_unit <- 0.8 * X_unit[, 1] - 0.5 * X_unit[, 2] + v_unit
+theta_true <- 0.6
+Y_unit <- theta_true * D_unit +
+  0.4 * X_unit[, 1] + 0.7 * X_unit[, 3] + eps_unit
+
+u_unit <- residuals(lm(Y_unit ~ X_unit))
+v_unit_hat <- residuals(lm(D_unit ~ X_unit))
+theta_unit <- sum(v_unit_hat * u_unit) / sum(v_unit_hat^2)
+stopifnot(abs(theta_unit - theta_true) < 0.05)
+data.frame(truth = theta_true, partialling_estimate = theta_unit)
 ```
 
-1. `var(v_hat)` 很小代表重疊性或剩餘處置變異不足，不能只靠放大標準誤繼續。
-2. 交叉配適不會修復未觀察混淆；本例的識別來自人工資料生成過程。
-3. `lambda_ratio` 是透明的教學設定。正式分析應在每個外層訓練折內另做內層調校。
-4. 真實月資料若用區塊，各折建構、間隔與 HAC 頻寬都須依相依條件說明。
-5. 因子面板在此只提供近似實務的預測變數共變異結構；`D` 與 `Y` 是人工生成，不能寫成市場效果。
+## 7. 診斷與不可省略的限制
+
+```{r diagnostics, fig.show='hold', fig.cap="交叉配適暴露殘差與學區 score 加總的分布。"}
+hist(
+  v_hat, breaks = 35, col = "#DDE8EA", border = "white",
+  xlab = "Out-of-fold str_s residual",
+  main = "剩餘暴露變異"
+)
+hist(
+  as.numeric(clustered_score), breaks = 35,
+  col = "#E8D7D5", border = "white",
+  xlab = "District score sum",
+  main = "學區層級 score"
+)
+```
+
+1. 本資料是學校橫斷面，沒有可核實的處置先後與觀察年度；不能由 cross-fitting 補出時間順序。
+2. 93 個控制是教學字典，不是已證成的 back-door set；其中可能有共同結果、同步決定或處置後變數。
+3. LASSO 選取與 DML-style residualization 降低高維函數估計偏誤，不會修復未觀察混淆、測量誤差或干擾。
+4. 標準誤按學區叢聚，但這不涵蓋資料版本選擇、字典設計與調校規則的全部不確定性。
+5. 因此主係數只能寫成「控制所列背景後，`str_s` 每增加一名學生／教師 FTE，`testscore` 平均相差若干點的估計條件關聯」。
 
 ```{r session-info}
 sessionInfo()

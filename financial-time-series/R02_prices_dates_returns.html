@@ -27,12 +27,13 @@
     <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
       <p class="sidebar-title">線上附錄</p>
       <ol><li><a href="index.html">首頁</a></li>
+<li><a href="data.html">實證資料下載</a></li>
 <li><a href="data-policy.html">資料與重現政策</a></li>
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html" aria-current="page" class="active">R02　價格、日期與報酬率</a></li>
 <li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與經驗特徵</a></li>
-<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA 模擬</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
 <li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
 <li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
 <li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
@@ -50,251 +51,426 @@
     </nav>
     <main id="main-content" class="content">
       <div class="publication-note">
-        本網站提供作者執行後的教學內容與程式原始檔；未經確認可再散布的原始資料不隨網站發布。
+        本網站提供作者執行後的教學內容、程式原始檔與本書實證使用的固定資料版本。
         詳見<a href="data-policy.html">資料與重現政策</a>。
       </div>
       <article>
         <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R02：價格、日期與報酬率</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R02_prices_dates_returns.Rmd">R Markdown 原始檔</a><a href="source/R02_prices_dates_returns.md">執行後 Markdown</a></div></header>
-        <p>本附錄對應第 2 章。使用完全固定的假想價格、股利與拆股調整例，示範日期排序、分組落後、簡單報酬、對數報酬、多期複利與投資組合報酬。所有數值都是教學資料，不代表真實資產。</p>
+        <p>本附錄對應第 2 章，實際讀取 Apple Inc.（AAPL）的固定資料，從調整收盤價重新計算日簡單報酬與日對數報酬。樣本期間為 2019-01-02 至 2022-06-22，共 875 個交易日。<code>adjusted</code> 的單位是「美元／股的調整後價格尺度」；報酬欄位以小數表示，例如 0.01 代表 1%。資料來自原課程 S&amp;P 500 價格檔所保留的 AAPL 序列，建置細節見 <code>data/DATA_SOURCES.md</code>。</p>
+<p>以下結果描述這一份固定歷史資料的價格與報酬計算，不識別任何市場事件或變數對 AAPL 報酬的因果效果。</p>
 <pre><code class="language-r">knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
-  fig.width = 7, fig.height = 4.5
+  fig.width = 7, fig.height = 4.5,
+  dev = &quot;ragg_png&quot;, dpi = 144,
+  dev.args = list(background = &quot;white&quot;)
 )
-stopifnot(requireNamespace(&quot;dplyr&quot;, quietly = TRUE))
-stopifnot(requireNamespace(&quot;tibble&quot;, quietly = TRUE))
-library(dplyr)
-library(tibble)
-</code></pre>
-<h2 id="_1">建立價格、股利與調整因子<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
-<p>price_raw 是觀察到的未調整收盤價；split_factor 表示當日一股舊股可換得多少新股。為了簡化教學，price_adjusted 已把拆股前價格換成可比較尺度。實務資料供應者的調整定義可能不同，必須查資料字典。</p>
-<pre><code class="language-r">prices &lt;- tribble(
-  ~asset, ~date,       ~price_raw, ~dividend, ~split_factor, ~price_adjusted,
-  &quot;甲&quot;,    &quot;2026-01-02&quot;, 100,        0,         1,             50,
-  &quot;甲&quot;,    &quot;2026-01-05&quot;, 104,        0,         1,             52,
-  &quot;甲&quot;,    &quot;2026-01-06&quot;,  53,        0,         2,             53,
-  &quot;甲&quot;,    &quot;2026-01-07&quot;,  52,        1,         1,             52,
-  &quot;乙&quot;,    &quot;2026-01-02&quot;,  80,        0,         1,             80,
-  &quot;乙&quot;,    &quot;2026-01-05&quot;,  82,        0,         1,             82,
-  &quot;乙&quot;,    &quot;2026-01-06&quot;,  81,        0,         1,             81,
-  &quot;乙&quot;,    &quot;2026-01-07&quot;,  84,        0,         1,             84
-) |&gt;
-  mutate(date = as.Date(date))
 
-prices
-</code></pre>
-<pre><code>## # A tibble: 8 × 6
-##   asset date       price_raw dividend split_factor price_adjusted
-##   &lt;chr&gt; &lt;date&gt;         &lt;dbl&gt;    &lt;dbl&gt;        &lt;dbl&gt;          &lt;dbl&gt;
-## 1 甲    2026-01-02       100        0            1             50
-## 2 甲    2026-01-05       104        0            1             52
-## 3 甲    2026-01-06        53        0            2             53
-## 4 甲    2026-01-07        52        1            1             52
-## 5 乙    2026-01-02        80        0            1             80
-## 6 乙    2026-01-05        82        0            1             82
-## 7 乙    2026-01-06        81        0            1             81
-## 8 乙    2026-01-07        84        0            1             84
-</code></pre>
-<h2 id="_2">入口檢查<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
-<pre><code class="language-r">validate_panel &lt;- function(x) {
-  needed &lt;- c(&quot;asset&quot;, &quot;date&quot;, &quot;price_adjusted&quot;, &quot;dividend&quot;)
-  stopifnot(all(needed %in% names(x)))
-  stopifnot(!anyNA(x[, needed]))
-  stopifnot(all(is.finite(x$price_adjusted)), all(x$price_adjusted &gt; 0))
-  stopifnot(all(is.finite(x$dividend)), all(x$dividend &gt;= 0))
-  stopifnot(!anyDuplicated(paste(x$asset, x$date)))
+root_candidates &lt;- c(&quot;.&quot;, &quot;..&quot;)
+is_root &lt;- vapply(root_candidates, function(x) {
+  file.exists(file.path(x, &quot;main.tex&quot;))
+}, logical(1))
+stopifnot(any(is_root))
+project_root &lt;- root_candidates[which(is_root)[1]]
+project_path &lt;- function(...) file.path(project_root, ...)
 
-  ordered &lt;- x |&gt; arrange(asset, date)
-  by_asset &lt;- split(ordered$date, ordered$asset)
-  stopifnot(all(vapply(
-    by_asset,
-    function(z) length(z) &lt; 2L || all(diff(z) &gt; 0),
-    logical(1)
-  )))
-  invisible(ordered)
+stopifnot(
+  requireNamespace(&quot;ragg&quot;, quietly = TRUE),
+  requireNamespace(&quot;systemfonts&quot;, quietly = TRUE)
+)
+cwtex_file &lt;- project_path(&quot;assets&quot;, &quot;fonts&quot;, &quot;cwTeXQKai-Medium.ttf&quot;)
+stopifnot(file.exists(cwtex_file))
+if (!&quot;cwTeX Online&quot; %in% systemfonts::registry_fonts()$family) {
+  systemfonts::register_font(&quot;cwTeX Online&quot;, cwtex_file)
 }
-
-prices &lt;- validate_panel(prices)
+plot_family &lt;- &quot;cwTeX Online&quot;
 </code></pre>
-<h2 id="_3">務必先分組再取落後值<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
-<p>若直接對整欄取落後值，甲資產最後一天可能被錯接到乙資產第一天。正確做法是先依 asset 分組，再依日期排序。</p>
-<pre><code class="language-r">returns &lt;- prices |&gt;
-  group_by(asset) |&gt;
-  arrange(date, .by_group = TRUE) |&gt;
-  mutate(
-    previous_price = lag(price_adjusted),
-    gross_return = (price_adjusted + dividend) / previous_price,
-    simple_return = gross_return - 1,
-    log_return = log(gross_return),
-    calendar_gap = as.integer(date - lag(date))
-  ) |&gt;
-  ungroup()
-
-returns
-</code></pre>
-<pre><code>## # A tibble: 8 × 11
-##   asset date       price_raw dividend split_factor price_adjusted previous_price
-##   &lt;chr&gt; &lt;date&gt;         &lt;dbl&gt;    &lt;dbl&gt;        &lt;dbl&gt;          &lt;dbl&gt;          &lt;dbl&gt;
-## 1 乙    2026-01-02        80        0            1             80             NA
-## 2 乙    2026-01-05        82        0            1             82             80
-## 3 乙    2026-01-06        81        0            1             81             82
-## 4 乙    2026-01-07        84        0            1             84             81
-## 5 甲    2026-01-02       100        0            1             50             NA
-## 6 甲    2026-01-05       104        0            1             52             50
-## 7 甲    2026-01-06        53        0            2             53             52
-## 8 甲    2026-01-07        52        1            1             52             53
-## # ℹ 4 more variables: gross_return &lt;dbl&gt;, simple_return &lt;dbl&gt;,
-## #   log_return &lt;dbl&gt;, calendar_gap &lt;int&gt;
-</code></pre>
-<pre><code class="language-r">stopifnot(all.equal(
-  returns$log_return[!is.na(returns$log_return)],
-  log1p(returns$simple_return[!is.na(returns$simple_return)])
-))
-</code></pre>
-<p>甲資產 2026-01-07 支付 1 元股利，總簡單報酬使用
-\((P_t+D_t-P_{t-1})/P_{t-1}\)。若只算價格變化，會遺漏現金分配。</p>
-<h2 id="_4">未調整價格會製造假報酬<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
-<pre><code class="language-r">split_comparison &lt;- prices |&gt;
-  filter(asset == &quot;甲&quot;) |&gt;
-  arrange(date) |&gt;
-  mutate(
-    return_from_raw = price_raw / lag(price_raw) - 1,
-    return_from_adjusted = price_adjusted / lag(price_adjusted) - 1
-  ) |&gt;
-  select(date, price_raw, price_adjusted, return_from_raw, return_from_adjusted)
-
-split_comparison
-</code></pre>
-<pre><code>## # A tibble: 4 × 5
-##   date       price_raw price_adjusted return_from_raw return_from_adjusted
-##   &lt;date&gt;         &lt;dbl&gt;          &lt;dbl&gt;           &lt;dbl&gt;                &lt;dbl&gt;
-## 1 2026-01-02       100             50         NA                   NA     
-## 2 2026-01-05       104             52          0.0400               0.0400
-## 3 2026-01-06        53             53         -0.490                0.0192
-## 4 2026-01-07        52             52         -0.0189              -0.0189
-</code></pre>
-<p>拆股日的未調整價格約減半，不代表投資人損失一半。正式分析應優先使用明確記錄股利與公司行動的總報酬或調整價格。</p>
-<h2 id="_5">多期複利與對數相加<a class="headerlink" href="#_5" title="Permanent link">#</a></h2>
-<pre><code class="language-r">asset_b &lt;- returns |&gt;
-  filter(asset == &quot;乙&quot;, !is.na(simple_return))
-
-multi_simple &lt;- prod(1 + asset_b$simple_return) - 1
-multi_log &lt;- sum(asset_b$log_return)
-
-tibble(
-  method = c(&quot;簡單報酬複利&quot;, &quot;對數報酬相加後轉回&quot;),
-  total_simple_return = c(multi_simple, exp(multi_log) - 1)
+<h2 id="_1">讀取、排序與入口檢查<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
+<p>金融資料不能先假定已依日期排序。以下先檢查欄位，再轉換日期、排序並檢查重複值與價格正值條件。</p>
+<pre><code class="language-r">aapl_path &lt;- project_path(
+  &quot;data&quot;, &quot;processed&quot;, &quot;aapl_adjusted_daily_2019_2022.csv&quot;
 )
-</code></pre>
-<pre><code>## # A tibble: 2 × 2
-##   method             total_simple_return
-##   &lt;chr&gt;                            &lt;dbl&gt;
-## 1 簡單報酬複利                    0.0500
-## 2 對數報酬相加後轉回              0.0500
-</code></pre>
-<pre><code class="language-r">stopifnot(isTRUE(all.equal(multi_simple, exp(multi_log) - 1)))
-</code></pre>
-<p>簡單報酬不能直接跨期相加；對數報酬可以跨期相加，但轉回簡單報酬時仍要取指數減一。</p>
-<h2 id="_6">簡單報酬與對數報酬的近似<a class="headerlink" href="#_6" title="Permanent link">#</a></h2>
-<pre><code class="language-r">grid &lt;- seq(-0.5, 0.5, by = 0.01)
-approximation &lt;- tibble(
-  simple = grid,
-  log = log1p(grid),
-  difference = log1p(grid) - grid
+stopifnot(file.exists(aapl_path))
+
+aapl &lt;- read.csv(aapl_path, stringsAsFactors = FALSE)
+needed &lt;- c(
+  &quot;date&quot;, &quot;symbol&quot;, &quot;company&quot;, &quot;sector&quot;, &quot;adjusted&quot;,
+  &quot;simple_return&quot;, &quot;log_return&quot;
+)
+stopifnot(all(needed %in% names(aapl)))
+
+aapl$date &lt;- as.Date(aapl$date)
+aapl &lt;- aapl[order(aapl$date), ]
+row.names(aapl) &lt;- NULL
+
+stopifnot(
+  !anyNA(aapl$date),
+  !anyDuplicated(aapl$date),
+  all(diff(aapl$date) &gt; 0),
+  all(aapl$symbol == &quot;AAPL&quot;),
+  all(is.finite(aapl$adjusted)),
+  all(aapl$adjusted &gt; 0)
 )
 
-head(approximation, 4)
-</code></pre>
-<pre><code>## # A tibble: 4 × 3
-##   simple    log difference
-##    &lt;dbl&gt;  &lt;dbl&gt;      &lt;dbl&gt;
-## 1  -0.5  -0.693     -0.193
-## 2  -0.49 -0.673     -0.183
-## 3  -0.48 -0.654     -0.174
-## 4  -0.47 -0.635     -0.165
-</code></pre>
-<pre><code class="language-r">tail(approximation, 4)
-</code></pre>
-<pre><code>## # A tibble: 4 × 3
-##   simple   log difference
-##    &lt;dbl&gt; &lt;dbl&gt;      &lt;dbl&gt;
-## 1   0.47 0.385    -0.0847
-## 2   0.48 0.392    -0.0880
-## 3   0.49 0.399    -0.0912
-## 4   0.5  0.405    -0.0945
-</code></pre>
-<pre><code class="language-r">plot(
-  approximation$simple, approximation$log,
-  type = &quot;l&quot;, lwd = 2, col = &quot;#173B57&quot;,
-  xlab = &quot;簡單報酬&quot;, ylab = &quot;對數報酬&quot;
+data_profile &lt;- data.frame(
+  資產 = unique(aapl$symbol),
+  起日 = min(aapl$date),
+  迄日 = max(aapl$date),
+  交易日數 = nrow(aapl),
+  價格單位 = &quot;美元／股（調整後尺度）&quot;,
+  報酬單位 = &quot;小數；0.01 代表 1%&quot;,
+  資料來源 = &quot;原課程 S&amp;P 500 價格檔的 AAPL 固定版本&quot;,
+  check.names = FALSE
 )
-abline(0, 1, lty = 2, col = &quot;#A34045&quot;)
+knitr::kable(data_profile)
 </code></pre>
-<p><img alt="簡單報酬與對數報酬的差距在大幅負報酬時特別明顯。" src="./R02_prices_dates_returns_files/figure-gfm/approximation-plot-1.png"></p>
-<h2 id="_7">投資組合報酬使用期初權重<a class="headerlink" href="#_7" title="Permanent link">#</a></h2>
-<p>在同一持有期間，簡單報酬的投資組合加總為
-\(R_{p,t}=\sum_i w_{i,t-1}R_{i,t}\)。以下把兩資產報酬整理到共同日期，再使用固定期初權重 60\% 與 40\%。</p>
-<pre><code class="language-r">common_dates &lt;- Reduce(
-  intersect,
-  split(
-    returns$date[!is.na(returns$simple_return)],
-    returns$asset[!is.na(returns$simple_return)]
-  )
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">資產</th>
+<th style="text-align: left;">起日</th>
+<th style="text-align: left;">迄日</th>
+<th style="text-align: right;">交易日數</th>
+<th style="text-align: left;">價格單位</th>
+<th style="text-align: left;">報酬單位</th>
+<th style="text-align: left;">資料來源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">AAPL</td>
+<td style="text-align: left;">2019-01-02</td>
+<td style="text-align: left;">2022-06-22</td>
+<td style="text-align: right;">875</td>
+<td style="text-align: left;">美元／股（調整後尺度）</td>
+<td style="text-align: left;">小數；0.01 代表 1%</td>
+<td style="text-align: left;">原課程 S&amp;P 500 價格檔的 AAPL 固定版本</td>
+</tr>
+</tbody>
+</table>
+<p>第一筆報酬沒有前一期價格，因此應為缺值；這不是資料錯誤。</p>
+<pre><code class="language-r">colSums(is.na(aapl[c(&quot;adjusted&quot;, &quot;simple_return&quot;, &quot;log_return&quot;)]))
+</code></pre>
+<pre><code>##      adjusted simple_return    log_return 
+##             0             1             1
+</code></pre>
+<pre><code class="language-r">stopifnot(
+  is.na(aapl$simple_return[1]),
+  is.na(aapl$log_return[1]),
+  !anyNA(aapl$simple_return[-1]),
+  !anyNA(aapl$log_return[-1])
+)
+</code></pre>
+<h2 id="_2">由調整價格重新計算報酬<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
+<p>若 $P_t^*$ 是同一調整尺度下的價格，則</p>
+<p>\[
+R_t=\frac{P_t^*}{P_{t-1}^*}-1,
+\qquad
+r_t=\log P_t^*-\log P_{t-1}^*=\log(1+R_t).
+\]</p>
+<p>調整價格把供應者所採用的公司行動調整反映在同一價格尺度；若研究需要逐筆拆股或現金股利，仍須另讀公司行動資料字典，不能由本欄反推全部現金流。</p>
+<pre><code class="language-r">aapl$calculated_simple &lt;- c(
+  NA_real_,
+  aapl$adjusted[-1] / head(aapl$adjusted, -1) - 1
+)
+aapl$calculated_log &lt;- c(NA_real_, diff(log(aapl$adjusted)))
+
+calculation_error &lt;- data.frame(
+  欄位 = c(&quot;simple_return&quot;, &quot;log_return&quot;),
+  最大絕對差 = c(
+    max(abs(aapl$simple_return - aapl$calculated_simple), na.rm = TRUE),
+    max(abs(aapl$log_return - aapl$calculated_log), na.rm = TRUE)
+  ),
+  check.names = FALSE
+)
+knitr::kable(calculation_error, digits = 14)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">欄位</th>
+<th style="text-align: right;">最大絕對差</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">simple_return</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td style="text-align: left;">log_return</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-r">stopifnot(
+  calculation_error$最大絕對差[1] &lt; 1e-12,
+  calculation_error$最大絕對差[2] &lt; 1e-12
 )
 
-ra &lt;- returns |&gt;
-  filter(asset == &quot;甲&quot;, date %in% common_dates) |&gt;
-  arrange(date) |&gt;
-  pull(simple_return)
-rb &lt;- returns |&gt;
-  filter(asset == &quot;乙&quot;, date %in% common_dates) |&gt;
-  arrange(date) |&gt;
-  pull(simple_return)
-
-portfolio &lt;- tibble(
-  date = sort(as.Date(common_dates, origin = &quot;1970-01-01&quot;)),
-  return_a = ra,
-  return_b = rb,
-  portfolio_return = 0.6 * ra + 0.4 * rb
+knitr::kable(
+  head(aapl[c(
+    &quot;date&quot;, &quot;adjusted&quot;, &quot;calculated_simple&quot;, &quot;calculated_log&quot;
+  )], 6),
+  digits = 6
 )
-portfolio
 </code></pre>
-<pre><code>## # A tibble: 3 × 4
-##   date       return_a return_b portfolio_return
-##   &lt;date&gt;        &lt;dbl&gt;    &lt;dbl&gt;            &lt;dbl&gt;
-## 1 2026-01-05   0.0400   0.0250          0.034  
-## 2 2026-01-06   0.0192  -0.0122          0.00666
-## 3 2026-01-07   0        0.0370          0.0148
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">date</th>
+<th style="text-align: right;">adjusted</th>
+<th style="text-align: right;">calculated_simple</th>
+<th style="text-align: right;">calculated_log</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">2019-01-02</td>
+<td style="text-align: right;">38.22136</td>
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">NA</td>
+</tr>
+<tr>
+<td style="text-align: left;">2019-01-03</td>
+<td style="text-align: right;">34.41423</td>
+<td style="text-align: right;">-0.099607</td>
+<td style="text-align: right;">-0.104924</td>
+</tr>
+<tr>
+<td style="text-align: left;">2019-01-04</td>
+<td style="text-align: right;">35.88335</td>
+<td style="text-align: right;">0.042689</td>
+<td style="text-align: right;">0.041803</td>
+</tr>
+<tr>
+<td style="text-align: left;">2019-01-07</td>
+<td style="text-align: right;">35.80349</td>
+<td style="text-align: right;">-0.002226</td>
+<td style="text-align: right;">-0.002228</td>
+</tr>
+<tr>
+<td style="text-align: left;">2019-01-08</td>
+<td style="text-align: right;">36.48602</td>
+<td style="text-align: right;">0.019063</td>
+<td style="text-align: right;">0.018884</td>
+</tr>
+<tr>
+<td style="text-align: left;">2019-01-09</td>
+<td style="text-align: right;">37.10561</td>
+<td style="text-align: right;">0.016982</td>
+<td style="text-align: right;">0.016839</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_3">價格與報酬的時間圖<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<pre><code class="language-r">old_par &lt;- par(
+  mfrow = c(2, 1), mar = c(4.5, 4, 3, 1),
+  family = plot_family
+)
+plot(
+  aapl$date, aapl$adjusted, type = &quot;l&quot;, col = &quot;#173B57&quot;,
+  xlab = &quot;日期&quot;, ylab = &quot;調整價格（美元／股）&quot;,
+  main = &quot;AAPL 調整價格&quot;
+)
+plot(
+  aapl$date, 100 * aapl$log_return, type = &quot;l&quot;, col = &quot;#A34045&quot;,
+  xlab = &quot;日期&quot;, ylab = &quot;日對數報酬（%）&quot;,
+  main = &quot;AAPL 日對數報酬&quot;
+)
+abline(h = 0, col = &quot;gray60&quot;)
 </code></pre>
-<p>如果期中不再平衡，權重會隨相對價格變動；不能每期都偷用固定權重卻聲稱是買進持有策略。</p>
-<h2 id="_8">日期間隔不是固定交易頻率<a class="headerlink" href="#_8" title="Permanent link">#</a></h2>
-<p>calendar_gap 在週末前後會大於 1。若資料目標是每日交易報酬，這仍可能是相鄰交易日；若要年度化波動或合併不同市場，必須明確處理交易日曆、時區與休市差異。</p>
-<pre><code class="language-r">returns |&gt;
-  filter(!is.na(calendar_gap)) |&gt;
-  count(calendar_gap)
+<p><img alt="AAPL 調整價格與由它計算的日對數報酬。報酬圖以百分比呈現。" src="./R02_prices_dates_returns_files/figure-gfm/price-return-plot-1.png"></p>
+<pre><code class="language-r">par(old_par)
 </code></pre>
-<pre><code>## # A tibble: 2 × 2
-##   calendar_gap     n
-##          &lt;int&gt; &lt;int&gt;
-## 1            1     4
-## 2            3     2
+<p>價格水準有明顯趨勢，不代表報酬本身也有相同趨勢。建模前必須先分清楚研究對象是價格、簡單報酬或對數報酬。</p>
+<h2 id="_4">簡單報酬與對數報酬的差距<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
+<p>小幅報酬時 $r_t\approx R_t$，大幅漲跌時兩者差距會擴大。下圖中的每一點都是 AAPL 的實際日報酬。</p>
+<pre><code class="language-r">old_par &lt;- par(family = plot_family)
+plot(
+  100 * aapl$simple_return, 100 * aapl$log_return,
+  pch = 16, cex = 0.55, col = adjustcolor(&quot;#173B57&quot;, 0.55),
+  xlab = &quot;日簡單報酬（%）&quot;, ylab = &quot;日對數報酬（%）&quot;
+)
+abline(0, 1, lty = 2, lwd = 2, col = &quot;#A34045&quot;)
 </code></pre>
-<h2 id="_9">建議輸出欄位<a class="headerlink" href="#_9" title="Permanent link">#</a></h2>
-<p>正式報酬資料至少保留 asset、date、原始價格、調整價格、股利／公司行動、簡單報酬、對數報酬、幣別與來源版本。不要只保存最後一欄報酬，否則很難追查異常值究竟來自市場、公司行動或程式錯置。</p>
+<p><img alt="AAPL 日簡單報酬與日對數報酬；虛線表示兩者完全相等。" src="./R02_prices_dates_returns_files/figure-gfm/approximation-plot-1.png"></p>
+<pre><code class="language-r">par(old_par)
+</code></pre>
+<h2 id="_5">多期複利必須乘，不是直接加<a class="headerlink" href="#_5" title="Permanent link">#</a></h2>
+<p>從第一個調整價格到最後一個調整價格，三種算法應得到相同的多期簡單報酬：</p>
+<ol>
+<li>每日簡單報酬逐期複利；</li>
+<li>每日對數報酬相加後轉回簡單報酬；</li>
+<li>最後價格除以最初價格再減一。</li>
+</ol>
+<pre><code class="language-r">valid_simple &lt;- aapl$simple_return[is.finite(aapl$simple_return)]
+valid_log &lt;- aapl$log_return[is.finite(aapl$log_return)]
+
+compound_table &lt;- data.frame(
+  方法 = c(
+    &quot;每日簡單報酬複利&quot;,
+    &quot;對數報酬相加後轉回&quot;,
+    &quot;期末調整價格／期初調整價格&quot;
+  ),
+  全期簡單報酬 = c(
+    prod(1 + valid_simple) - 1,
+    exp(sum(valid_log)) - 1,
+    tail(aapl$adjusted, 1) / aapl$adjusted[1] - 1
+  ),
+  check.names = FALSE
+)
+knitr::kable(compound_table, digits = 8)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">方法</th>
+<th style="text-align: right;">全期簡單報酬</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">每日簡單報酬複利</td>
+<td style="text-align: right;">2.541213</td>
+</tr>
+<tr>
+<td style="text-align: left;">對數報酬相加後轉回</td>
+<td style="text-align: right;">2.541213</td>
+</tr>
+<tr>
+<td style="text-align: left;">期末調整價格／期初調整價格</td>
+<td style="text-align: right;">2.541213</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-r">stopifnot(diff(range(compound_table$全期簡單報酬)) &lt; 1e-12)
+</code></pre>
+<p>這個全期報酬只描述所選起迄日；不能把它外推成固定的未來成長率。</p>
+<h2 id="_6">交易日與日曆日不同<a class="headerlink" href="#_6" title="Permanent link">#</a></h2>
+<p>相鄰交易日可能跨過週末或休市日。<code>calendar_gap</code> 的單位是日曆日，不是遺漏的報酬筆數。</p>
+<pre><code class="language-r">aapl$calendar_gap &lt;- c(NA_integer_, as.integer(diff(aapl$date)))
+gap_table &lt;- as.data.frame(table(aapl$calendar_gap, useNA = &quot;no&quot;))
+names(gap_table) &lt;- c(&quot;相鄰交易日的日曆間隔&quot;, &quot;次數&quot;)
+knitr::kable(gap_table)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">相鄰交易日的日曆間隔</th>
+<th style="text-align: right;">次數</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1</td>
+<td style="text-align: right;">687</td>
+</tr>
+<tr>
+<td style="text-align: left;">2</td>
+<td style="text-align: right;">6</td>
+</tr>
+<tr>
+<td style="text-align: left;">3</td>
+<td style="text-align: right;">156</td>
+</tr>
+<tr>
+<td style="text-align: left;">4</td>
+<td style="text-align: right;">25</td>
+</tr>
+</tbody>
+</table>
+<p>若要年度化波動、合併不同市場或對齊總體資料，必須另外交代交易日曆、時區與缺值規則。</p>
+<h2 id="_7">極端日先查來源，不自動刪除<a class="headerlink" href="#_7" title="Permanent link">#</a></h2>
+<pre><code class="language-r">valid_rows &lt;- aapl[is.finite(aapl$log_return), ]
+extreme_rows &lt;- valid_rows[
+  order(abs(valid_rows$log_return), decreasing = TRUE)[1:8],
+  c(&quot;date&quot;, &quot;adjusted&quot;, &quot;simple_return&quot;, &quot;log_return&quot;)
+]
+knitr::kable(extreme_rows, digits = 6)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"></th>
+<th style="text-align: left;">date</th>
+<th style="text-align: right;">adjusted</th>
+<th style="text-align: right;">simple_return</th>
+<th style="text-align: right;">log_return</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">303</td>
+<td style="text-align: left;">2020-03-16</td>
+<td style="text-align: right;">59.64409</td>
+<td style="text-align: right;">-0.128647</td>
+<td style="text-align: right;">-0.137708</td>
+</tr>
+<tr>
+<td style="text-align: left;">302</td>
+<td style="text-align: left;">2020-03-13</td>
+<td style="text-align: right;">68.44997</td>
+<td style="text-align: right;">0.119808</td>
+<td style="text-align: right;">0.113157</td>
+</tr>
+<tr>
+<td style="text-align: left;">2</td>
+<td style="text-align: left;">2019-01-03</td>
+<td style="text-align: right;">34.41423</td>
+<td style="text-align: right;">-0.099607</td>
+<td style="text-align: right;">-0.104924</td>
+</tr>
+<tr>
+<td style="text-align: left;">301</td>
+<td style="text-align: left;">2020-03-12</td>
+<td style="text-align: right;">61.12651</td>
+<td style="text-align: right;">-0.098755</td>
+<td style="text-align: right;">-0.103978</td>
+</tr>
+<tr>
+<td style="text-align: left;">399</td>
+<td style="text-align: left;">2020-07-31</td>
+<td style="text-align: right;">104.94921</td>
+<td style="text-align: right;">0.104689</td>
+<td style="text-align: right;">0.099564</td>
+</tr>
+<tr>
+<td style="text-align: left;">309</td>
+<td style="text-align: left;">2020-03-24</td>
+<td style="text-align: right;">60.79407</td>
+<td style="text-align: right;">0.100325</td>
+<td style="text-align: right;">0.095606</td>
+</tr>
+<tr>
+<td style="text-align: left;">293</td>
+<td style="text-align: left;">2020-03-02</td>
+<td style="text-align: right;">73.58179</td>
+<td style="text-align: right;">0.093101</td>
+<td style="text-align: right;">0.089018</td>
+</tr>
+<tr>
+<td style="text-align: left;">318</td>
+<td style="text-align: left;">2020-04-06</td>
+<td style="text-align: right;">64.63309</td>
+<td style="text-align: right;">0.087237</td>
+<td style="text-align: right;">0.083640</td>
+</tr>
+</tbody>
+</table>
+<p>極端報酬可能是市場事件，也可能是公司行動或建檔錯誤。這張表只負責定位日期；是否修正必須回到原始來源查證，而不能因為觀察值「看起來太大」就刪除。</p>
       </article>
       <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R01_r_tidyverse_manual_ols.html">← R、tidyverse 與手動 OLS</a><a rel="next" href="R03_distributions_heavy_tails.html">分配、厚尾與經驗特徵 →</a></nav>
       <footer>© 陳釗而　《財務時間序列分析》</footer>
     </main>
     <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
 <ul>
-<li><a href="#_1">建立價格、股利與調整因子</a></li>
-<li><a href="#_2">入口檢查</a></li>
-<li><a href="#_3">務必先分組再取落後值</a></li>
-<li><a href="#_4">未調整價格會製造假報酬</a></li>
-<li><a href="#_5">多期複利與對數相加</a></li>
-<li><a href="#_6">簡單報酬與對數報酬的近似</a></li>
-<li><a href="#_7">投資組合報酬使用期初權重</a></li>
-<li><a href="#_8">日期間隔不是固定交易頻率</a></li>
-<li><a href="#_9">建議輸出欄位</a></li>
+<li><a href="#_1">讀取、排序與入口檢查</a></li>
+<li><a href="#_2">由調整價格重新計算報酬</a></li>
+<li><a href="#_3">價格與報酬的時間圖</a></li>
+<li><a href="#_4">簡單報酬與對數報酬的差距</a></li>
+<li><a href="#_5">多期複利必須乘，不是直接加</a></li>
+<li><a href="#_6">交易日與日曆日不同</a></li>
+<li><a href="#_7">極端日先查來源，不自動刪除</a></li>
 </ul>
 </div>
 </aside>

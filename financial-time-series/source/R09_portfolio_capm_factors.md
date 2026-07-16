@@ -1,372 +1,350 @@
 ---
-title: "R09：投資組合、CAPM 與財務因子"
+title: "R09：真實十產業投資組合、CAPM 與 Fama--French 三因子"
 output:
   github_document:
     toc: true
     toc_depth: 3
 ---
 
-本附錄對應第 13--14 章，以固定種子的合成月資料示範投資組合、CAPM 與多因子迴歸。所有報酬都是教學模擬，不代表任何市場或基金；程式不安裝套件、不下載資料，也不使用 `setwd()`。
+本附錄對應第 13--14 章，改用真實的美國十產業月報酬與 Fama--French 因子，不再以模擬資產報酬作為主體。分析包含等權重、全域最小變異數（GMV）、驗證期選定的收縮 GMV，以及 CAPM／Fama--French 三因子在固定測試期的條件解釋表現。
+
+樣本是作者工作用凍結快照：1967 年 1 月至 2021 年 11 月，共 659 個月、10 個產業。`ret` 是產業投資組合的月超額報酬，`factor_ff_rf` 是月無風險報酬，市場、SMB 與 HML 都是月因子報酬；本檔均以**小數**表示，例如 0.01 代表 1%。原課程程式透過 Kenneth French Data Library 取得 Fama--French 因子與十產業投資組合，再合併 Global-q 與 Welch--Goyal 總體變數。本附錄只使用十產業、無風險利率與 FF3 欄位。
+
+公開版隨附作者已授權公開的 `data/processed` 凍結 CSV、程式與執行結果，因此可離線自含重跑。若讀者另從上游來源重建，仍須記錄資料庫版本、下載日、FIZ/CIZ 方法版本、百分比轉小數與產業報酬減去無風險利率的步驟；即時下載版本不保證與凍結快照相同。
 
 
 ``` r
 knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
-  fig.width = 7, fig.height = 4
+  fig.width = 7, fig.height = 4.3
 )
 stopifnot(getRversion() >= "4.3.0")
-set.seed(909)
 ```
 
-## 1. 軟體與資訊時點
-
-只使用 R 內建套件。時間切分固定為：
-
-- 前 480 月：訓練；
-- 接續 120 月：驗證；
-- 最後 120 月：測試。
-
-任何平均數、共變異數、beta 與投資組合權重都只能由訓練期估計。驗證與測試期的同期因子若用於重建同期資產報酬，會明確稱為「條件重建」，不稱為事前預測。
+## 1. 讀取、來源與單位核對
 
 
 ``` r
-data.frame(
-  component = c("R", "stats", "graphics"),
-  version = c(
-    R.version.string,
-    as.character(packageVersion("stats")),
-    as.character(packageVersion("graphics"))
+locate_project_file <- function(relative_path) {
+  candidates <- c(
+    relative_path,
+    file.path("..", relative_path),
+    file.path("../..", relative_path)
   )
-)
-```
-
-```
-##   component                      version
-## 1         R R version 4.5.2 (2025-10-31)
-## 2     stats                        4.5.2
-## 3  graphics                        4.5.2
-```
-
-## 2. 建構方向正確的 SMB 與 HML
-
-以六個規模 \(S/B\) 與帳面市值比 \(L/M/H\) 投資組合建立因子：
-
-\[
-\begin{aligned}
-SMB&=(S_L+S_M+S_H)/3-(B_L+B_M+B_H)/3,\\
-HML&=(S_H+B_H)/2-(S_L+B_L)/2.
-\end{aligned}
-\]
-
-
-``` r
-n_total <- 720
-portfolio_names <- c("SL", "SM", "SH", "BL", "BM", "BH")
-
-# 共同擾動讓六個基礎投資組合有合理的正相關。
-common <- arima.sim(
-  model = list(ar = 0.10),
-  n = n_total, sd = 0.025
-)
-style_noise <- matrix(
-  rnorm(n_total * length(portfolio_names), sd = 0.018),
-  nrow = n_total,
-  dimnames = list(NULL, portfolio_names)
-)
-base_portfolios <- sweep(style_noise, 1, common, "+")
-
-# 加入小型平均規模與價值溢酬；數值純屬模擬設計。
-base_portfolios[, c("SL", "SM", "SH")] <-
-  base_portfolios[, c("SL", "SM", "SH")] + 0.0015
-base_portfolios[, c("SH", "BH")] <-
-  base_portfolios[, c("SH", "BH")] + 0.0020
-
-SMB <- rowMeans(base_portfolios[, c("SL", "SM", "SH")]) -
-  rowMeans(base_portfolios[, c("BL", "BM", "BH")])
-HML <- rowMeans(base_portfolios[, c("SH", "BH")]) -
-  rowMeans(base_portfolios[, c("SL", "BL")])
-
-# 市場因子另行模擬；MKT 已是市場超額報酬。
-MKT <- as.numeric(arima.sim(
-  model = list(ar = 0.12),
-  n = n_total, sd = 0.035
-)) + 0.004
-
-factors <- data.frame(
-  month = seq_len(n_total),
-  MKT = MKT,
-  SMB = SMB,
-  HML = HML
-)
-head(factors)
-```
-
-```
-##   month          MKT          SMB          HML
-## 1     1 -0.009539671 -0.007736603 -0.007997446
-## 2     2 -0.029083750 -0.002171098 -0.036089712
-## 3     3 -0.045304436  0.014443442  0.004514239
-## 4     4 -0.003159349  0.001501598  0.013537953
-## 5     5 -0.042868669  0.015459097 -0.017965287
-## 6     6  0.007852383  0.018886008  0.014791961
-```
-
-### 2.1 HML 符號單元測試
-
-若所有高帳面市值比投資組合各增加一個單位，HML 必須增加一個單位；若低比率投資組合各增加一個單位，HML 必須下降一個單位。
-
-
-``` r
-make_hml <- function(x) {
-  rowMeans(x[, c("SH", "BH"), drop = FALSE]) -
-    rowMeans(x[, c("SL", "BL"), drop = FALSE])
+  hit <- candidates[file.exists(candidates)]
+  if (length(hit) == 0L) stop("找不到專案檔案：", relative_path)
+  normalizePath(hit[1], mustWork = TRUE)
 }
 
-toy <- base_portfolios[1:5, , drop = FALSE]
-high_up <- toy
-high_up[, c("SH", "BH")] <- high_up[, c("SH", "BH")] + 1
-low_up <- toy
-low_up[, c("SL", "BL")] <- low_up[, c("SL", "BL")] + 1
+panel_file <- locate_project_file(
+  "data/processed/ff_qf_macro_industries_1967_2021.csv"
+)
+manifest_file <- locate_project_file("data/processed/manifest.csv")
+
+d <- read.csv(panel_file, stringsAsFactors = FALSE, check.names = FALSE)
+manifest <- read.csv(manifest_file, stringsAsFactors = FALSE)
+d$month <- as.Date(d$month)
+d <- d[order(d$month, d$industry), ]
+
+manifest_key <- "data/processed/ff_qf_macro_industries_1967_2021.csv"
+manifest_row <- manifest[manifest$file == manifest_key, , drop = FALSE]
+actual_md5 <- unname(tools::md5sum(panel_file))
 
 stopifnot(
-  isTRUE(all.equal(make_hml(high_up) - make_hml(toy), rep(1, 5))),
-  isTRUE(all.equal(make_hml(low_up) - make_hml(toy), rep(-1, 5)))
+  nrow(manifest_row) == 1L,
+  nrow(d) == 6590L,
+  ncol(d) == 24L,
+  identical(actual_md5, manifest_row$md5),
+  !anyDuplicated(d[c("month", "industry")]),
+  length(unique(d$month)) == 659L,
+  length(unique(d$industry)) == 10L
 )
 
 data.frame(
-  change = c("高 B/M 組合 +1", "低 B/M 組合 +1"),
-  HML_change = c(
-    mean(make_hml(high_up) - make_hml(toy)),
-    mean(make_hml(low_up) - make_hml(toy))
+  first_month = min(d$month),
+  last_month = max(d$month),
+  months = length(unique(d$month)),
+  industries = length(unique(d$industry)),
+  return_unit = "decimal per month",
+  md5 = actual_md5
+)
+```
+
+```
+##   first_month last_month months industries       return_unit
+## 1  1967-01-01 2021-11-01    659         10 decimal per month
+##                                md5
+## 1 69563611584d8a2dfd984ec6a53822a4
+```
+
+資料來源與解讀界線如下。
+
+
+``` r
+data.frame(
+  component = c("十產業與 FF3", "凍結合併面板", "本附錄輸出"),
+  source = c(
+    "Kenneth French Data Library；原課程以 frenchdata 下載",
+    "原課程 fffqmacro.R；另含 Global-q 與 Welch--Goyal 欄位",
+    "作者授權公開的 processed 凍結快照"
+  ),
+  use_here = c(
+    "ret、RF、MKT-RF、SMB、HML",
+    "只讀取 FF3 相關欄位",
+    "方法教學，不作投資建議或因果解讀"
   )
 )
 ```
 
 ```
-##           change HML_change
-## 1 高 B/M 組合 +1          1
-## 2 低 B/M 組合 +1         -1
+##      component                                                 source
+## 1 十產業與 FF3  Kenneth French Data Library；原課程以 frenchdata 下載
+## 2 凍結合併面板 原課程 fffqmacro.R；另含 Global-q 與 Welch--Goyal 欄位
+## 3   本附錄輸出                      作者授權公開的 processed 凍結快照
+##                           use_here
+## 1        ret、RF、MKT-RF、SMB、HML
+## 2              只讀取 FF3 相關欄位
+## 3 方法教學，不作投資建議或因果解讀
 ```
 
-## 3. 模擬六個資產報酬
+## 2. 整理十產業矩陣並固定時間切分
 
-令資產超額報酬由三因子曝險加上個別新衝擊產生。
+先確認同一月份的因子與無風險利率在十個產業列完全一致，再把長資料轉成「月份乘產業」矩陣。
 
 
 ``` r
-beta_true <- rbind(
-  Asset1 = c(MKT = 1.10, SMB = 0.40, HML = -0.20),
-  Asset2 = c(MKT = 0.75, SMB = -0.15, HML = 0.60),
-  Asset3 = c(MKT = 1.30, SMB = 0.70, HML = 0.20),
-  Asset4 = c(MKT = 0.55, SMB = -0.30, HML = -0.40),
-  Asset5 = c(MKT = 1.00, SMB = 0.10, HML = 0.80),
-  Asset6 = c(MKT = 0.90, SMB = 0.55, HML = -0.55)
+common_names <- c(
+  "factor_ff_rf", "factor_ff_mkt_excess",
+  "factor_ff_smb", "factor_ff_hml"
 )
-alpha_true <- c(0.0000, 0.0005, 0.0000, -0.0003, 0.0000, 0.0002)
-
-factor_matrix <- as.matrix(factors[, c("MKT", "SMB", "HML")])
-idiosyncratic <- matrix(
-  rnorm(n_total * nrow(beta_true), sd = 0.025),
-  nrow = n_total
+common_check <- aggregate(
+  d[, common_names],
+  by = list(month = d$month),
+  FUN = function(x) max(x) - min(x)
 )
-excess_return <- factor_matrix %*% t(beta_true) +
-  matrix(alpha_true, nrow = n_total, ncol = nrow(beta_true),
-         byrow = TRUE) +
-  idiosyncratic
-colnames(excess_return) <- rownames(beta_true)
+stopifnot(max(as.matrix(common_check[, -1])) < 1e-12)
 
-rf_monthly <- 0.001
-total_return <- excess_return + rf_monthly
+industries <- sort(unique(d$industry))
+months <- sort(unique(d$month))
+R_excess <- xtabs(ret ~ month + industry, data = d)
+R_excess <- R_excess[, industries, drop = FALSE]
 
-train_id <- 1:480
-valid_id <- 481:600
-test_id <- 601:720
-stopifnot(max(train_id) < min(valid_id), max(valid_id) < min(test_id))
+factor_by_month <- d[!duplicated(d$month), c("month", common_names)]
+factor_by_month <- factor_by_month[match(months, factor_by_month$month), ]
+rf <- factor_by_month$factor_ff_rf
+R_total <- sweep(R_excess, 1, rf, "+")
+
+stopifnot(
+  nrow(R_excess) == 659L,
+  ncol(R_excess) == 10L,
+  !anyNA(R_excess),
+  all(is.finite(R_excess)),
+  max(abs(rowMeans(R_total - R_excess) - rf)) < 1e-12
+)
 ```
 
-## 4. 投資組合代數
-
-### 4.1 由訓練期估計平均數與共變異數
+固定前 60% 為訓練期、接續 20% 為驗證期、最後 20% 為測試期。驗證期只選共變異數收縮強度；測試期不參與任何權重或模型選擇。
 
 
 ``` r
-mu_train <- colMeans(total_return[train_id, , drop = FALSE])
-Sigma_train <- cov(total_return[train_id, , drop = FALSE])
+n_month <- length(months)
+train_end <- floor(0.60 * n_month)
+validation_end <- floor(0.80 * n_month)
+train_id <- seq_len(train_end)
+validation_id <- (train_end + 1L):validation_end
+test_id <- (validation_end + 1L):n_month
 
-portfolio_moments <- function(w, mu, Sigma) {
-  stopifnot(length(w) == length(mu), abs(sum(w) - 1) < 1e-8)
-  c(
-    expected_return = drop(crossprod(w, mu)),
-    variance = drop(t(w) %*% Sigma %*% w),
-    standard_deviation = sqrt(drop(t(w) %*% Sigma %*% w))
-  )
-}
+stopifnot(max(train_id) < min(validation_id), max(validation_id) < min(test_id))
+data.frame(
+  sample = c("訓練", "驗證", "測試"),
+  first_month = months[c(min(train_id), min(validation_id), min(test_id))],
+  last_month = months[c(max(train_id), max(validation_id), max(test_id))],
+  observations = c(length(train_id), length(validation_id), length(test_id))
+)
 ```
 
-### 4.2 等權重、GMV 與穩定化 GMV
+```
+##   sample first_month last_month observations
+## 1   訓練  1967-01-01 1999-11-01          395
+## 2   驗證  1999-12-01 2010-11-01          132
+## 3   測試  2010-12-01 2021-11-01          132
+```
+
+## 3. 等權重、GMV 與驗證期收縮 GMV
+
+GMV 權重為
+
+\[
+\widehat w_{GMV}=
+\frac{\widehat\Sigma^{-1}\mathbf 1}
+{\mathbf 1^\top\widehat\Sigma^{-1}\mathbf 1}.
+\]
+
+為降低小特徵值造成的不穩定，候選共變異數為
+
+\[
+\widehat\Sigma_\lambda=(1-\lambda)\widehat\Sigma+
+\lambda\operatorname{diag}(\widehat\Sigma),
+\]
+
+且只用驗證期實現波動選擇 \(\lambda\)。
 
 
 ``` r
-n_asset <- ncol(total_return)
-w_equal <- rep(1 / n_asset, n_asset)
-
-gmv_weights <- function(Sigma) {
-  one <- rep(1, nrow(Sigma))
-  raw <- solve(Sigma, one)
+gmv_weights <- function(Sigma, lambda = 0) {
+  stopifnot(lambda >= 0, lambda <= 1)
+  Sigma_use <- (1 - lambda) * Sigma + lambda * diag(diag(Sigma))
+  one <- rep(1, nrow(Sigma_use))
+  raw <- solve(Sigma_use, one)
   drop(raw / sum(raw))
 }
 
-w_gmv <- gmv_weights(Sigma_train)
+Sigma_train <- cov(R_total[train_id, , drop = FALSE])
+lambda_grid <- c(0, 0.10, 0.25, 0.50, 0.75, 1)
+validation_sd <- vapply(lambda_grid, function(lambda) {
+  w <- gmv_weights(Sigma_train, lambda)
+  sd(drop(R_total[validation_id, , drop = FALSE] %*% w))
+}, numeric(1))
 
-# 向對角矩陣收縮，降低小特徵值造成的極端權重。
-shrinkage <- 0.25
-Sigma_shrunk <- (1 - shrinkage) * Sigma_train +
-  shrinkage * diag(diag(Sigma_train))
-w_gmv_shrunk <- gmv_weights(Sigma_shrunk)
+shrinkage_table <- data.frame(
+  lambda = lambda_grid,
+  validation_monthly_sd = validation_sd
+)
+selected_lambda <- lambda_grid[which.min(validation_sd)]
+shrinkage_table
+```
+
+```
+##   lambda validation_monthly_sd
+## 1   0.00            0.04387532
+## 2   0.10            0.04185025
+## 3   0.25            0.04111311
+## 4   0.50            0.04110520
+## 5   0.75            0.04189224
+## 6   1.00            0.04337890
+```
+
+``` r
+selected_lambda
+```
+
+```
+## [1] 0.5
+```
+
+鎖定 \(\lambda\) 後，合併訓練與驗證期重新估計一次；測試期仍未參與。
+
+
+``` r
+development_id <- c(train_id, validation_id)
+Sigma_development <- cov(R_total[development_id, , drop = FALSE])
+n_asset <- ncol(R_total)
 
 weights <- rbind(
-  Equal = w_equal,
-  GMV = w_gmv,
-  Shrunk_GMV = w_gmv_shrunk
+  Equal = rep(1 / n_asset, n_asset),
+  GMV = gmv_weights(Sigma_development, 0),
+  Validation_Shrunk_GMV = gmv_weights(Sigma_development, selected_lambda)
 )
-colnames(weights) <- colnames(total_return)
-round(weights, 4)
+colnames(weights) <- industries
+stopifnot(max(abs(rowSums(weights) - 1)) < 1e-10)
+round(weights, 3)
 ```
 
 ```
-##             Asset1 Asset2  Asset3 Asset4 Asset5 Asset6
-## Equal       0.1667 0.1667  0.1667 0.1667 0.1667 0.1667
-## GMV        -0.0654 0.3320 -0.1576 0.6078 0.0745 0.2086
-## Shrunk_GMV -0.0013 0.2767 -0.0543 0.5405 0.0719 0.1665
+##                       Durbl Enrgy HiTec  Hlth Manuf NoDur  Other Shops Telcm
+## Equal                 0.100 0.100 0.100 0.100 0.100 0.100  0.100 0.100 0.100
+## GMV                   0.019 0.128 0.000 0.165 0.084 0.276 -0.465 0.077 0.268
+## Validation_Shrunk_GMV 0.013 0.115 0.016 0.126 0.056 0.157 -0.002 0.051 0.169
+##                       Utils
+## Equal                 0.100
+## GMV                   0.447
+## Validation_Shrunk_GMV 0.300
 ```
 
 
 ``` r
-t(apply(weights, 1, portfolio_moments,
-        mu = mu_train, Sigma = Sigma_train))
-```
-
-```
-##            expected_return     variance standard_deviation
-## Equal          0.006693737 0.0012141421         0.03484454
-## GMV            0.003314328 0.0007166275         0.02676990
-## Shrunk_GMV     0.003896037 0.0007451363         0.02729718
-```
-
-### 4.3 真正向前的測試期績效
-
-權重在進入測試期前即鎖定。以下績效只使用測試期實現報酬；這是可行的靜態保留期評估。
-
-
-``` r
-portfolio_path <- function(return_matrix, w) {
-  drop(return_matrix %*% w)
-}
-
 max_drawdown <- function(r) {
-  wealth <- cumprod(1 + r)
-  drawdown <- wealth / cummax(c(1, wealth))[-1] - 1
-  min(drawdown)
+  wealth <- c(1, cumprod(1 + r))
+  min(wealth / cummax(wealth) - 1)
 }
 
-performance <- t(apply(weights, 1, function(w) {
-  r <- portfolio_path(total_return[test_id, , drop = FALSE], w)
+test_performance <- t(vapply(seq_len(nrow(weights)), function(j) {
+  total <- drop(R_total[test_id, , drop = FALSE] %*% weights[j, ])
+  excess <- total - rf[test_id]
   c(
-    mean_monthly = mean(r),
-    sd_monthly = sd(r),
-    sharpe_monthly = mean(r - rf_monthly) / sd(r - rf_monthly),
-    max_drawdown = max_drawdown(r)
+    annualized_mean_total = 12 * mean(total),
+    annualized_sd = sqrt(12) * sd(total),
+    annualized_sharpe = sqrt(12) * mean(excess) / sd(excess),
+    maximum_drawdown = max_drawdown(total)
   )
-}))
-performance
+}, numeric(4)))
+rownames(test_performance) <- rownames(weights)
+round(test_performance, 4)
 ```
 
 ```
-##            mean_monthly sd_monthly sharpe_monthly max_drawdown
-## Equal       0.009111001 0.03694560      0.2195390   -0.1311641
-## GMV         0.004536931 0.02942022      0.1202211   -0.1683296
-## Shrunk_GMV  0.005601164 0.03019659      0.1523736   -0.1494338
+##                       annualized_mean_total annualized_sd annualized_sharpe
+## Equal                                0.1433        0.1412            0.9768
+## GMV                                  0.1045        0.1166            0.8512
+## Validation_Shrunk_GMV                0.1178        0.1198            0.9389
+##                       maximum_drawdown
+## Equal                          -0.2291
+## GMV                            -0.1861
+## Validation_Shrunk_GMV          -0.2224
 ```
 
 
 ``` r
 wealth <- sapply(seq_len(nrow(weights)), function(j) {
-  cumprod(1 + portfolio_path(
-    total_return[test_id, , drop = FALSE],
-    weights[j, ]
-  ))
+  cumprod(1 + drop(R_total[test_id, , drop = FALSE] %*% weights[j, ]))
 })
 matplot(
-  wealth, type = "l", lty = 1, lwd = 1.2,
-  col = c("#173B57", "#A34045", "#3F7158"),
-  xlab = "測試期月份", ylab = "累積財富",
-  main = "只用訓練期權重的保留期績效"
+  months[test_id], wealth, type = "l", lty = 1, lwd = 1.5,
+  col = c("#173B57", "#A34045", "#1D6D73"),
+  xlab = "月份", ylab = "累積財富",
+  main = "真實十產業：固定權重的測試期表現"
 )
 legend(
-  "topleft", legend = rownames(weights),
-  col = c("#173B57", "#A34045", "#3F7158"),
-  lty = 1, bty = "n"
+  "topleft", rownames(weights),
+  col = c("#173B57", "#A34045", "#1D6D73"),
+  lty = 1, lwd = 1.5, bty = "n"
 )
 ```
 
-![plot of chunk wealth-plot](./R09_portfolio_capm_factors_files/figure-gfm/wealth-plot-1.png)
+![固定權重在最終測試期的累積財富；未扣交易成本。](../R09_portfolio_capm_factors_files/figure-gfm/wealth-plot-1.png)
 
-模擬中的勝負不是一般結論；重點是權重估計與績效期間已分離。
+這是歷史保留期比較，不是可交易績效宣告：未納入交易成本、估計誤差、多重嘗試或產業投資組合實際取得方式。
 
-## 5. CAPM 與三因子迴歸
+## 4. 真實產業報酬的 CAPM 與 FF3
 
-### 5.1 只用訓練期估計
+以下以製造業（`Manuf`）為焦點，係數只用訓練期估計。因子是當月已實現報酬，所以測試期結果是**同期條件重建**，不是月初可交易的事前預測。
 
 
 ``` r
+focus_industry <- "Manuf"
 reg_data <- data.frame(
-  y = excess_return[, "Asset1"],
-  factors[, c("MKT", "SMB", "HML")]
+  month = months,
+  y = as.numeric(R_excess[, focus_industry]),
+  MKT = factor_by_month$factor_ff_mkt_excess,
+  SMB = factor_by_month$factor_ff_smb,
+  HML = factor_by_month$factor_ff_hml
 )
 
 fit_capm <- lm(y ~ MKT, data = reg_data, subset = train_id)
-fit_three <- lm(y ~ MKT + SMB + HML,
-                data = reg_data, subset = train_id)
+fit_ff3 <- lm(y ~ MKT + SMB + HML, data = reg_data, subset = train_id)
 
-rbind(
-  truth = c(
-    `(Intercept)` = alpha_true[1],
-    MKT = beta_true["Asset1", "MKT"],
-    SMB = beta_true["Asset1", "SMB"],
-    HML = beta_true["Asset1", "HML"]
-  ),
-  CAPM = c(coef(fit_capm), SMB = NA, HML = NA),
-  ThreeFactor = coef(fit_three)
-)
-```
-
-```
-##              (Intercept)      MKT      SMB        HML
-## truth       0.0000000000 1.100000 0.400000 -0.2000000
-## CAPM        0.0007645363 1.152039       NA         NA
-## ThreeFactor 0.0007656593 1.155590 0.456667 -0.1836672
-```
-
-CAPM 遺漏 SMB 與 HML 時，市場 beta 與 alpha 可能吸收相關的共同變動。即使三因子模型接近資料生成式，有限樣本估計仍不會等於真值。
-
-### 5.2 基礎 R 的 Newey--West 型 HAC 共變異數
-
-
-``` r
-newey_west_vcov <- function(model, lag = 6) {
+newey_west_vcov <- function(model, lag = 6L) {
   X <- model.matrix(model)
   e <- residuals(model)
   n <- nrow(X)
-  stopifnot(lag >= 0, lag < n)
-
   Xe <- X * as.numeric(e)
   meat <- crossprod(Xe)
-  if (lag > 0) {
+  if (lag > 0L) {
     for (ell in seq_len(lag)) {
       weight <- 1 - ell / (lag + 1)
       Gamma <- crossprod(
-        Xe[(ell + 1):n, , drop = FALSE],
-        Xe[1:(n - ell), , drop = FALSE]
+        Xe[(ell + 1L):n, , drop = FALSE],
+        Xe[seq_len(n - ell), , drop = FALSE]
       )
       meat <- meat + weight * (Gamma + t(Gamma))
     }
@@ -375,116 +353,110 @@ newey_west_vcov <- function(model, lag = 6) {
   bread %*% meat %*% bread
 }
 
-V_hac <- newey_west_vcov(fit_three, lag = 6)
+V_ff3 <- newey_west_vcov(fit_ff3, lag = 6L)
 data.frame(
-  estimate = coef(fit_three),
-  HAC_se = sqrt(diag(V_hac)),
-  row.names = names(coef(fit_three))
+  term = names(coef(fit_ff3)),
+  estimate = unname(coef(fit_ff3)),
+  HAC_se_L6 = sqrt(diag(V_ff3)),
+  row.names = NULL
 )
 ```
 
 ```
-##                  estimate      HAC_se
-## (Intercept)  0.0007656593 0.001254279
-## MKT          1.1555902572 0.035825092
-## SMB          0.4566670111 0.077520367
-## HML         -0.1836672223 0.066937074
+##          term     estimate    HAC_se_L6
+## 1 (Intercept) -0.001245651 0.0008102358
+## 2         MKT  1.055043308 0.0188703733
+## 3         SMB  0.031724972 0.0251161499
+## 4         HML  0.049466265 0.0430464166
 ```
-
-這是教學實作；正式分析還要依資料頻率、重疊報酬與條件異質變異選擇落後期數及有限樣本修正。
-
-## 6. HML 反向會發生什麼？
-
-若錯把 HML 寫成 low minus high，整列因子乘以 \(-1\)。迴歸配適值可以完全相同，但 HML beta 反號，經濟解讀也必須反向。
 
 
 ``` r
-reg_wrong <- transform(reg_data, HML_wrong = -HML)
-fit_wrong <- lm(
-  y ~ MKT + SMB + HML_wrong,
-  data = reg_wrong, subset = train_id
-)
-
-c(
-  correct_HML_beta = coef(fit_three)["HML"],
-  reversed_HML_beta = coef(fit_wrong)["HML_wrong"],
-  maximum_fitted_difference = max(abs(
-    fitted(fit_three) - fitted(fit_wrong)
-  ))
-)
-```
-
-```
-##        correct_HML_beta.HML reversed_HML_beta.HML_wrong 
-##                  -0.1836672                   0.1836672 
-##   maximum_fitted_difference 
-##                   0.0000000
-```
-
-``` r
-stopifnot(
-  isTRUE(all.equal(
-    unname(coef(fit_three)["HML"]),
-    -unname(coef(fit_wrong)["HML_wrong"]),
-    tolerance = 1e-10
-  ))
-)
-```
-
-## 7. 條件重建，不冒充事前預測
-
-用訓練期係數與驗證／測試期「同期已實現」因子重建同期資產報酬。這可比較因子集合的條件解釋能力，但因子在月初尚未實現，所以不是可交易的月初預測。
-
-
-``` r
-reconstruction_error <- function(model, newdata, actual) {
-  predicted <- predict(model, newdata = newdata)
+score_reconstruction <- function(model, rows) {
+  prediction <- predict(model, newdata = reg_data[rows, ])
+  actual <- reg_data$y[rows]
   c(
-    RMSE = sqrt(mean((actual - predicted)^2)),
-    MAE = mean(abs(actual - predicted))
+    RMSE = sqrt(mean((actual - prediction)^2)),
+    MAE = mean(abs(actual - prediction)),
+    conditional_R2 = 1 - sum((actual - prediction)^2) /
+      sum((actual - mean(reg_data$y[train_id]))^2)
   )
 }
 
-reconstruction <- rbind(
-  CAPM_validation = reconstruction_error(
-    fit_capm, reg_data[valid_id, ],
-    reg_data$y[valid_id]
-  ),
-  ThreeFactor_validation = reconstruction_error(
-    fit_three, reg_data[valid_id, ],
-    reg_data$y[valid_id]
-  ),
-  CAPM_test = reconstruction_error(
-    fit_capm, reg_data[test_id, ],
-    reg_data$y[test_id]
-  ),
-  ThreeFactor_test = reconstruction_error(
-    fit_three, reg_data[test_id, ],
-    reg_data$y[test_id]
-  )
+conditional_test <- rbind(
+  CAPM = score_reconstruction(fit_capm, test_id),
+  FF3 = score_reconstruction(fit_ff3, test_id)
 )
-reconstruction
+round(conditional_test, 4)
 ```
 
 ```
-##                              RMSE        MAE
-## CAPM_validation        0.02543935 0.02078985
-## ThreeFactor_validation 0.02442712 0.01957688
-## CAPM_test              0.02422435 0.01913302
-## ThreeFactor_test       0.02442523 0.01974323
+##        RMSE    MAE conditional_R2
+## CAPM 0.0157 0.0120         0.8826
+## FF3  0.0152 0.0117         0.8905
 ```
 
-若要做真正事前預測，必須在每個預測起點另行預測 MKT、SMB 與 HML，或建立直接預測資產報酬的模型；該因子預測也只能使用當時資訊。
 
-## 8. 可重現結論
+``` r
+all_industry_rmse <- do.call(rbind, lapply(industries, function(industry) {
+  one <- transform(reg_data, y = as.numeric(R_excess[, industry]))
+  capm <- lm(y ~ MKT, data = one, subset = train_id)
+  ff3 <- lm(y ~ MKT + SMB + HML, data = one, subset = train_id)
+  data.frame(
+    industry = industry,
+    CAPM_test_RMSE = sqrt(mean((one$y[test_id] - predict(capm, one[test_id, ]))^2)),
+    FF3_test_RMSE = sqrt(mean((one$y[test_id] - predict(ff3, one[test_id, ]))^2))
+  )
+}))
+all_industry_rmse$FF3_minus_CAPM <-
+  all_industry_rmse$FF3_test_RMSE - all_industry_rmse$CAPM_test_RMSE
+all_industry_rmse
+```
 
-本附錄建立了以下防線：
+```
+##    industry CAPM_test_RMSE FF3_test_RMSE FF3_minus_CAPM
+## 1     Durbl     0.05813085    0.05715474  -0.0009761165
+## 2     Enrgy     0.05894024    0.05692949  -0.0020107531
+## 3     HiTec     0.01990691    0.01798862  -0.0019182973
+## 4      Hlth     0.02467100    0.02520409   0.0005330911
+## 5     Manuf     0.01574446    0.01519984  -0.0005446143
+## 6     NoDur     0.02414882    0.02488379   0.0007349714
+## 7     Other     0.01724476    0.01375786  -0.0034869024
+## 8     Shops     0.02093788    0.02194264   0.0010047576
+## 9     Telcm     0.02558006    0.02507557  -0.0005044857
+## 10    Utils     0.03220611    0.03544833   0.0032422134
+```
 
-1. HML 由函數與單元測試固定為 high minus low；
-2. 投資組合權重只由訓練期平均數與共變異數決定；
-3. CAPM 與三因子 beta 只在訓練期估計；
-4. 使用同期測試因子的結果只稱為條件重建；
-5. 所有資料皆為明確標示的合成教學資料。
+
+``` r
+capm_test <- predict(fit_capm, newdata = reg_data[test_id, ])
+ff3_test <- predict(fit_ff3, newdata = reg_data[test_id, ])
+matplot(
+  months[test_id],
+  cbind(reg_data$y[test_id], capm_test, ff3_test),
+  type = "l", lty = c(1, 2, 3), lwd = c(1.6, 1.2, 1.2),
+  col = c("black", "#A34045", "#1D6D73"),
+  xlab = "月份", ylab = "月超額報酬（小數）",
+  main = "Manuf：測試期同期條件重建"
+)
+legend(
+  "topleft", c("Actual", "CAPM", "FF3"),
+  col = c("black", "#A34045", "#1D6D73"),
+  lty = c(1, 2, 3), lwd = c(1.6, 1.2, 1.2), bty = "n"
+)
+```
+
+![製造業測試期實現超額報酬與同期因子條件重建。](../R09_portfolio_capm_factors_files/figure-gfm/conditional-fit-plot-1.png)
+
+FF3 測試誤差若低於 CAPM，只能說在這個固定切分下，加入同期 SMB 與 HML 改善條件解釋；不能直接推成未來報酬可預測、因子具有因果效果或策略可獲利。
+
+## 5. 可重現結論
+
+1. 十產業、RF 與 FF3 都來自真實的固定月資料，不再用合成資產作主結果。
+2. 所有資料均明示為月小數報酬；產業 `ret` 已扣除 RF。
+3. 收縮強度只用驗證期選定，最後測試期完全保留。
+4. CAPM／FF3 使用測試期同期因子時，只稱條件重建。
+5. 公開 repo 隨附作者授權的 processed CSV，可直接重跑；若另由上游重建，仍須保存來源、版本與轉換紀錄。
 
 
 ``` r
@@ -513,9 +485,10 @@ sessionInfo()
 ## [1] tibble_3.3.0 dplyr_1.2.1 
 ## 
 ## loaded via a namespace (and not attached):
-##  [1] utf8_1.2.6       R6_2.6.1         tidyselect_1.2.1 xfun_0.57       
-##  [5] magrittr_2.0.4   glue_1.8.0       knitr_1.51       pkgconfig_2.0.3 
-##  [9] generics_0.1.4   lifecycle_1.0.5  cli_3.6.5        vctrs_0.7.2     
-## [13] withr_3.0.2      compiler_4.5.2   tools_4.5.2      evaluate_1.0.5  
-## [17] pillar_1.11.1    otel_0.2.0       rlang_1.1.7
+##  [1] utf8_1.2.6        R6_2.6.1          tidyselect_1.2.1  xfun_0.57        
+##  [5] magrittr_2.0.4    glue_1.8.0        knitr_1.51        pkgconfig_2.0.3  
+##  [9] generics_0.1.4    lifecycle_1.0.5   cli_3.6.5         vctrs_0.7.2      
+## [13] textshaping_1.0.5 systemfonts_1.3.2 compiler_4.5.2    tools_4.5.2      
+## [17] ragg_1.5.2        evaluate_1.0.5    pillar_1.11.1     otel_0.2.0       
+## [21] rlang_1.1.7
 ```

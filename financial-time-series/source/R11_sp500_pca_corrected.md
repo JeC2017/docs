@@ -6,9 +6,9 @@ output:
     toc_depth: 3
 ---
 
-本附錄對應第 15 章，使用專案內凍結的日報酬面板，示範如何先修正跨股票使用 `lag()` 的錯誤，再以嚴格的時間切分進行主成分分析（PCA）。資料只包含 89 檔在共同日期均有觀察值的股票，**不是完整的 S&P 500 指數成分股歷史**；平衡化可能帶來成分股選擇與存活者偏誤。因此，以下結果只供方法教學，不用來衡量整體市場績效，也不構成交易策略證據。
+本附錄對應第 15 章，使用作者工作用的**真實觀測凍結快照**，示範如何先修正跨股票使用 `lag()` 的錯誤，再以嚴格的時間切分進行主成分分析（PCA）。資料為 2013 年 1 月 3 日至 2022 年 6 月 22 日的 2,384 個共同交易日與 89 檔股票；欄值是股票內依日期計算的日簡單報酬，採小數單位，例如 0.01 代表 1%。這 89 檔只是在共同日期均有觀察值的平衡子樣本，**不是完整的 S&P 500 指數成分股歷史**；平衡化可能帶來成分股選擇與存活者偏誤。因此，以下結果只供方法教學，不用來衡量整體市場績效，也不構成交易策略證據；PCA 是描述性降維，不識別因果效果。
 
-依 `data/DATA_SOURCES.md` 的已決定政策，公開網站提供程式與執行結果，但不再散布凍結價格衍生面板；讀者須自行取得合法資料，再執行同一套清理程式。
+原課程檔含價格、公司、權重與市場識別欄位，但原始供應商、成分股形成日與資料 vintage 尚未保存完整。公開 repo 隨附作者授權的 `sp500_returns_balanced_2013_2022.csv` 凍結衍生面板，因此本 Rmd 可直接、自含重跑；若要從原始市場資料重新建置，仍須補齊上游來源與形成日，再依「先按股票分組、組內排序、組內落後」的資料契約重建。這項來源缺口限制的是從原始資料重建與經濟外推，不限制公開 processed 快照的執行。
 
 
 ``` r
@@ -91,7 +91,7 @@ data.frame(
 ## 1 2013-01-03 2022-06-22         2384     89 09c9690effb82b3fabdccaa982397e83
 ```
 
-檢查碼的用途是確認本次分析讀到的確實是教材所凍結的版本；它不能替代資料授權或經濟意義的查核。
+檢查碼的用途是確認本次分析讀到的確實是教材所凍結並授權公開的版本；它不能替代上游供應者、形成日、vintage 或經濟意義的查核。
 
 ## 2. 為何不能在整張長表直接做 `lag()`
 
@@ -305,7 +305,7 @@ plot(
 abline(h = 1, lty = 2, col = "#A34045")
 ```
 
-![plot of chunk scree-plot](./R11_sp500_pca_corrected_files/figure-gfm/scree-plot-1.png)
+![plot of chunk scree-plot](../R11_sp500_pca_corrected_files/figure-gfm/scree-plot-1.png)
 
 ### 4.1 負荷量與正負號不定性
 
@@ -517,7 +517,7 @@ legend(
 )
 ```
 
-![plot of chunk test-score-plot](./R11_sp500_pca_corrected_files/figure-gfm/test-score-plot-1.png)
+![plot of chunk test-score-plot](../R11_sp500_pca_corrected_files/figure-gfm/test-score-plot-1.png)
 
 ## 8. 可重現性與解讀清單
 
@@ -529,7 +529,7 @@ legend(
 4. 維度規則是否在查看測試期前鎖定；
 5. 是否把同日重建誤稱為未來報酬預測；
 6. 是否承認 PCA 正負號與未旋轉共同子空間的可識別限制；
-7. 原始資料是否允許再散布。
+7. processed 公開檔的版本與 MD5 是否一致；若從上游重建，供應者、形成日與 vintage 是否完整記錄。
 
 
 ``` r
@@ -558,9 +558,10 @@ sessionInfo()
 ## [1] tibble_3.3.0 dplyr_1.2.1 
 ## 
 ## loaded via a namespace (and not attached):
-##  [1] utf8_1.2.6       R6_2.6.1         tidyselect_1.2.1 xfun_0.57       
-##  [5] magrittr_2.0.4   glue_1.8.0       knitr_1.51       pkgconfig_2.0.3 
-##  [9] generics_0.1.4   lifecycle_1.0.5  cli_3.6.5        vctrs_0.7.2     
-## [13] withr_3.0.2      compiler_4.5.2   tools_4.5.2      evaluate_1.0.5  
-## [17] pillar_1.11.1    otel_0.2.0       rlang_1.1.7
+##  [1] utf8_1.2.6        R6_2.6.1          tidyselect_1.2.1  xfun_0.57        
+##  [5] magrittr_2.0.4    glue_1.8.0        knitr_1.51        pkgconfig_2.0.3  
+##  [9] generics_0.1.4    lifecycle_1.0.5   cli_3.6.5         vctrs_0.7.2      
+## [13] textshaping_1.0.5 systemfonts_1.3.2 compiler_4.5.2    tools_4.5.2      
+## [17] ragg_1.5.2        evaluate_1.0.5    pillar_1.11.1     otel_0.2.0       
+## [21] rlang_1.1.7
 ```

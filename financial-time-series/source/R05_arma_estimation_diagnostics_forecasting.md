@@ -1,58 +1,95 @@
 ---
-title: "R05：ARMA 估計、診斷與多步預測"
+title: "R05：AAPL 的 ARMA 估計、診斷與預測"
 output:
   github_document:
     toc: true
     toc_depth: 3
 ---
 
-本附錄對應第 6--7 章。以固定種子 ARMA(1,1) 資料示範：先保留時間排序的測試期，只在訓練樣本比較低階候選模型，再檢查根、殘差與平方殘差，最後形成一次多步預測與區間。因資料生成參數已知，可分辨估計誤差與程式錯誤。
+本附錄對應第 6--7 章，以真實 AAPL 日對數報酬示範 ARMA 候選模型、根、殘差診斷與一次形成的多步預測。固定資料源自原課程 S&P 500 價格檔；有效報酬樣本為 2019-01-03 至 2022-06-22，共 874 筆，單位是小數日對數報酬。資料建置方式見 `data/DATA_SOURCES.md`。
+
+模型只描述 AAPL 報酬的條件平均動態。係數、診斷與預測誤差都不能解讀成市場事件對 AAPL 的因果效果，也不構成投資建議。
 
 
 ``` r
 knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
-  fig.width = 7, fig.height = 4.5
+  fig.width = 8, fig.height = 4.8,
+  dev = "ragg_png", dpi = 144,
+  dev.args = list(background = "white")
 )
-set.seed(20260716)
+
+root_candidates <- c(".", "..")
+is_root <- vapply(root_candidates, function(x) {
+  file.exists(file.path(x, "main.tex"))
+}, logical(1))
+stopifnot(any(is_root))
+project_root <- root_candidates[which(is_root)[1]]
+project_path <- function(...) file.path(project_root, ...)
+
+stopifnot(
+  requireNamespace("ragg", quietly = TRUE),
+  requireNamespace("systemfonts", quietly = TRUE)
+)
+cwtex_file <- project_path("assets", "fonts", "cwTeXQKai-Medium.ttf")
+stopifnot(file.exists(cwtex_file))
+if (!"cwTeX Online" %in% systemfonts::registry_fonts()$family) {
+  systemfonts::register_font("cwTeX Online", cwtex_file)
+}
+plot_family <- "cwTeX Online"
 ```
 
-## 固定資料生成過程與時間切分
+## 固定資料與時間切分
+
+前 80% 報酬是訓練期，最後 20% 是一次性測試期。候選模型、BIC 與所有參數只能使用訓練期；測試期不參與規格選擇。
 
 
 ``` r
-n <- 700L
-true_phi <- 0.55
-true_theta <- -0.35
-innovation_sd <- 1.2
-
-y <- as.numeric(arima.sim(
-  model = list(ar = true_phi, ma = true_theta),
-  n = n, sd = innovation_sd
+aapl <- read.csv(project_path(
+  "data", "processed", "aapl_adjusted_daily_2019_2022.csv"
 ))
+aapl$date <- as.Date(aapl$date)
+aapl <- aapl[order(aapl$date), ]
+aapl <- aapl[is.finite(aapl$log_return), ]
+row.names(aapl) <- NULL
 
-train_end <- 550L
-y_train <- y[1:train_end]
+stopifnot(
+  !anyNA(aapl$date), !anyNA(aapl$log_return),
+  all(diff(aapl$date) > 0)
+)
+
+y <- aapl$log_return
+dates <- aapl$date
+n <- length(y)
+train_end <- floor(0.80 * n)
+y_train <- y[seq_len(train_end)]
 y_test <- y[(train_end + 1L):n]
 
-c(
-  training_observations = length(y_train),
-  test_observations = length(y_test),
-  first_test_index = train_end + 1L
+split_table <- data.frame(
+  區段 = c("訓練期", "測試期"),
+  起日 = dates[c(1L, train_end + 1L)],
+  迄日 = dates[c(train_end, n)],
+  觀察值 = c(train_end, n - train_end),
+  資料來源 = "原課程 S&P 500 價格檔的 AAPL 固定版本",
+  單位 = "日對數報酬，小數",
+  check.names = FALSE
 )
+knitr::kable(split_table)
 ```
 
-```
-## training_observations     test_observations      first_test_index 
-##                   550                   150                   551
-```
 
-測試期在模型選擇時完全不使用。這個附錄比較的是「訓練期末一次形成的多步預測」，不是每期重新估計的一步策略；後者見 R06。
 
-## 候選模型與共同樣本
+|區段   |起日       |迄日       | 觀察值|資料來源                              |單位             |
+|:------|:----------|:----------|------:|:-------------------------------------|:----------------|
+|訓練期 |2019-01-03 |2021-10-11 |    699|原課程 S&P 500 價格檔的 AAPL 固定版本 |日對數報酬，小數 |
+|測試期 |2021-10-12 |2022-06-22 |    175|原課程 S&P 500 價格檔的 AAPL 固定版本 |日對數報酬，小數 |
 
-候選集合事前限制為低階模型。stats::arima 對定態 ARMA 的 intercept 係數代表序列平均數，不是
-\(Y_t=c+\phi Y_{t-1}+a_t\) 中的 \(c\)；判讀時必須注意參數化。
+這裡評估的是「在訓練期末一次形成、之後不重新估計」的多步預測。逐期重估或滾動視窗的評估見 R06。
+
+## 只在訓練期比較低階候選模型
+
+候選集合在看測試結果以前固定。`stats::arima()` 對定態 ARMA 所報的 `intercept` 是序列平均數，而不是
+$Y_t=c+\phi Y_{t-1}+a_t$ 中的 $c$。
 
 
 ``` r
@@ -62,7 +99,9 @@ candidate_orders <- list(
   MA01 = c(0, 0, 1),
   ARMA11 = c(1, 0, 1),
   AR20 = c(2, 0, 0),
-  MA02 = c(0, 0, 2)
+  MA02 = c(0, 0, 2),
+  ARMA21 = c(2, 0, 1),
+  ARMA12 = c(1, 0, 2)
 )
 
 fits <- lapply(candidate_orders, function(ord) {
@@ -73,33 +112,67 @@ fits <- lapply(candidate_orders, function(ord) {
     method = "ML"
   )
 })
+stopifnot(all(vapply(fits, function(z) z$code == 0, logical(1))))
 
 model_table <- data.frame(
-  model = names(fits),
+  模型 = names(fits),
   p = vapply(candidate_orders, function(z) z[1], numeric(1)),
   q = vapply(candidate_orders, function(z) z[3], numeric(1)),
-  log_likelihood = vapply(fits, function(z) as.numeric(logLik(z)), numeric(1)),
+  對數概似 = vapply(fits, function(z) as.numeric(logLik(z)), numeric(1)),
   AIC = vapply(fits, AIC, numeric(1)),
   BIC = vapply(fits, BIC, numeric(1)),
-  row.names = NULL
+  check.names = FALSE
 )
-model_table[order(model_table$AIC), ]
+model_table <- model_table[order(model_table$BIC), ]
+row.names(model_table) <- NULL
+knitr::kable(model_table, digits = 3)
+```
+
+
+
+|模型   |  p|  q| 對數概似|       AIC|       BIC|
+|:------|--:|--:|--------:|---------:|---------:|
+|AR10   |  1|  0| 1692.238| -3378.477| -3364.828|
+|MA01   |  0|  1| 1691.150| -3376.300| -3362.651|
+|ARMA11 |  1|  1| 1692.452| -3376.904| -3358.705|
+|AR20   |  2|  0| 1692.444| -3376.887| -3358.689|
+|MA02   |  0|  2| 1692.226| -3376.451| -3358.253|
+|ARMA12 |  1|  2| 1692.452| -3374.905| -3352.156|
+|ARMA21 |  2|  1| 1692.452| -3374.903| -3352.155|
+|ARMA00 |  0|  0| 1678.042| -3352.084| -3342.985|
+
+``` r
+selected_name <- model_table$模型[1]
+selected_fit <- fits[[selected_name]]
+selected_order <- candidate_orders[[selected_name]]
+selected_name
 ```
 
 ```
-##    model p q log_likelihood      AIC      BIC
-## 4 ARMA11 1 1      -910.9506 1829.901 1847.141
-## 5   AR20 2 0      -911.6655 1831.331 1848.571
-## 2   AR10 1 0      -913.3429 1832.686 1845.615
-## 6   MA02 0 2      -912.8188 1833.638 1850.877
-## 3   MA01 0 1      -915.3380 1836.676 1849.606
-## 1 ARMA00 0 0      -926.4747 1856.949 1865.569
+## [1] "AR10"
 ```
 
-所有模型使用同一訓練序列；這避免 AIC 差異混入樣本不同。AIC/BIC 只負責縮小候選集合，不是測試期成績。
+BIC 是訓練期內的相對比較，不是測試期成績，也不保證候選集合包含正確模型。
 
-## 檢查 AR 與 MA 根
+## 係數、定態根與可逆根
 
+
+``` r
+coefficient_table <- data.frame(
+  參數 = names(coef(selected_fit)),
+  估計值 = as.numeric(coef(selected_fit)),
+  標準誤 = sqrt(diag(selected_fit$var.coef)),
+  check.names = FALSE
+)
+knitr::kable(coefficient_table, digits = 6)
+```
+
+
+
+|          |參數      |    估計值|   標準誤|
+|:---------|:---------|---------:|--------:|
+|ar1       |ar1       | -0.202870| 0.037686|
+|intercept |intercept |  0.001906| 0.000677|
 
 ``` r
 extract_roots <- function(fit) {
@@ -120,230 +193,230 @@ extract_roots <- function(fit) {
 
   rbind(
     if (length(ar_roots)) data.frame(
-      part = "AR", root = ar_roots, modulus = Mod(ar_roots)
+      部分 = "AR", 實部 = Re(ar_roots), 虛部 = Im(ar_roots), 模 = Mod(ar_roots)
     ),
     if (length(ma_roots)) data.frame(
-      part = "MA", root = ma_roots, modulus = Mod(ma_roots)
+      部分 = "MA", 實部 = Re(ma_roots), 虛部 = Im(ma_roots), 模 = Mod(ma_roots)
     )
   )
 }
 
-root_results <- lapply(names(fits), function(nm) {
-  out <- extract_roots(fits[[nm]])
-  if (!is.null(out) && nrow(out)) out$model <- nm
-  out
-})
-root_results <- do.call(rbind, root_results)
-root_results[, c("model", "part", "root", "modulus")]
-```
-
-```
-##    model part                    root  modulus
-## 1   AR10   AR  4.633781+0.000000e+00i 4.633781
-## 2   MA01   MA -5.385256+0.000000e+00i 5.385256
-## 3 ARMA11   AR  1.545550+0.000000e+00i 1.545550
-## 4 ARMA11   MA  2.156871+0.000000e+00i 2.156871
-## 5   AR20   AR  2.525975-6.286573e-23i 2.525975
-## 6   AR20   AR -5.073672+6.286573e-23i 5.073672
-## 7   MA02   MA -1.035531+3.120070e+00i 3.287425
-## 8   MA02   MA -1.035531-3.120070e+00i 3.287425
-```
-
-``` r
-stopifnot(all(root_results$modulus > 1))
-```
-
-AR 根大於 1 表示估計的定態表示；MA 根大於 1 表示可逆表示。根非常接近 1 時，即使形式上符合限制，有限樣本推論與遠期預測仍會不穩定。
-
-## 殘差與平方殘差診斷
-
-
-``` r
-diagnose_fit <- function(fit, lag = 20L) {
-  e <- residuals(fit)
-  e <- e[is.finite(e)]
-  fitted_parameters <- length(grep(
-    "^(ar|ma)[0-9]+$", names(coef(fit))
-  ))
-  q_mean <- Box.test(
-    e, lag = lag, type = "Ljung-Box",
-    fitdf = fitted_parameters
-  )
-  q_square <- Box.test(
-    e^2, lag = lag, type = "Ljung-Box"
-  )
-  c(
-    residual_sd = sd(e),
-    Q_mean = unname(q_mean$statistic),
-    p_mean = q_mean$p.value,
-    Q_square = unname(q_square$statistic),
-    p_square = q_square$p.value
-  )
+root_table <- extract_roots(selected_fit)
+if (nrow(root_table)) {
+  knitr::kable(root_table, digits = 5)
+  stopifnot(all(root_table$模 > 1))
+} else {
+  cat("所選模型沒有 AR 或 MA 根需要檢查。\n")
 }
-
-diagnostic_table <- do.call(rbind, lapply(fits, diagnose_fit))
-round(diagnostic_table, 4)
 ```
 
-```
-##        residual_sd  Q_mean p_mean Q_square p_square
-## ARMA00      1.3053 67.6535 0.0000  14.5255   0.8029
-## AR10        1.2745 23.1674 0.2301  13.5767   0.8513
-## MA01        1.2791 30.1222 0.0503  13.9994   0.8305
-## ARMA11      1.2689 15.7596 0.6093  13.8350   0.8388
-## AR20        1.2706 18.0092 0.4550  13.1231   0.8720
-## MA02        1.2733 21.9471 0.2343  12.6408   0.8923
-```
+AR 根在單位圓外表示估計模型具有因果定態表示；MA 根在單位圓外表示可逆。根接近 1 時，有限樣本推論與遠期預測仍可能不穩定。
 
-殘差檢定應與圖形一起看。通過報酬殘差檢查只表示未留下明顯線性平均相依；平方殘差若相關，可能需要條件變異模型。
+## 訓練期殘差診斷
 
 
 ``` r
-selected_name <- model_table$model[which.min(model_table$AIC)]
-selected_fit <- fits[[selected_name]]
-selected_residual <- residuals(selected_fit)
+selected_residual <- as.numeric(residuals(selected_fit))
+selected_residual <- selected_residual[is.finite(selected_residual)]
+p_plus_q <- selected_order[1] + selected_order[3]
 
-par(mfrow = c(1, 3))
+q_mean <- Box.test(
+  selected_residual, lag = 20, type = "Ljung-Box",
+  fitdf = p_plus_q
+)
+q_square <- Box.test(
+  selected_residual^2, lag = 20, type = "Ljung-Box"
+)
+
+diagnostic_table <- data.frame(
+  檢查對象 = c("殘差", "平方殘差"),
+  Q20 = c(unname(q_mean$statistic), unname(q_square$statistic)),
+  自由度 = c(unname(q_mean$parameter), unname(q_square$parameter)),
+  p值 = c(q_mean$p.value, q_square$p.value),
+  check.names = FALSE
+)
+knitr::kable(diagnostic_table, digits = 6)
+```
+
+
+
+|檢查對象 |       Q20| 自由度|     p值|
+|:--------|---------:|------:|-------:|
+|殘差     |  54.18846|     19| 3.1e-05|
+|平方殘差 | 355.02037|     20| 0.0e+00|
+
+本次 AR(1) 殘差的 Ljung--Box $p$ 值約為 $3.1\times10^{-5}$，平方殘差的數值更接近零。也就是說，BIC 所選模型只是候選集合內的相對勝者，並未清除全部平均與波動相依。
+
+
+``` r
+old_par <- par(
+  mfrow = c(1, 3), mar = c(4.5, 3.5, 4, 1),
+  family = plot_family, cex.main = 0.88
+)
 plot(
-  selected_residual, type = "l", col = "#173B57",
-  xlab = "訓練期", ylab = "殘差", main = selected_name
+  dates[seq_along(selected_residual)], 100 * selected_residual,
+  type = "l", col = "#173B57",
+  xlab = "日期", ylab = "殘差（%）", main = selected_name
 )
 acf(selected_residual, lag.max = 30, main = "殘差 ACF")
 acf(selected_residual^2, lag.max = 30, main = "平方殘差 ACF")
 ```
 
-![AIC 最小模型的殘差、殘差 ACF 與平方殘差 ACF。](./R05_arma_estimation_diagnostics_forecasting_files/figure-gfm/diagnostics-plots-1.png)
+![BIC 所選模型的訓練期殘差、殘差 ACF 與平方殘差 ACF。](../R05_arma_estimation_diagnostics_forecasting_files/figure-gfm/diagnostics-plots-1.png)
 
 ``` r
-par(mfrow = c(1, 1))
+par(old_par)
 ```
 
-## 多步預測與區間
+若殘差仍有線性相依，所選低階平均數模型只是候選集合中的相對勝者，不是充分模型。平方殘差的相依則是第 11--12 章 ARCH/GARCH 模型的動機。
+
+## 鎖定模型的一次多步預測
 
 
 ``` r
 h <- length(y_test)
 forecast_object <- predict(selected_fit, n.ahead = h)
+
 forecast_table <- data.frame(
-  index = (train_end + 1L):n,
-  actual = y_test,
-  forecast = as.numeric(forecast_object$pred),
-  standard_error = as.numeric(forecast_object$se)
+  日期 = dates[(train_end + 1L):n],
+  實際值 = y_test,
+  ARMA預測 = as.numeric(forecast_object$pred),
+  預測標準誤 = as.numeric(forecast_object$se),
+  check.names = FALSE
 )
-forecast_table$lower95 <- forecast_table$forecast -
-  1.96 * forecast_table$standard_error
-forecast_table$upper95 <- forecast_table$forecast +
-  1.96 * forecast_table$standard_error
-forecast_table$error <- forecast_table$actual - forecast_table$forecast
+forecast_table$下界95 <- forecast_table$ARMA預測 -
+  1.96 * forecast_table$預測標準誤
+forecast_table$上界95 <- forecast_table$ARMA預測 +
+  1.96 * forecast_table$預測標準誤
+forecast_table$ARMA誤差 <- forecast_table$實際值 -
+  forecast_table$ARMA預測
 
-head(forecast_table, 8)
-```
-
-```
-##   index     actual   forecast standard_error   lower95  upper95      error
-## 1   551 -1.2182263 0.04651117       1.267784 -2.438346 2.531368 -1.2647375
-## 2   552  0.2705367 0.05047878       1.288925 -2.475815 2.576773  0.2200580
-## 3   553 -0.8689805 0.05304589       1.297674 -2.490394 2.596486 -0.9220264
-## 4   554 -1.1451046 0.05470686       1.301318 -2.495877 2.605291 -1.1998115
-## 5   555  1.0903613 0.05578154       1.302841 -2.497787 2.609350  1.0345797
-## 6   556 -0.4237374 0.05647688       1.303478 -2.498341 2.611294 -0.4802143
-## 7   557 -0.3999396 0.05692678       1.303745 -2.498413 2.612267 -0.4568664
-## 8   558  0.6426250 0.05721787       1.303856 -2.498341 2.612776  0.5854072
+knitr::kable(head(forecast_table, 8), digits = 6)
 ```
 
-``` r
-tail(forecast_table, 3)
-```
 
-```
-##     index    actual   forecast standard_error   lower95  upper95     error
-## 148   698 0.9368245 0.05775144       1.303937 -2.497965 2.613467 0.8790731
-## 149   699 1.1217299 0.05775144       1.303937 -2.497965 2.613467 1.0639785
-## 150   700 1.6704255 0.05775144       1.303937 -2.497965 2.613467 1.6126741
-```
+
+|日期       |    實際值| ARMA預測| 預測標準誤|    下界95|   上界95|  ARMA誤差|
+|:----------|---------:|--------:|----------:|---------:|--------:|---------:|
+|2021-10-12 | -0.009145| 0.002420|   0.021496| -0.039711| 0.044552| -0.011565|
+|2021-10-13 | -0.004249| 0.001802|   0.021933| -0.041188| 0.044791| -0.006051|
+|2021-10-14 |  0.020024| 0.001927|   0.021951| -0.041097| 0.044952|  0.018097|
+|2021-10-15 |  0.007485| 0.001902|   0.021952| -0.041124| 0.044928|  0.005583|
+|2021-10-18 |  0.011737| 0.001907|   0.021952| -0.041119| 0.044933|  0.009830|
+|2021-10-19 |  0.014968| 0.001906|   0.021952| -0.041120| 0.044932|  0.013062|
+|2021-10-20 |  0.003356| 0.001906|   0.021952| -0.041120| 0.044932|  0.001450|
+|2021-10-21 |  0.001473| 0.001906|   0.021952| -0.041120| 0.044932| -0.000433|
 
 
 ``` r
-data.frame(
-  selected_model = selected_name,
-  test_RMSE = sqrt(mean(forecast_table$error^2)),
-  test_MAE = mean(abs(forecast_table$error)),
-  interval_coverage = mean(
-    forecast_table$actual >= forecast_table$lower95 &
-      forecast_table$actual <= forecast_table$upper95
-  ),
-  average_width = mean(
-    forecast_table$upper95 - forecast_table$lower95
+score_row <- function(actual, forecast, label) {
+  error <- actual - forecast
+  data.frame(
+    模型 = label,
+    RMSE = sqrt(mean(error^2)),
+    MAE = mean(abs(error)),
+    平均誤差 = mean(error),
+    check.names = FALSE
   )
+}
+
+score_table <- rbind(
+  score_row(y_test, forecast_table$ARMA預測, selected_name),
+  score_row(y_test, rep(0, h), "零報酬"),
+  score_row(y_test, rep(mean(y_train), h), "訓練期平均數")
 )
+score_table$常態區間涵蓋率 <- c(
+  mean(
+    y_test >= forecast_table$下界95 &
+      y_test <= forecast_table$上界95
+  ),
+  NA_real_, NA_real_
+)
+knitr::kable(score_table, digits = 6)
 ```
 
-```
-##   selected_model test_RMSE test_MAE interval_coverage average_width
-## 1         ARMA11  1.234145 1.012712              0.96      5.109814
-```
 
-這裡的常態區間主要反映未來創新，對參數與模型選擇不確定性的處理有限。涵蓋率只是這一個固定測試路徑的描述，不是母體涵蓋率證明。
+
+|模型         |     RMSE|      MAE|  平均誤差| 常態區間涵蓋率|
+|:------------|--------:|--------:|---------:|--------------:|
+|AR10         | 0.020809| 0.016036| -0.002191|       0.977143|
+|零報酬       | 0.020694| 0.015951| -0.000283|             NA|
+|訓練期平均數 | 0.020805| 0.016031| -0.002162|             NA|
+
+在這 175 筆固定測試資料中，零報酬基準的 RMSE 與 MAE 都略低於訓練期 BIC 所選的 AR(1)。這個負結果很重要：樣本內模型選擇準則較佳，不保證樣本外預測勝過簡單基準。
 
 
 ``` r
+old_par <- par(family = plot_family)
 plot(
-  forecast_table$index, forecast_table$actual,
+  forecast_table$日期, 100 * forecast_table$實際值,
   type = "l", col = "gray35",
-  xlab = "時間索引", ylab = "數值"
+  xlab = "日期", ylab = "日對數報酬（%）"
 )
 polygon(
-  c(forecast_table$index, rev(forecast_table$index)),
-  c(forecast_table$lower95, rev(forecast_table$upper95)),
+  c(forecast_table$日期, rev(forecast_table$日期)),
+  100 * c(forecast_table$下界95, rev(forecast_table$上界95)),
   border = NA, col = adjustcolor("#9FC2D4", alpha.f = 0.45)
 )
 lines(
-  forecast_table$index, forecast_table$forecast,
+  forecast_table$日期, 100 * forecast_table$ARMA預測,
   col = "#A34045", lwd = 2
 )
-lines(forecast_table$index, forecast_table$actual, col = "gray35")
+lines(
+  forecast_table$日期, 100 * forecast_table$實際值,
+  col = "gray35"
+)
 legend(
-  "topright", c("實際值", "點預測", "95% 區間"),
+  "topright", c("實際值", "ARMA 點預測", "95% 區間"),
   col = c("gray35", "#A34045", "#9FC2D4"),
   lty = c(1, 1, NA), pch = c(NA, NA, 15), bty = "n"
 )
 ```
 
-![訓練期末一次形成的多步預測與 95% 常態近似區間。](./R05_arma_estimation_diagnostics_forecasting_files/figure-gfm/forecast-plot-1.png)
+![訓練期末一次形成的 AAPL 多步預測與 95% 常態近似區間。](../R05_arma_estimation_diagnostics_forecasting_files/figure-gfm/forecast-plot-1.png)
 
-## 手算核對 AR(1) 預測
+``` r
+par(old_par)
+```
 
-另建一個已知平均數的 AR(1) 教學例，核對
-\(\widehat Y_{T+h\mid T}=\mu+\phi^h(Y_T-\mu)\) 與
-\(\sigma_h^2=\sigma_a^2(1-\phi^{2h})/(1-\phi^2)\)。
+常態區間主要反映未來創新，沒有完整納入參數、階數選擇、厚尾與條件異質變異的不確定性。固定測試期涵蓋率也不是母體涵蓋率的證明。
+
+## 小型模擬只作單元檢查
+
+最後用已知 ARMA(1,1) 真值檢查 `arima()` 的符號慣例與估計流程。它不參與 AAPL 的模型選擇或實證結論。
 
 
 ``` r
-mu <- 2
-phi_check <- 0.6
-innovation_variance <- 4
-y_T <- 5
-h_check <- 1:5
-
-manual_check <- data.frame(
-  horizon = h_check,
-  point_forecast = mu + phi_check^h_check * (y_T - mu),
-  error_variance = innovation_variance *
-    (1 - phi_check^(2 * h_check)) / (1 - phi_check^2)
+set.seed(20260721)
+truth <- c(ar1 = 0.55, ma1 = -0.35)
+simulated_check <- as.numeric(arima.sim(
+  model = list(ar = truth["ar1"], ma = truth["ma1"]),
+  n = 5000, sd = 0.01
+))
+fit_check <- arima(
+  simulated_check, order = c(1, 0, 1),
+  include.mean = TRUE, method = "ML"
 )
-manual_check$standard_error <- sqrt(manual_check$error_variance)
-manual_check
+check_table <- data.frame(
+  參數 = names(truth),
+  真值 = truth,
+  估計值 = coef(fit_check)[names(truth)],
+  check.names = FALSE
+)
+knitr::kable(check_table, digits = 4)
 ```
 
-```
-##   horizon point_forecast error_variance standard_error
-## 1       1        3.80000       4.000000       2.000000
-## 2       2        3.08000       5.440000       2.332381
-## 3       3        2.64800       5.958400       2.440983
-## 4       4        2.38880       6.145024       2.478916
-## 5       5        2.23328       6.212209       2.492430
+
+
+|    |參數 |  真值|  估計值|
+|:---|:----|-----:|-------:|
+|ar1 |ar1  |  0.55|  0.5673|
+|ma1 |ma1  | -0.35| -0.3769|
+
+``` r
+stopifnot(max(abs(check_table$估計值 - check_table$真值)) < 0.10)
 ```
 
 ## 建模紀錄
 
-正式分析至少保存資料版本、訓練截止日、候選集合、估計方法、截距參數化、AIC/BIC、根、殘差診斷、預測期距與區間假設。若後來改看測試結果再換模型，應把該期間重新歸類為驗證期。
+可重現報告至少保留固定資料版本、訓練截止日、候選集合、估計方法、截距參數化、BIC、根、殘差診斷、預測期距與區間假設。若看過測試結果後再換模型，該期間就必須重新歸類為驗證期。

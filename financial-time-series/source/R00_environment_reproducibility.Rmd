@@ -12,7 +12,7 @@ output:
 
 - R 4.1 以上，並已具備 knitr 與 rmarkdown。
 - 從教科書專案根目錄或 online_appendix 目錄執行皆可。
-- 正式資料位於 data/processed，建置紀錄位於 manifest.csv。
+- 十個公開實證資料位於 data/processed，建置紀錄位於 manifest.csv；網站的「實證資料下載」頁提供相同版本。
 
 ```{r setup}
 knitr::opts_chunk$set(
@@ -43,6 +43,7 @@ project_path <- function(...) file.path(project_root, ...)
 required_paths <- c(
   "data/processed/manifest.csv",
   "data/DATA_SOURCES.md",
+  "data/DATA_DICTIONARY.md",
   "chapters/chapter01.tex",
   "online_appendix/README.md"
 )
@@ -58,7 +59,7 @@ stopifnot(all(path_check$exists))
 
 ## 用 manifest 核對固定資料
 
-manifest.csv 記錄檔名、列數、欄數、MD5 與建立時間。MD5 不能證明資料正確，但能確認讀者拿到的位元內容是否與教科書版本相同。
+manifest.csv 記錄十個公開實證檔的檔名、列數、欄數、MD5、內容說明與建立時間。MD5 不能證明資料正確，但能確認讀者拿到的位元內容是否與教科書版本相同。
 
 ```{r verify-manifest}
 manifest <- read.csv(
@@ -167,7 +168,7 @@ environment_record
 
 ## 可重現研究檢核表
 
-1. 原始或凍結資料來源、授權與建立方式有書面說明。
+1. 原始或固定資料的來源、公開範圍與建立方式有書面說明。
 2. 分析只讀固定檔，路徑由專案結構推導。
 3. 日期、主鍵、單位、缺值與排序在入口檢查。
 4. 模擬固定種子，正式結果記錄 R 與套件版本。

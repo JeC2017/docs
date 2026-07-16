@@ -6,193 +6,226 @@ output:
     toc_depth: 3
 ---
 
-本附錄對應第 2 章。使用完全固定的假想價格、股利與拆股調整例，示範日期排序、分組落後、簡單報酬、對數報酬、多期複利與投資組合報酬。所有數值都是教學資料，不代表真實資產。
+本附錄對應第 2 章，實際讀取 Apple Inc.（AAPL）的固定資料，從調整收盤價重新計算日簡單報酬與日對數報酬。樣本期間為 2019-01-02 至 2022-06-22，共 875 個交易日。`adjusted` 的單位是「美元／股的調整後價格尺度」；報酬欄位以小數表示，例如 0.01 代表 1%。資料來自原課程 S&P 500 價格檔所保留的 AAPL 序列，建置細節見 `data/DATA_SOURCES.md`。
+
+以下結果描述這一份固定歷史資料的價格與報酬計算，不識別任何市場事件或變數對 AAPL 報酬的因果效果。
 
 ```{r setup}
 knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
-  fig.width = 7, fig.height = 4.5
+  fig.width = 7, fig.height = 4.5,
+  dev = "ragg_png", dpi = 144,
+  dev.args = list(background = "white")
 )
-stopifnot(requireNamespace("dplyr", quietly = TRUE))
-stopifnot(requireNamespace("tibble", quietly = TRUE))
-library(dplyr)
-library(tibble)
-```
 
-## 建立價格、股利與調整因子
+root_candidates <- c(".", "..")
+is_root <- vapply(root_candidates, function(x) {
+  file.exists(file.path(x, "main.tex"))
+}, logical(1))
+stopifnot(any(is_root))
+project_root <- root_candidates[which(is_root)[1]]
+project_path <- function(...) file.path(project_root, ...)
 
-price_raw 是觀察到的未調整收盤價；split_factor 表示當日一股舊股可換得多少新股。為了簡化教學，price_adjusted 已把拆股前價格換成可比較尺度。實務資料供應者的調整定義可能不同，必須查資料字典。
-
-```{r toy-data}
-prices <- tribble(
-  ~asset, ~date,       ~price_raw, ~dividend, ~split_factor, ~price_adjusted,
-  "甲",    "2026-01-02", 100,        0,         1,             50,
-  "甲",    "2026-01-05", 104,        0,         1,             52,
-  "甲",    "2026-01-06",  53,        0,         2,             53,
-  "甲",    "2026-01-07",  52,        1,         1,             52,
-  "乙",    "2026-01-02",  80,        0,         1,             80,
-  "乙",    "2026-01-05",  82,        0,         1,             82,
-  "乙",    "2026-01-06",  81,        0,         1,             81,
-  "乙",    "2026-01-07",  84,        0,         1,             84
-) |>
-  mutate(date = as.Date(date))
-
-prices
-```
-
-## 入口檢查
-
-```{r validation}
-validate_panel <- function(x) {
-  needed <- c("asset", "date", "price_adjusted", "dividend")
-  stopifnot(all(needed %in% names(x)))
-  stopifnot(!anyNA(x[, needed]))
-  stopifnot(all(is.finite(x$price_adjusted)), all(x$price_adjusted > 0))
-  stopifnot(all(is.finite(x$dividend)), all(x$dividend >= 0))
-  stopifnot(!anyDuplicated(paste(x$asset, x$date)))
-
-  ordered <- x |> arrange(asset, date)
-  by_asset <- split(ordered$date, ordered$asset)
-  stopifnot(all(vapply(
-    by_asset,
-    function(z) length(z) < 2L || all(diff(z) > 0),
-    logical(1)
-  )))
-  invisible(ordered)
+stopifnot(
+  requireNamespace("ragg", quietly = TRUE),
+  requireNamespace("systemfonts", quietly = TRUE)
+)
+cwtex_file <- project_path("assets", "fonts", "cwTeXQKai-Medium.ttf")
+stopifnot(file.exists(cwtex_file))
+if (!"cwTeX Online" %in% systemfonts::registry_fonts()$family) {
+  systemfonts::register_font("cwTeX Online", cwtex_file)
 }
-
-prices <- validate_panel(prices)
+plot_family <- "cwTeX Online"
 ```
 
-## 務必先分組再取落後值
+## 讀取、排序與入口檢查
 
-若直接對整欄取落後值，甲資產最後一天可能被錯接到乙資產第一天。正確做法是先依 asset 分組，再依日期排序。
+金融資料不能先假定已依日期排序。以下先檢查欄位，再轉換日期、排序並檢查重複值與價格正值條件。
 
-```{r grouped-returns}
-returns <- prices |>
-  group_by(asset) |>
-  arrange(date, .by_group = TRUE) |>
-  mutate(
-    previous_price = lag(price_adjusted),
-    gross_return = (price_adjusted + dividend) / previous_price,
-    simple_return = gross_return - 1,
-    log_return = log(gross_return),
-    calendar_gap = as.integer(date - lag(date))
-  ) |>
-  ungroup()
+```{r read-data}
+aapl_path <- project_path(
+  "data", "processed", "aapl_adjusted_daily_2019_2022.csv"
+)
+stopifnot(file.exists(aapl_path))
 
-returns
-stopifnot(all.equal(
-  returns$log_return[!is.na(returns$log_return)],
-  log1p(returns$simple_return[!is.na(returns$simple_return)])
-))
+aapl <- read.csv(aapl_path, stringsAsFactors = FALSE)
+needed <- c(
+  "date", "symbol", "company", "sector", "adjusted",
+  "simple_return", "log_return"
+)
+stopifnot(all(needed %in% names(aapl)))
+
+aapl$date <- as.Date(aapl$date)
+aapl <- aapl[order(aapl$date), ]
+row.names(aapl) <- NULL
+
+stopifnot(
+  !anyNA(aapl$date),
+  !anyDuplicated(aapl$date),
+  all(diff(aapl$date) > 0),
+  all(aapl$symbol == "AAPL"),
+  all(is.finite(aapl$adjusted)),
+  all(aapl$adjusted > 0)
+)
+
+data_profile <- data.frame(
+  資產 = unique(aapl$symbol),
+  起日 = min(aapl$date),
+  迄日 = max(aapl$date),
+  交易日數 = nrow(aapl),
+  價格單位 = "美元／股（調整後尺度）",
+  報酬單位 = "小數；0.01 代表 1%",
+  資料來源 = "原課程 S&P 500 價格檔的 AAPL 固定版本",
+  check.names = FALSE
+)
+knitr::kable(data_profile)
 ```
 
-甲資產 2026-01-07 支付 1 元股利，總簡單報酬使用
-\((P_t+D_t-P_{t-1})/P_{t-1}\)。若只算價格變化，會遺漏現金分配。
+第一筆報酬沒有前一期價格，因此應為缺值；這不是資料錯誤。
 
-## 未調整價格會製造假報酬
-
-```{r split-error}
-split_comparison <- prices |>
-  filter(asset == "甲") |>
-  arrange(date) |>
-  mutate(
-    return_from_raw = price_raw / lag(price_raw) - 1,
-    return_from_adjusted = price_adjusted / lag(price_adjusted) - 1
-  ) |>
-  select(date, price_raw, price_adjusted, return_from_raw, return_from_adjusted)
-
-split_comparison
+```{r missing-check}
+colSums(is.na(aapl[c("adjusted", "simple_return", "log_return")]))
+stopifnot(
+  is.na(aapl$simple_return[1]),
+  is.na(aapl$log_return[1]),
+  !anyNA(aapl$simple_return[-1]),
+  !anyNA(aapl$log_return[-1])
+)
 ```
 
-拆股日的未調整價格約減半，不代表投資人損失一半。正式分析應優先使用明確記錄股利與公司行動的總報酬或調整價格。
+## 由調整價格重新計算報酬
 
-## 多期複利與對數相加
+若 $P_t^*$ 是同一調整尺度下的價格，則
+
+\[
+R_t=\frac{P_t^*}{P_{t-1}^*}-1,
+\qquad
+r_t=\log P_t^*-\log P_{t-1}^*=\log(1+R_t).
+\]
+
+調整價格把供應者所採用的公司行動調整反映在同一價格尺度；若研究需要逐筆拆股或現金股利，仍須另讀公司行動資料字典，不能由本欄反推全部現金流。
+
+```{r recompute-returns}
+aapl$calculated_simple <- c(
+  NA_real_,
+  aapl$adjusted[-1] / head(aapl$adjusted, -1) - 1
+)
+aapl$calculated_log <- c(NA_real_, diff(log(aapl$adjusted)))
+
+calculation_error <- data.frame(
+  欄位 = c("simple_return", "log_return"),
+  最大絕對差 = c(
+    max(abs(aapl$simple_return - aapl$calculated_simple), na.rm = TRUE),
+    max(abs(aapl$log_return - aapl$calculated_log), na.rm = TRUE)
+  ),
+  check.names = FALSE
+)
+knitr::kable(calculation_error, digits = 14)
+
+stopifnot(
+  calculation_error$最大絕對差[1] < 1e-12,
+  calculation_error$最大絕對差[2] < 1e-12
+)
+
+knitr::kable(
+  head(aapl[c(
+    "date", "adjusted", "calculated_simple", "calculated_log"
+  )], 6),
+  digits = 6
+)
+```
+
+## 價格與報酬的時間圖
+
+```{r price-return-plot, fig.cap="AAPL 調整價格與由它計算的日對數報酬。報酬圖以百分比呈現。", fig.height=6}
+old_par <- par(
+  mfrow = c(2, 1), mar = c(4.5, 4, 3, 1),
+  family = plot_family
+)
+plot(
+  aapl$date, aapl$adjusted, type = "l", col = "#173B57",
+  xlab = "日期", ylab = "調整價格（美元／股）",
+  main = "AAPL 調整價格"
+)
+plot(
+  aapl$date, 100 * aapl$log_return, type = "l", col = "#A34045",
+  xlab = "日期", ylab = "日對數報酬（%）",
+  main = "AAPL 日對數報酬"
+)
+abline(h = 0, col = "gray60")
+par(old_par)
+```
+
+價格水準有明顯趨勢，不代表報酬本身也有相同趨勢。建模前必須先分清楚研究對象是價格、簡單報酬或對數報酬。
+
+## 簡單報酬與對數報酬的差距
+
+小幅報酬時 $r_t\approx R_t$，大幅漲跌時兩者差距會擴大。下圖中的每一點都是 AAPL 的實際日報酬。
+
+```{r approximation-plot, fig.cap="AAPL 日簡單報酬與日對數報酬；虛線表示兩者完全相等。"}
+old_par <- par(family = plot_family)
+plot(
+  100 * aapl$simple_return, 100 * aapl$log_return,
+  pch = 16, cex = 0.55, col = adjustcolor("#173B57", 0.55),
+  xlab = "日簡單報酬（%）", ylab = "日對數報酬（%）"
+)
+abline(0, 1, lty = 2, lwd = 2, col = "#A34045")
+par(old_par)
+```
+
+## 多期複利必須乘，不是直接加
+
+從第一個調整價格到最後一個調整價格，三種算法應得到相同的多期簡單報酬：
+
+1. 每日簡單報酬逐期複利；
+2. 每日對數報酬相加後轉回簡單報酬；
+3. 最後價格除以最初價格再減一。
 
 ```{r compounding}
-asset_b <- returns |>
-  filter(asset == "乙", !is.na(simple_return))
+valid_simple <- aapl$simple_return[is.finite(aapl$simple_return)]
+valid_log <- aapl$log_return[is.finite(aapl$log_return)]
 
-multi_simple <- prod(1 + asset_b$simple_return) - 1
-multi_log <- sum(asset_b$log_return)
-
-tibble(
-  method = c("簡單報酬複利", "對數報酬相加後轉回"),
-  total_simple_return = c(multi_simple, exp(multi_log) - 1)
+compound_table <- data.frame(
+  方法 = c(
+    "每日簡單報酬複利",
+    "對數報酬相加後轉回",
+    "期末調整價格／期初調整價格"
+  ),
+  全期簡單報酬 = c(
+    prod(1 + valid_simple) - 1,
+    exp(sum(valid_log)) - 1,
+    tail(aapl$adjusted, 1) / aapl$adjusted[1] - 1
+  ),
+  check.names = FALSE
 )
-stopifnot(isTRUE(all.equal(multi_simple, exp(multi_log) - 1)))
+knitr::kable(compound_table, digits = 8)
+stopifnot(diff(range(compound_table$全期簡單報酬)) < 1e-12)
 ```
 
-簡單報酬不能直接跨期相加；對數報酬可以跨期相加，但轉回簡單報酬時仍要取指數減一。
+這個全期報酬只描述所選起迄日；不能把它外推成固定的未來成長率。
 
-## 簡單報酬與對數報酬的近似
+## 交易日與日曆日不同
 
-```{r approximation}
-grid <- seq(-0.5, 0.5, by = 0.01)
-approximation <- tibble(
-  simple = grid,
-  log = log1p(grid),
-  difference = log1p(grid) - grid
-)
-
-head(approximation, 4)
-tail(approximation, 4)
-```
-
-```{r approximation-plot, fig.cap="簡單報酬與對數報酬的差距在大幅負報酬時特別明顯。"}
-plot(
-  approximation$simple, approximation$log,
-  type = "l", lwd = 2, col = "#173B57",
-  xlab = "簡單報酬", ylab = "對數報酬"
-)
-abline(0, 1, lty = 2, col = "#A34045")
-```
-
-## 投資組合報酬使用期初權重
-
-在同一持有期間，簡單報酬的投資組合加總為
-\(R_{p,t}=\sum_i w_{i,t-1}R_{i,t}\)。以下把兩資產報酬整理到共同日期，再使用固定期初權重 60\% 與 40\%。
-
-```{r portfolio}
-common_dates <- Reduce(
-  intersect,
-  split(
-    returns$date[!is.na(returns$simple_return)],
-    returns$asset[!is.na(returns$simple_return)]
-  )
-)
-
-ra <- returns |>
-  filter(asset == "甲", date %in% common_dates) |>
-  arrange(date) |>
-  pull(simple_return)
-rb <- returns |>
-  filter(asset == "乙", date %in% common_dates) |>
-  arrange(date) |>
-  pull(simple_return)
-
-portfolio <- tibble(
-  date = sort(as.Date(common_dates, origin = "1970-01-01")),
-  return_a = ra,
-  return_b = rb,
-  portfolio_return = 0.6 * ra + 0.4 * rb
-)
-portfolio
-```
-
-如果期中不再平衡，權重會隨相對價格變動；不能每期都偷用固定權重卻聲稱是買進持有策略。
-
-## 日期間隔不是固定交易頻率
-
-calendar_gap 在週末前後會大於 1。若資料目標是每日交易報酬，這仍可能是相鄰交易日；若要年度化波動或合併不同市場，必須明確處理交易日曆、時區與休市差異。
+相鄰交易日可能跨過週末或休市日。`calendar_gap` 的單位是日曆日，不是遺漏的報酬筆數。
 
 ```{r date-gaps}
-returns |>
-  filter(!is.na(calendar_gap)) |>
-  count(calendar_gap)
+aapl$calendar_gap <- c(NA_integer_, as.integer(diff(aapl$date)))
+gap_table <- as.data.frame(table(aapl$calendar_gap, useNA = "no"))
+names(gap_table) <- c("相鄰交易日的日曆間隔", "次數")
+knitr::kable(gap_table)
 ```
 
-## 建議輸出欄位
+若要年度化波動、合併不同市場或對齊總體資料，必須另外交代交易日曆、時區與缺值規則。
 
-正式報酬資料至少保留 asset、date、原始價格、調整價格、股利／公司行動、簡單報酬、對數報酬、幣別與來源版本。不要只保存最後一欄報酬，否則很難追查異常值究竟來自市場、公司行動或程式錯置。
+## 極端日先查來源，不自動刪除
+
+```{r extremes}
+valid_rows <- aapl[is.finite(aapl$log_return), ]
+extreme_rows <- valid_rows[
+  order(abs(valid_rows$log_return), decreasing = TRUE)[1:8],
+  c("date", "adjusted", "simple_return", "log_return")
+]
+knitr::kable(extreme_rows, digits = 6)
+```
+
+極端報酬可能是市場事件，也可能是公司行動或建檔錯誤。這張表只負責定位日期；是否修正必須回到原始來源查證，而不能因為觀察值「看起來太大」就刪除。

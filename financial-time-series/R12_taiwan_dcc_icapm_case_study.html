@@ -27,12 +27,13 @@
     <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
       <p class="sidebar-title">線上附錄</p>
       <ol><li><a href="index.html">首頁</a></li>
+<li><a href="data.html">實證資料下載</a></li>
 <li><a href="data-policy.html">資料與重現政策</a></li>
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
 <li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與經驗特徵</a></li>
-<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA 模擬</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
 <li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
 <li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
 <li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
@@ -50,7 +51,7 @@
     </nav>
     <main id="main-content" class="content">
       <div class="publication-note">
-        本網站提供作者執行後的教學內容與程式原始檔；未經確認可再散布的原始資料不隨網站發布。
+        本網站提供作者執行後的教學內容、程式原始檔與本書實證使用的固定資料版本。
         詳見<a href="data-policy.html">資料與重現政策</a>。
       </div>
       <article>
@@ -58,9 +59,11 @@
         <p>本附錄對應第 16 章。可重現的範圍只有兩部分：</p>
 <ol>
 <li>用固定種子的合成標準化新衝擊，核對 DCC 遞迴、相關矩陣正規化與正定性；</li>
-<li>用專案內凍結的 (47\times497) 第二階段追蹤資料，示範時間切分、固定效果 within 估計與保留期診斷。</li>
+<li>用專案內凍結的 \(47\times497\) 第二階段追蹤資料，示範時間切分、固定效果 within 估計與保留期診斷。</li>
 </ol>
 <p><strong>這是局部個案研究，不是原論文或原課堂實證的完整複製。</strong> 現有檔案沒有從原始價格與狀態變數開始的清理流程、第一階段 GARCH／DCC 估計結果、完整懲罰式追蹤資料分量迴歸（PQRFE）調校，以及相依資料的完整拔靴推論。第二階段的共變異數欄位是已生成的解釋變數；本附錄不能回溯驗證它們在每一天的第一階段資訊集合。</p>
+<p>依 Chen and Lin（2015）的資料章，原研究以 2010 年 1 月 5 日至 2011 年 12 月 30 日的臺灣 50 成分股為基礎：個股日價格與十年期指標公債利率來自臺灣經濟新報（TEJ），臺灣 50 指數來自臺灣證券交易所，臺指 VIX 來自臺灣期貨交易所，30 日融資性商業本票利率來自合作金庫票券金融；排除樣本期內才上市／改制者後為 47 家公司、497 個交易日。論文的報酬定義是日對數超額報酬乘以 100，因此 <code>return</code> 沿用百分點尺度；三個 <code>cov_*</code> 欄則沿用第一階段生成共變異數的原數值尺度，不另行換算。</p>
+<p>凍結 CSV 已把實際日期與公司代碼匿名化為 <code>day=1,...,497</code> 與 <code>firm=1,...,47</code>，且只保留第二階段六欄。公開 repo 隨附作者授權的這份 processed CSV，因此本附錄的 DCC 教學單元與第二階段個案可自含重跑。這些來源說明能界定樣本，卻不能補回缺少的原始價格建檔、第一階段程式與完整 PQRFE 推論。</p>
 <pre><code class="language-r">knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
   fig.width = 7, fig.height = 4
@@ -107,7 +110,7 @@ panel_file &lt;- locate_project_file(
 )
 manifest_file &lt;- locate_project_file(&quot;data/processed/manifest.csv&quot;)
 </code></pre>
-<p>依 <code>data/DATA_SOURCES.md</code> 的已決定政策，公開網站不再散布這份衍生資料。MD5 檢查只能確認作者工作版本一致，不能證明來源正確或授權完備。</p>
+<p>公開網站隨附 <code>data/processed/taiwan_icapm_second_stage_47x497.csv</code>，MD5 檢查用來確認讀到作者授權公開的凍結版本；本 Rmd 可由公開 repo 單獨重跑。相對原研究而言，公開狀態仍是「DCC 教學單元可重現、臺灣實證僅第二階段部分重現」，因為第一階段估計與原始資料建置尚未納入。</p>
 <h2 id="2-dcc">2. DCC 教學遞迴：只驗證演算法，不估計真實模型<a class="headerlink" href="#2-dcc" title="Permanent link">#</a></h2>
 <h3 id="21">2.1 產生三變量標準化新衝擊<a class="headerlink" href="#21" title="Permanent link">#</a></h3>
 <p>先產生 800 期、三條序列的相關常態新衝擊。前 500 期是估計期；後 300 期是保留期。估計期平均數、標準差與相關矩陣一旦算出，保留期不再重新估計。</p>
@@ -241,7 +244,7 @@ legend(
 )
 </code></pre>
 <p><img alt="plot of chunk dcc-correlation-plot" src="./R12_taiwan_dcc_icapm_case_study_files/figure-gfm/dcc-correlation-plot-1.png"></p>
-<p>保留期的新衝擊可以逐期進入已鎖定參數的濾波器，但 (Q_bar,a,b) 沒有用保留期重新估計。這是合理的即時更新概念；然而它仍只是合成資料的演算法測試，不是臺灣 DCC 估計。</p>
+<p>保留期的新衝擊可以逐期進入已鎖定參數的濾波器，但參數 \((\overline Q,a,b)\) 沒有用保留期重新估計。這是合理的即時更新概念；然而它仍只是合成資料的演算法測試，不是臺灣 DCC 估計。</p>
 <h2 id="3">3. 載入凍結的第二階段追蹤資料<a class="headerlink" href="#3" title="Permanent link">#</a></h2>
 <pre><code class="language-r">panel &lt;- read.csv(panel_file, stringsAsFactors = FALSE)
 manifest &lt;- read.csv(manifest_file, stringsAsFactors = FALSE)
@@ -428,7 +431,7 @@ evaluation
 </code></pre>
 <p>樣本外損失是穩定性診斷，不是因果識別。若共變異數欄位曾使用未來資料平滑，這個第二階段切分本身也不能排除洩漏。</p>
 <h2 id="6">6. 殘差的橫斷面相依診斷<a class="headerlink" href="#6" title="Permanent link">#</a></h2>
-<p>若同一天的公司殘差共同移動，把每一列當獨立觀察值會低估不確定性。將測試期殘差排成「日期 (\times) 公司」矩陣，查看平均絕對相關與第一特徵值占比。</p>
+<p>若同一天的公司殘差共同移動，把每一列當獨立觀察值會低估不確定性。將測試期殘差排成「日期 \(\times\) 公司」矩陣，查看平均絕對相關與第一特徵值占比。</p>
 <pre><code class="language-r">test_residual &lt;- panel_test$return - prediction_within
 residual_frame &lt;- transform(panel_test, residual = test_residual)
 residual_matrix &lt;- xtabs(residual ~ day + firm, data = residual_frame)
@@ -548,11 +551,12 @@ if (requireNamespace(&quot;quantreg&quot;, quietly = TRUE)) {
 ## loaded via a namespace (and not attached):
 ##  [1] vctrs_0.7.2        cli_3.6.5          knitr_1.51         rlang_1.1.7       
 ##  [5] xfun_0.57          otel_0.2.0         MatrixModels_0.5-4 generics_0.1.4    
-##  [9] glue_1.8.0         grid_4.5.2         evaluate_1.0.5     SparseM_1.84-2    
-## [13] MASS_7.3-65        lifecycle_1.0.5    compiler_4.5.2     pkgconfig_2.0.3   
-## [17] quantreg_6.1       lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1  
-## [21] utf8_1.2.6         splines_4.5.2      pillar_1.11.1      magrittr_2.0.4    
-## [25] Matrix_1.7-4       tools_4.5.2        withr_3.0.2        survival_3.8-3
+##  [9] textshaping_1.0.5  glue_1.8.0         ragg_1.5.2         grid_4.5.2        
+## [13] evaluate_1.0.5     SparseM_1.84-2     MASS_7.3-65        lifecycle_1.0.5   
+## [17] compiler_4.5.2     pkgconfig_2.0.3    quantreg_6.1       systemfonts_1.3.2 
+## [21] lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1   utf8_1.2.6        
+## [25] splines_4.5.2      pillar_1.11.1      magrittr_2.0.4     Matrix_1.7-4      
+## [29] tools_4.5.2        survival_3.8-3
 </code></pre>
       </article>
       <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R11_sp500_pca_corrected.html">← 修正後的 S&amp;P 500 PCA</a><a rel="next" href="R13_regularization.html">Ridge、LASSO、Elastic Net 與 post-LASSO →</a></nav>

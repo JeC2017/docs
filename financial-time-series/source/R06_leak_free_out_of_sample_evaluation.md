@@ -1,18 +1,22 @@
 ---
-title: "R06：無資料洩漏的樣本外評估"
+title: "R06：TWD／JPY 的無資料洩漏樣本外評估"
 output:
   github_document:
     toc: true
     toc_depth: 3
 ---
 
-本附錄對應第 8 章。使用凍結股票面板建立等權教學投資組合，依時間切成訓練、驗證與測試期。驗證期只選滾動平均視窗；選定後凍結規格，在測試期比較零報酬、擴展平均、滾動平均與擴展 AR(1)。沒有隨機打散日期，也沒有使用測試期調整模型。
+本附錄對應第 8 章，以 FRED 的 JPY/USD（`DEXJPUS`）與 TWD/USD（`DEXTAUS`）建構交叉匯率，並預測下一個有效共同觀察日的 TWD/JPY 對數報酬。`twd_per_jpy` 表示「1 日圓值多少新臺幣」，報酬欄位是小數日對數報酬；0.01 代表約 1%。固定資料涵蓋 2020-01-02 至 2022-12-16，建置與缺值規則見 `data/DATA_SOURCES.md`。
+
+下列比較只描述固定樣本中的預測誤差，不識別利率、政策或其他變數對匯率的因果效果，也不構成可交易績效宣稱。
 
 
 ``` r
 knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
-  fig.width = 7, fig.height = 4.5
+  fig.width = 8, fig.height = 5,
+  dev = "ragg_png", dpi = 144,
+  dev.args = list(background = "white")
 )
 
 root_candidates <- c(".", "..")
@@ -22,48 +26,83 @@ is_root <- vapply(root_candidates, function(x) {
 stopifnot(any(is_root))
 project_root <- root_candidates[which(is_root)[1]]
 project_path <- function(...) file.path(project_root, ...)
+
+stopifnot(
+  requireNamespace("ragg", quietly = TRUE),
+  requireNamespace("systemfonts", quietly = TRUE)
+)
+cwtex_file <- project_path("assets", "fonts", "cwTeXQKai-Medium.ttf")
+stopifnot(file.exists(cwtex_file))
+if (!"cwTeX Online" %in% systemfonts::registry_fonts()$family) {
+  systemfonts::register_font("cwTeX Online", cwtex_file)
+}
+plot_family <- "cwTeX Online"
 ```
 
 ## 固定資料與預測目標
 
-原檔為一欄日期與 89 檔股票日簡單報酬。本附錄每日等權平均，目標是預測下一個共同交易日的教學投資組合報酬。這不是官方 S\&P 500 指數，也未處理成分股生存者偏誤，不能用來宣稱可交易績效。
+FRED 兩市場的休市日不完全相同，因此合併檔含缺值。本附錄只使用預先計算且有限的 `log_return_twd_per_jpy`；沒有以未來值回填休市日。
 
 
 ``` r
-panel_path <- project_path(
-  "data", "processed", "sp500_returns_balanced_2013_2022.csv"
-)
-manifest_path <- project_path("data", "processed", "manifest.csv")
-stopifnot(file.exists(panel_path), file.exists(manifest_path))
+fx <- read.csv(project_path(
+  "data", "processed", "fred_jpy_twd_daily_2020_2022.csv"
+))
+fx$date <- as.Date(fx$date)
+fx <- fx[order(fx$date), ]
 
-panel <- read.csv(panel_path, check.names = FALSE)
-dates <- as.Date(panel$date)
-R <- as.matrix(panel[, setdiff(names(panel), "date")])
-storage.mode(R) <- "double"
-portfolio_return <- rowMeans(R)
-
-stopifnot(
-  !anyNA(dates), !anyNA(portfolio_return),
-  all(diff(dates) > 0), length(portfolio_return) == nrow(panel)
+required <- c(
+  "date", "jpy_per_usd", "twd_per_usd",
+  "twd_per_jpy", "log_return_twd_per_jpy"
 )
+stopifnot(all(required %in% names(fx)), all(diff(fx$date) > 0))
 
-n <- length(portfolio_return)
-c(
-  observations = n,
-  assets = ncol(R),
-  start = format(min(dates)),
-  end = format(max(dates))
+missing_table <- data.frame(
+  欄位 = required[-1],
+  缺值數 = colSums(is.na(fx[required[-1]])),
+  check.names = FALSE
 )
+knitr::kable(missing_table)
 ```
 
-```
-## observations       assets        start          end 
-##       "2384"         "89" "2013-01-03" "2022-06-22"
+
+
+|                       |欄位                   | 缺值數|
+|:----------------------|:----------------------|------:|
+|jpy_per_usd            |jpy_per_usd            |     32|
+|twd_per_usd            |twd_per_usd            |     32|
+|twd_per_jpy            |twd_per_jpy            |     32|
+|log_return_twd_per_jpy |log_return_twd_per_jpy |     63|
+
+``` r
+usable <- fx[is.finite(fx$log_return_twd_per_jpy), ]
+y <- usable$log_return_twd_per_jpy
+dates <- usable$date
+n <- length(y)
+
+stopifnot(!anyNA(y), all(diff(dates) > 0))
+
+data_profile <- data.frame(
+  序列 = "TWD per JPY 交叉匯率對數報酬",
+  起日 = min(dates),
+  迄日 = max(dates),
+  有效報酬數 = n,
+  單位 = "小數日對數報酬",
+  原始來源 = "FRED DEXJPUS 與 DEXTAUS",
+  check.names = FALSE
+)
+knitr::kable(data_profile)
 ```
 
-## 依時間固定三個區段
 
-前 60\% 是初始訓練期，接下來 20\% 是驗證期，最後 20\% 是一次性測試期。切點以觀察順序定義，再列出實際日期供審核。
+
+|序列                         |起日       |迄日       | 有效報酬數|單位           |原始來源                |
+|:----------------------------|:----------|:----------|----------:|:--------------|:-----------------------|
+|TWD per JPY 交叉匯率對數報酬 |2020-01-03 |2022-12-16 |        709|小數日對數報酬 |FRED DEXJPUS 與 DEXTAUS |
+
+## 依時間固定訓練、驗證與測試期
+
+前 60% 是初始訓練期，接下來 20% 只用於選擇滾動規格，最後 20% 是一次性測試期。日期不隨機打散。
 
 
 ``` r
@@ -71,51 +110,57 @@ train_end <- floor(0.60 * n)
 validation_end <- floor(0.80 * n)
 
 split_table <- data.frame(
-  segment = c("training", "validation", "test"),
-  first_index = c(1L, train_end + 1L, validation_end + 1L),
-  last_index = c(train_end, validation_end, n)
+  區段 = c("訓練期", "驗證期", "測試期"),
+  起始索引 = c(1L, train_end + 1L, validation_end + 1L),
+  結束索引 = c(train_end, validation_end, n),
+  check.names = FALSE
 )
-split_table$first_date <- dates[split_table$first_index]
-split_table$last_date <- dates[split_table$last_index]
-split_table$observations <- with(
-  split_table, last_index - first_index + 1L
+split_table$起日 <- dates[split_table$起始索引]
+split_table$迄日 <- dates[split_table$結束索引]
+split_table$觀察值 <- with(
+  split_table, 結束索引 - 起始索引 + 1L
 )
-split_table
+knitr::kable(split_table)
 ```
 
-```
-##      segment first_index last_index first_date  last_date observations
-## 1   training           1       1430 2013-01-03 2018-09-06         1430
-## 2 validation        1431       1907 2018-09-07 2020-07-30          477
-## 3       test        1908       2384 2020-07-31 2022-06-22          477
-```
 
-一個起點 \(t\) 只能使用第 1 至 \(t\) 筆報酬，並預測第 \(t+1\) 筆。下列函數把資料邊界寫進回傳值，便於查核。
 
-## 單一起點預測函數
+|區段   | 起始索引| 結束索引|起日       |迄日       | 觀察值|
+|:------|--------:|--------:|:----------|:----------|------:|
+|訓練期 |        1|      425|2020-01-03 |2021-10-06 |    425|
+|驗證期 |      426|      567|2021-10-07 |2022-05-12 |    142|
+|測試期 |      568|      709|2022-05-13 |2022-12-16 |    142|
+
+一個預測起點 $t$ 只能使用第 1 至 $t$ 筆已知報酬，並預測第 $t+1$ 筆。
+
+## 單一起點的預測函數
 
 
 ``` r
-forecast_at_origin <- function(y, origin, model, window = NULL) {
+forecast_at_origin <- function(y, origin, model, window = NA_integer_) {
   stopifnot(origin >= 3L, origin < length(y))
 
   if (model == "zero") {
-    pred <- 0
     training_start <- 1L
+    prediction <- 0
   } else if (model == "expanding_mean") {
     training_start <- 1L
-    pred <- mean(y[training_start:origin])
+    prediction <- mean(y[training_start:origin])
   } else if (model == "rolling_mean") {
-    stopifnot(!is.null(window), origin >= window)
+    stopifnot(is.finite(window), origin >= window)
     training_start <- origin - window + 1L
-    pred <- mean(y[training_start:origin])
+    prediction <- mean(y[training_start:origin])
   } else if (model == "expanding_ar1") {
     training_start <- 1L
-    y_train <- y[training_start:origin]
-    X <- cbind(1, y_train[-length(y_train)])
-    target <- y_train[-1]
-    beta <- qr.solve(X, target)
-    pred <- beta[1] + beta[2] * y[origin]
+    z <- y[training_start:origin]
+    beta <- qr.solve(cbind(1, z[-length(z)]), z[-1])
+    prediction <- beta[1] + beta[2] * y[origin]
+  } else if (model == "rolling_ar1") {
+    stopifnot(is.finite(window), origin >= window)
+    training_start <- origin - window + 1L
+    z <- y[training_start:origin]
+    beta <- qr.solve(cbind(1, z[-length(z)]), z[-1])
+    prediction <- beta[1] + beta[2] * y[origin]
   } else {
     stop("未知模型。")
   }
@@ -125,18 +170,23 @@ forecast_at_origin <- function(y, origin, model, window = NULL) {
     target_index = origin + 1L,
     training_start = training_start,
     training_end = origin,
-    forecast = as.numeric(pred),
+    forecast = as.numeric(prediction),
     actual = y[origin + 1L]
   )
 }
 
-evaluate_origins <- function(y, origins, model, window = NULL) {
-  out <- do.call(rbind, lapply(origins, function(o) {
-    forecast_at_origin(y, o, model, window)
+evaluate_origins <- function(y, origins, model, window = NA_integer_) {
+  out <- do.call(rbind, lapply(origins, function(origin) {
+    forecast_at_origin(y, origin, model, window)
   }))
   out$model <- model
-  out$window <- if (is.null(window)) NA_integer_ else as.integer(window)
+  out$window <- window
   out$error <- out$actual - out$forecast
+  out$model_label <- if (is.finite(window)) {
+    paste0(model, "_", window)
+  } else {
+    model
+  }
   stopifnot(
     all(out$training_end == out$origin),
     all(out$training_end < out$target_index)
@@ -145,73 +195,80 @@ evaluate_origins <- function(y, origins, model, window = NULL) {
 }
 ```
 
-## 驗證期只用來選滾動視窗
+## 驗證期選擇滾動規格
 
-候選視窗為 60、125、250 個共同交易日。每個起點都只以當時往前的固定長度平均形成預測。
+候選規格包括 20、60、120、250 個有效觀察值的滾動平均，以及 60、120、250 期的滾動 AR(1)。視窗與模型只按驗證期 RMSE 選一次。
 
 
 ``` r
 validation_origins <- train_end:(validation_end - 1L)
-window_grid <- c(60L, 125L, 250L)
+candidate_specs <- rbind(
+  data.frame(model = "rolling_mean", window = c(20L, 60L, 120L, 250L)),
+  data.frame(model = "rolling_ar1", window = c(60L, 120L, 250L))
+)
 
-validation_results <- lapply(window_grid, function(w) {
+validation_results <- lapply(seq_len(nrow(candidate_specs)), function(i) {
   evaluate_origins(
-    portfolio_return, validation_origins,
-    model = "rolling_mean", window = w
+    y, validation_origins,
+    model = candidate_specs$model[i],
+    window = candidate_specs$window[i]
   )
 })
 
-validation_score <- data.frame(
-  window = window_grid,
-  RMSE = vapply(validation_results, function(z) {
-    sqrt(mean(z$error^2))
-  }, numeric(1)),
-  MAE = vapply(validation_results, function(z) {
-    mean(abs(z$error))
-  }, numeric(1))
-)
-validation_score
+validation_score <- do.call(rbind, lapply(seq_len(nrow(candidate_specs)), function(i) {
+  z <- validation_results[[i]]
+  data.frame(
+    模型 = candidate_specs$model[i],
+    視窗 = candidate_specs$window[i],
+    RMSE = sqrt(mean(z$error^2)),
+    MAE = mean(abs(z$error)),
+    check.names = FALSE
+  )
+}))
+validation_score <- validation_score[order(validation_score$RMSE), ]
+row.names(validation_score) <- NULL
+knitr::kable(validation_score, digits = 7)
 ```
 
-```
-##   window       RMSE        MAE
-## 1     60 0.01737418 0.01007542
-## 2    125 0.01724110 0.01005148
-## 3    250 0.01719964 0.01000231
-```
+
+
+|模型         | 視窗|      RMSE|       MAE|
+|:------------|----:|---------:|---------:|
+|rolling_ar1  |  250| 0.0048233| 0.0036531|
+|rolling_ar1  |  120| 0.0048261| 0.0036490|
+|rolling_mean |  250| 0.0048415| 0.0036668|
+|rolling_mean |  120| 0.0048465| 0.0036683|
+|rolling_ar1  |   60| 0.0048830| 0.0037129|
+|rolling_mean |   60| 0.0049024| 0.0037357|
+|rolling_mean |   20| 0.0049426| 0.0037453|
 
 ``` r
-selected_window <- validation_score$window[
-  which.min(validation_score$RMSE)
-]
-selected_window
+selected_model <- validation_score$模型[1]
+selected_window <- validation_score$視窗[1]
+c(selected_model = selected_model, selected_window = selected_window)
 ```
 
 ```
-## [1] 250
+##  selected_model selected_window 
+##   "rolling_ar1"           "250"
 ```
 
-視窗只依驗證 RMSE 選一次。接下來不因測試結果改變。
+驗證期選出 250 期滾動 AR(1)。選定後規格立即凍結，不因測試期結果再改視窗。
 
-## 一次性測試期
+## 凍結規格後的一次性測試
+
+測試期比較零報酬、擴展平均、擴展 AR(1) 與驗證期選出的滾動規格。每一個起點都重新以當時可見的歷史資料估計；測試期真值只用於事後評分。
 
 
 ``` r
 test_origins <- validation_end:(n - 1L)
 
 test_results <- rbind(
+  evaluate_origins(y, test_origins, "zero"),
+  evaluate_origins(y, test_origins, "expanding_mean"),
+  evaluate_origins(y, test_origins, "expanding_ar1"),
   evaluate_origins(
-    portfolio_return, test_origins, "zero"
-  ),
-  evaluate_origins(
-    portfolio_return, test_origins, "expanding_mean"
-  ),
-  evaluate_origins(
-    portfolio_return, test_origins, "rolling_mean",
-    window = selected_window
-  ),
-  evaluate_origins(
-    portfolio_return, test_origins, "expanding_ar1"
+    y, test_origins, selected_model, window = selected_window
   )
 )
 
@@ -220,135 +277,155 @@ test_results$target_date <- dates[test_results$target_index]
 test_results$training_start_date <- dates[test_results$training_start]
 test_results$training_end_date <- dates[test_results$training_end]
 
-head(test_results, 8)
+knitr::kable(head(test_results[c(
+  "model_label", "origin_date", "target_date",
+  "training_start_date", "training_end_date",
+  "forecast", "actual"
+)], 8), digits = 7)
 ```
 
-```
-##   origin target_index training_start training_end forecast       actual model
-## 1   1907         1908              1         1907        0 -0.001079797  zero
-## 2   1908         1909              1         1908        0  0.004716595  zero
-## 3   1909         1910              1         1909        0  0.007220686  zero
-## 4   1910         1911              1         1910        0  0.007924137  zero
-## 5   1911         1912              1         1911        0  0.004493475  zero
-## 6   1912         1913              1         1912        0  0.002346122  zero
-## 7   1913         1914              1         1913        0  0.003915023  zero
-## 8   1914         1915              1         1914        0 -0.005279467  zero
-##   window        error origin_date target_date training_start_date
-## 1     NA -0.001079797  2020-07-30  2020-07-31          2013-01-03
-## 2     NA  0.004716595  2020-07-31  2020-08-03          2013-01-03
-## 3     NA  0.007220686  2020-08-03  2020-08-04          2013-01-03
-## 4     NA  0.007924137  2020-08-04  2020-08-05          2013-01-03
-## 5     NA  0.004493475  2020-08-05  2020-08-06          2013-01-03
-## 6     NA  0.002346122  2020-08-06  2020-08-07          2013-01-03
-## 7     NA  0.003915023  2020-08-07  2020-08-10          2013-01-03
-## 8     NA -0.005279467  2020-08-10  2020-08-11          2013-01-03
-##   training_end_date
-## 1        2020-07-30
-## 2        2020-07-31
-## 3        2020-08-03
-## 4        2020-08-04
-## 5        2020-08-05
-## 6        2020-08-06
-## 7        2020-08-07
-## 8        2020-08-10
-```
+
+
+|model_label |origin_date |target_date |training_start_date |training_end_date | forecast|     actual|
+|:-----------|:-----------|:-----------|:-------------------|:-----------------|--------:|----------:|
+|zero        |2022-05-12  |2022-05-13  |2020-01-03          |2022-05-12        |        0| -0.0104596|
+|zero        |2022-05-13  |2022-05-16  |2020-01-03          |2022-05-13        |        0| -0.0000523|
+|zero        |2022-05-16  |2022-05-17  |2020-01-03          |2022-05-16        |        0| -0.0046028|
+|zero        |2022-05-17  |2022-05-18  |2020-01-03          |2022-05-17        |        0|  0.0108216|
+|zero        |2022-05-18  |2022-05-19  |2020-01-03          |2022-05-18        |        0|  0.0053627|
+|zero        |2022-05-19  |2022-05-20  |2020-01-03          |2022-05-19        |        0| -0.0069319|
+|zero        |2022-05-20  |2022-05-23  |2020-01-03          |2022-05-20        |        0|  0.0002881|
+|zero        |2022-05-23  |2022-05-24  |2020-01-03          |2022-05-23        |        0|  0.0092556|
 
 
 ``` r
 score_one <- function(z) {
-  c(
-    observations = nrow(z),
+  data.frame(
+    模型 = z$model_label[1],
+    觀察值 = nrow(z),
     RMSE = sqrt(mean(z$error^2)),
     MAE = mean(abs(z$error)),
-    mean_error = mean(z$error)
+    平均誤差 = mean(z$error),
+    check.names = FALSE
   )
 }
 
 score_table <- do.call(
   rbind,
-  lapply(split(test_results, test_results$model), score_one)
+  lapply(split(test_results, test_results$model_label), score_one)
 )
-round(score_table, 6)
+score_table <- score_table[order(score_table$RMSE), ]
+row.names(score_table) <- NULL
+knitr::kable(score_table, digits = 7)
 ```
 
-```
-##                observations     RMSE      MAE mean_error
-## expanding_ar1           477 0.010446 0.007750  -0.000145
-## expanding_mean          477 0.010314 0.007626  -0.000125
-## rolling_mean            477 0.010313 0.007622  -0.000427
-## zero                    477 0.010335 0.007668   0.000700
-```
 
-分數是固定資料期間的描述，不代表未來必然維持相同排序。日平均報酬很小，因此任何改善都應連同抽樣不確定性、交易成本與市場穩定性判讀。
 
-## 逐期誤差比單一 RMSE 更可審核
+|模型            | 觀察值|      RMSE|       MAE|  平均誤差|
+|:---------------|------:|---------:|---------:|---------:|
+|rolling_ar1_250 |    142| 0.0081441| 0.0060522| 0.0005755|
+|expanding_ar1   |    142| 0.0082058| 0.0061228| 0.0004600|
+|zero            |    142| 0.0083126| 0.0062443| 0.0001272|
+|expanding_mean  |    142| 0.0083264| 0.0062311| 0.0004108|
+
+在 142 筆測試預測中，250 期滾動 AR(1) 的 RMSE 為 0.0081441，低於零報酬基準的 0.0083126；差距不大，且不能由單一測試路徑推論長期可交易性。
+
+分數是 2022-05-13 至 2022-12-16 這一段固定測試期的描述；測試期碰到較高波動，排序不保證在其他時期維持。
+
+## 預測路徑與累積損失
 
 
 ``` r
-models <- unique(test_results$model)
+model_labels <- unique(test_results$model_label)
 colors <- c("#173B57", "#A34045", "#1D6D73", "#8A6D3B")
 
-plot(
-  NA,
-  xlim = range(dates[test_origins + 1L]),
-  ylim = c(0, max(vapply(
-    split(test_results$error, test_results$model),
-    function(e) sum(e^2),
-    numeric(1)
-  ))),
-  xlab = "目標日期", ylab = "累積平方誤差"
+old_par <- par(
+  mfrow = c(2, 1), mar = c(4.5, 4, 3, 1),
+  family = plot_family
 )
-
-for (j in seq_along(models)) {
-  z <- test_results[test_results$model == models[j], ]
-  lines(
-    z$target_date, cumsum(z$error^2),
-    col = colors[j], lwd = 2
-  )
+actual_path <- test_results[test_results$model_label == model_labels[1], ]
+plot(
+  actual_path$target_date, 100 * actual_path$actual,
+  type = "l", col = "gray55",
+  xlab = "目標日期", ylab = "日對數報酬（%）",
+  main = "實際值與預測"
+)
+for (j in seq_along(model_labels)) {
+  z <- test_results[test_results$model_label == model_labels[j], ]
+  lines(z$target_date, 100 * z$forecast, col = colors[j], lwd = 1.4)
 }
 legend(
-  "topleft", models, col = colors[seq_along(models)],
-  lty = 1, lwd = 2, bty = "n"
+  "topleft", c("實際值", model_labels),
+  col = c("gray55", colors[seq_along(model_labels)]),
+  lty = 1, lwd = c(1, rep(1.4, length(model_labels))),
+  bty = "n", cex = 0.8
+)
+
+total_loss <- vapply(
+  split(test_results$error, test_results$model_label),
+  function(e) sum(e^2), numeric(1)
+)
+plot(
+  actual_path$target_date,
+  rep(NA_real_, nrow(actual_path)),
+  type = "n",
+  xlim = range(actual_path$target_date),
+  ylim = c(0, max(total_loss)),
+  xlab = "目標日期", ylab = "累積平方誤差",
+  main = "累積損失"
+)
+for (j in seq_along(model_labels)) {
+  z <- test_results[test_results$model_label == model_labels[j], ]
+  lines(z$target_date, cumsum(z$error^2), col = colors[j], lwd = 2)
+}
+legend(
+  "topleft", model_labels,
+  col = colors[seq_along(model_labels)],
+  lty = 1, lwd = 2, bty = "n", cex = 0.8
 )
 ```
 
-![測試期各模型的累積平方預測誤差。](./R06_leak_free_out_of_sample_evaluation_files/figure-gfm/cumulative-loss-1.png)
+![TWD/JPY 測試期的一步預測與累積平方預測誤差。](../R06_leak_free_out_of_sample_evaluation_files/figure-gfm/cumulative-loss-1.png)
 
-累積損失若在少數危機日突然跳升，平均 RMSE 可能主要由那些日期主導。這不是刪除危機日的理由，而是提示應分開報告市場狀態與結構穩定性。
+``` r
+par(old_par)
+```
 
-## 程式防漏檢核
+累積損失的跳升可定位哪些日期主導 RMSE；它不是刪除極端日的理由。
+
+## 程式防漏檢查
 
 
 ``` r
 leakage_audit <- within(
-  test_results[, c(
-    "model", "origin_date", "target_date",
+  test_results[c(
+    "model_label", "origin_date", "target_date",
     "training_start_date", "training_end_date"
   )],
   valid_timing <- training_end_date == origin_date &
     training_end_date < target_date
 )
-table(leakage_audit$valid_timing)
+
+knitr::kable(as.data.frame(table(leakage_audit$valid_timing)))
 ```
 
-```
-## 
-## TRUE 
-## 1908
-```
+
+
+|Var1 | Freq|
+|:----|----:|
+|TRUE |  568|
 
 ``` r
 stopifnot(all(leakage_audit$valid_timing))
 ```
 
-若未來加入標準化、PCA、變數選擇或缺值填補，這些步驟也必須搬進 forecast_at_origin，且只對 training_start:training_end 配適。先用全樣本轉換再呼叫此函數仍然是資料洩漏。
+若未來加入標準化、缺值填補、PCA 或變數選擇，這些轉換也必須放入每個預測起點，只用當時可見的訓練資料配適。先用全樣本轉換再做滾動預測仍然是資料洩漏。
 
-## 可重現報告應保留
+## 可重現報告至少保留
 
-- 凍結資料檔與 manifest 檢查碼；
-- 三段日期、每個預測起點與目標日期；
-- 候選視窗與驗證分數；
-- 規格凍結時間；
-- 測試期逐筆預測、誤差、訓練起訖日；
+- 固定資料版本、匯率報價方向與單位；
+- 三段日期、候選視窗與驗證分數；
+- 規格凍結時點；
+- 每個起點的訓練起訖日、目標日、預測與誤差；
 - RMSE、MAE、平均誤差與簡單基準；
-- 任何事後敏感度分析都和主要測試結果分開標示。
+- 任何看過測試期後做的敏感度分析，必須與主要結果分開標示。

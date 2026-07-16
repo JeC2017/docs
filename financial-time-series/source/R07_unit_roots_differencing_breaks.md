@@ -1,20 +1,23 @@
 ---
-title: "R07：單根、差分與結構變動"
+title: "R07：TWD／JPY 的單根、差分與結構變動"
 output:
   github_document:
     toc: true
     toc_depth: 3
 ---
 
-本附錄對應第 9--10 章。第一部分以固定種子比較定態 AR、隨機漫步與確定趨勢，手動建立 ADF 迴歸，並在完全指定的 i.i.d. 隨機漫步虛無下模擬有限樣本臨界值。第二部分核對已知平均數變動的平方和檢定、做回顧性未知日期搜尋，再以擴展與滾動平均示範不偷看未來的預測。
+本附錄對應第 9--10 章，使用 FRED 的 JPY/USD（`DEXJPUS`）與 TWD/USD（`DEXTAUS`）建構 TWD/JPY 交叉匯率。`twd_per_jpy` 表示「1 日圓值多少新臺幣」，水準單位是新臺幣／日圓；對數差分與對數報酬以小數表示。固定檔涵蓋 2020-01-02 至 2022-12-16，來源與建置規則見 `data/DATA_SOURCES.md`。
+
+由於兩市場休市日不同，合併檔存在缺值。本附錄把相鄰共同有效觀察值視為時間索引，手動建立 ADF-like 教學迴歸，並以完全指定的 i.i.d. 隨機漫步虛無模擬有限樣本臨界值。這不是正式套件的 MacKinnon $p$ 值。結構變動部分是回顧性描述，不能作政策或市場事件的因果解釋。
 
 
 ``` r
 knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
-  fig.width = 7, fig.height = 4.5
+  fig.width = 8, fig.height = 5,
+  dev = "ragg_png", dpi = 144,
+  dev.args = list(background = "white")
 )
-set.seed(20260716)
 
 root_candidates <- c(".", "..")
 is_root <- vapply(root_candidates, function(x) {
@@ -23,64 +26,107 @@ is_root <- vapply(root_candidates, function(x) {
 stopifnot(any(is_root))
 project_root <- root_candidates[which(is_root)[1]]
 project_path <- function(...) file.path(project_root, ...)
-```
 
-## 三種看似持續的序列
-
-
-``` r
-n <- 240L
-stationary_ar <- as.numeric(arima.sim(
-  model = list(ar = 0.70), n = n, sd = 1
-))
-random_walk <- cumsum(rnorm(n))
-trend_error <- as.numeric(arima.sim(
-  model = list(ar = 0.50), n = n, sd = 1
-))
-trend_stationary <- 0.03 * seq_len(n) + trend_error
-
-series_matrix <- cbind(
-  stationary_ar = stationary_ar,
-  random_walk = random_walk,
-  trend_stationary = trend_stationary
+stopifnot(
+  requireNamespace("ragg", quietly = TRUE),
+  requireNamespace("systemfonts", quietly = TRUE)
 )
+cwtex_file <- project_path("assets", "fonts", "cwTeXQKai-Medium.ttf")
+stopifnot(file.exists(cwtex_file))
+if (!"cwTeX Online" %in% systemfonts::registry_fonts()$family) {
+  systemfonts::register_font("cwTeX Online", cwtex_file)
+}
+plot_family <- "cwTeX Online"
 ```
+
+## 讀取真實交叉匯率
 
 
 ``` r
-par(mfrow = c(2, 3))
-for (j in seq_len(ncol(series_matrix))) {
-  plot(
-    series_matrix[, j], type = "l", col = "#173B57",
-    main = colnames(series_matrix)[j],
-    xlab = "期數", ylab = "水準"
-  )
-}
-for (j in seq_len(ncol(series_matrix))) {
-  plot(
-    diff(series_matrix[, j]), type = "l", col = "#A34045",
-    main = paste("差分", colnames(series_matrix)[j]),
-    xlab = "期數", ylab = "一階差分"
-  )
-}
+fx <- read.csv(project_path(
+  "data", "processed", "fred_jpy_twd_daily_2020_2022.csv"
+))
+fx$date <- as.Date(fx$date)
+fx <- fx[order(fx$date), ]
+stopifnot(all(diff(fx$date) > 0))
+
+level_data <- fx[
+  is.finite(fx$twd_per_jpy),
+  c("date", "twd_per_jpy")
+]
+return_data <- fx[
+  is.finite(fx$log_return_twd_per_jpy),
+  c("date", "log_return_twd_per_jpy")
+]
+
+stopifnot(
+  all(level_data$twd_per_jpy > 0),
+  all(diff(level_data$date) > 0),
+  all(diff(return_data$date) > 0)
+)
+
+data_profile <- data.frame(
+  序列 = c("TWD per JPY 水準", "TWD per JPY 日對數報酬"),
+  起日 = c(min(level_data$date), min(return_data$date)),
+  迄日 = c(max(level_data$date), max(return_data$date)),
+  有效觀察值 = c(nrow(level_data), nrow(return_data)),
+  單位 = c("新臺幣／日圓", "小數日對數報酬"),
+  來源 = "FRED DEXJPUS 與 DEXTAUS",
+  check.names = FALSE
+)
+knitr::kable(data_profile)
 ```
 
-![三種序列的水準與一階差分。](./R07_unit_roots_differencing_breaks_files/figure-gfm/level-difference-plots-1.png)
+
+
+|序列                   |起日       |迄日       | 有效觀察值|單位           |來源                    |
+|:----------------------|:----------|:----------|----------:|:--------------|:-----------------------|
+|TWD per JPY 水準       |2020-01-02 |2022-12-16 |        740|新臺幣／日圓   |FRED DEXJPUS 與 DEXTAUS |
+|TWD per JPY 日對數報酬 |2020-01-03 |2022-12-16 |        709|小數日對數報酬 |FRED DEXJPUS 與 DEXTAUS |
+
+## 水準與一階對數差分
+
 
 ``` r
-par(mfrow = c(1, 1))
+log_level <- log(level_data$twd_per_jpy)
+log_difference <- diff(log_level)
+
+old_par <- par(
+  mfrow = c(2, 1), mar = c(4.5, 4, 3, 1),
+  family = plot_family
+)
+plot(
+  level_data$date, log_level, type = "l", col = "#173B57",
+  xlab = "日期", ylab = "log(TWD per JPY)",
+  main = "交叉匯率對數水準"
+)
+plot(
+  level_data$date[-1], 100 * log_difference,
+  type = "l", col = "#A34045",
+  xlab = "日期", ylab = "一階對數差分（%）",
+  main = "相鄰共同有效觀察值的差分"
+)
+abline(h = 0, col = "gray60")
 ```
 
-確定趨勢序列應去除時間趨勢後檢查誤差；隨機漫步則靠差分移除累積衝擊。只看水準圖不容易可靠區分。
+![TWD/JPY 交叉匯率的對數水準與相鄰共同有效觀察值的一階差分。](../R07_unit_roots_differencing_breaks_files/figure-gfm/level-difference-plots-1.png)
 
-## 手動建立 ADF 迴歸
+``` r
+par(old_par)
+```
 
-對每個設定估計
+水準看起來持續，不足以單獨判定單根；差分看似繞著零，也不等於定態已被證明。
+
+## 手動建立 ADF-like 迴歸
+
+估計式為
+
 \[
-\Delta Y_t=c+\beta t+\gamma Y_{t-1}
+\Delta Y_t=c+\gamma Y_{t-1}
 +\sum_{j=1}^{p}\delta_j\Delta Y_{t-j}+u_t.
 \]
-回傳的 statistic 是 \(\widehat\gamma\) 除以其 OLS 標準誤。它不能使用普通常態臨界值。
+
+回傳統計量是 $\widehat{\gamma}$ 除以 OLS 標準誤。單根虛無下不能套用普通常態或 Student-$t$ 臨界值。
 
 
 ``` r
@@ -122,364 +168,214 @@ adf_statistic <- function(
   standard_error <- sqrt(diag(covariance))
   gamma_index <- match("level_lag", colnames(X))
 
-  list(
-    statistic = unname(fit$coefficients[gamma_index] /
-      standard_error[gamma_index]),
+  c(
+    statistic = unname(
+      fit$coefficients[gamma_index] / standard_error[gamma_index]
+    ),
     gamma = unname(fit$coefficients[gamma_index]),
-    residual_df = residual_df,
-    residuals = fit$residuals,
-    coefficients = fit$coefficients,
-    design = deterministic,
-    lags = lags
+    regression_observations = length(response)
   )
 }
 ```
 
-## 以指定虛無模擬有限樣本臨界值
+## 在完全指定的虛無下模擬臨界值
 
-以下臨界值只對「樣本長度 240、指定確定項與落後階數、i.i.d. 常態隨機漫步」的教學設計有效。它不是一般資料庫，也不能取代正式單根套件的 MacKinnon \(p\) 值或符合實證誤差結構的重抽樣。
+下列臨界值只對「相同樣本長度、常數項、5 個差分落後、i.i.d. 常態隨機漫步」有效。模擬次數 $B=999$，因此臨界值本身仍有 Monte Carlo 誤差。
 
 
 ``` r
 simulate_adf_critical <- function(
-    n, lags, deterministic, B = 499L, seed = 1L) {
+    n, lags = 5L, deterministic = "constant",
+    B = 999L, seed = 1L) {
   set.seed(seed)
   statistics <- replicate(B, {
     null_series <- cumsum(rnorm(n))
     adf_statistic(
       null_series, lags = lags,
       deterministic = deterministic
-    )$statistic
+    )["statistic"]
   })
-  c(
-    critical_01 = unname(quantile(statistics, 0.01)),
-    critical_05 = unname(quantile(statistics, 0.05)),
-    critical_10 = unname(quantile(statistics, 0.10))
-  )
+  unname(quantile(statistics, c(0.01, 0.05, 0.10)))
 }
 
-critical_constant <- simulate_adf_critical(
-  n, lags = 2, deterministic = "constant",
-  B = 499, seed = 20260718
+lags <- 5L
+critical_level <- simulate_adf_critical(
+  length(log_level), lags = lags, seed = 20260718
 )
-critical_trend <- simulate_adf_critical(
-  n, lags = 2, deterministic = "trend",
-  B = 499, seed = 20260719
+critical_difference <- simulate_adf_critical(
+  length(log_difference), lags = lags, seed = 20260719
 )
-rbind(constant = critical_constant, trend = critical_trend)
+
+critical_table <- data.frame(
+  序列 = c("對數水準", "一階對數差分"),
+  臨界值1pct = c(critical_level[1], critical_difference[1]),
+  臨界值5pct = c(critical_level[2], critical_difference[2]),
+  臨界值10pct = c(critical_level[3], critical_difference[3]),
+  check.names = FALSE
+)
+knitr::kable(critical_table, digits = 4)
 ```
 
-```
-##          critical_01 critical_05 critical_10
-## constant   -3.479505   -2.875708   -2.572609
-## trend      -4.050249   -3.460097   -3.105985
-```
+
+
+|序列         | 臨界值1pct| 臨界值5pct| 臨界值10pct|
+|:------------|----------:|----------:|-----------:|
+|對數水準     |    -3.4278|    -2.8721|     -2.6171|
+|一階對數差分 |    -3.4347|    -2.8695|     -2.5559|
 
 
 ``` r
-adf_ar <- adf_statistic(
-  stationary_ar, lags = 2, deterministic = "constant"
+adf_level <- adf_statistic(
+  log_level, lags = lags, deterministic = "constant"
 )
-adf_rw <- adf_statistic(
-  random_walk, lags = 2, deterministic = "constant"
-)
-adf_trend <- adf_statistic(
-  trend_stationary, lags = 2, deterministic = "trend"
+adf_difference <- adf_statistic(
+  log_difference, lags = lags, deterministic = "constant"
 )
 
 adf_table <- data.frame(
-  series = c("stationary AR(1)", "random walk", "trend stationary"),
-  deterministic = c("constant", "constant", "constant + trend"),
-  statistic = c(
-    adf_ar$statistic, adf_rw$statistic, adf_trend$statistic
+  序列 = c("log(TWD per JPY)", "一階對數差分"),
+  ADF_like統計量 = c(
+    adf_level["statistic"], adf_difference["statistic"]
   ),
-  simulated_critical_05 = c(
-    critical_constant["critical_05"],
-    critical_constant["critical_05"],
-    critical_trend["critical_05"]
-  )
-)
-adf_table$reject_in_exact_teaching_design <-
-  adf_table$statistic < adf_table$simulated_critical_05
-adf_table
-```
-
-```
-##             series    deterministic statistic simulated_critical_05
-## 1 stationary AR(1)         constant -5.675289             -2.875708
-## 2      random walk         constant -1.155182             -2.875708
-## 3 trend stationary constant + trend -7.440159             -3.460097
-##   reject_in_exact_teaching_design
-## 1                            TRUE
-## 2                           FALSE
-## 3                            TRUE
-```
-
-模擬結果具有抽樣誤差；增加 B 可提高精度。ADF 未拒絕不等於證明有單根，拒絕也不排除結構變動或其他非定態。
-
-## 固定金融面板的水準與差分示範
-
-把 89 檔股票的等權日簡單報酬 \(r_t\) 轉成
-\(\sum_{s\leq t}\log(1+r_s)\)，得到一條教學用累積對數財富路徑。它不是可交易指數，以下也不對它宣告正式單根結論。
-
-
-``` r
-panel <- read.csv(
-  project_path(
-    "data", "processed", "sp500_returns_balanced_2013_2022.csv"
+  gamma估計值 = c(adf_level["gamma"], adf_difference["gamma"]),
+  迴歸觀察值 = c(
+    adf_level["regression_observations"],
+    adf_difference["regression_observations"]
   ),
+  模擬5pct臨界值 = c(critical_level[2], critical_difference[2]),
   check.names = FALSE
 )
-panel_dates <- as.Date(panel$date)
-panel_returns <- as.matrix(
-  panel[, setdiff(names(panel), "date")]
-)
-storage.mode(panel_returns) <- "double"
-equal_weight_return <- rowMeans(panel_returns)
-stopifnot(all(equal_weight_return > -1))
-cumulative_log_wealth <- cumsum(log1p(equal_weight_return))
-
-par(mfrow = c(1, 2))
-plot(
-  panel_dates, cumulative_log_wealth, type = "l",
-  col = "#173B57", xlab = "日期", ylab = "累積對數財富"
-)
-plot(
-  panel_dates, c(NA, diff(cumulative_log_wealth)), type = "l",
-  col = "#A34045", xlab = "日期", ylab = "差分"
-)
+adf_table$在指定教學設計下拒絕 <-
+  adf_table$ADF_like統計量 < adf_table$模擬5pct臨界值
+knitr::kable(adf_table, digits = 5)
 ```
 
-![plot of chunk frozen-financial-series](./R07_unit_roots_differencing_breaks_files/figure-gfm/frozen-financial-series-1.png)
-
-``` r
-par(mfrow = c(1, 1))
-```
-
-日報酬有厚尾與條件異質變異，前述 i.i.d. 隨機漫步模擬臨界值不適合直接套用。正式實證應使用明確版本的單根程序並報告確定項、落後階數與臨界值來源。
-
-## 先核對課文的已知變動點例
 
 
-``` r
-toy_break <- c(-1, 0, 1, 1, 2, 3)
-toy_tau <- 3L
-ssr_restricted <- sum((toy_break - mean(toy_break))^2)
-ssr_unrestricted <- sum(
-  (toy_break[1:toy_tau] - mean(toy_break[1:toy_tau]))^2
-) + sum(
-  (toy_break[(toy_tau + 1L):length(toy_break)] -
-     mean(toy_break[(toy_tau + 1L):length(toy_break)]))^2
-)
-toy_F <- ((ssr_restricted - ssr_unrestricted) / 1) /
-  (ssr_unrestricted / (length(toy_break) - 2))
+|序列             | ADF_like統計量| gamma估計值| 迴歸觀察值| 模擬5pct臨界值|在指定教學設計下拒絕 |
+|:----------------|--------------:|-----------:|----------:|--------------:|:--------------------|
+|log(TWD per JPY) |       -0.44839|    -0.00112|        734|       -2.87207|FALSE                |
+|一階對數差分     |      -12.13708|    -1.27037|        733|       -2.86945|TRUE                 |
 
-c(
-  SSR_restricted = ssr_restricted,
-  SSR_unrestricted = ssr_unrestricted,
-  F = toy_F
-)
-```
+在這個指定設計下，對數水準的結果與拒絕單根不相容，而差分的統計量落在左尾。這不是「水準一定有單根」或「差分一定符合某個完整模型」的證明；誤差相依、異質變異、缺值日與結構變動都可能改變參考分配。
 
-```
-##   SSR_restricted SSR_unrestricted                F 
-##               10                4                6
-```
+## 真實 FX 報酬的回顧性結構變動搜尋
 
-``` r
-stopifnot(
-  ssr_restricted == 10,
-  ssr_unrestricted == 4,
-  toy_F == 6
-)
-```
+以兩段常數平均數模型計算每個候選日期的平方和 $F$ 型統計量，每一側至少保留 15% 樣本。分別搜尋：
 
-## 固定種子平均數變動
+1. 日對數報酬的平均數；
+2. 絕對日對數報酬的平均數，作為波動尺度的描述性代理。
 
-
-``` r
-set.seed(20260720)
-n_break <- 240L
-true_break <- 120L
-break_series <- c(
-  rnorm(true_break, mean = 0, sd = 1),
-  rnorm(n_break - true_break, mean = 2, sd = 1)
-)
-
-plot(
-  break_series, type = "l", col = "#173B57",
-  xlab = "期數", ylab = "數值"
-)
-abline(v = true_break + 0.5, col = "#A34045", lwd = 2, lty = 2)
-```
-
-![plot of chunk simulate-break](./R07_unit_roots_differencing_breaks_files/figure-gfm/simulate-break-1.png)
-
-### 已知變動點
-
-
-``` r
-mean_before <- mean(break_series[1:true_break])
-mean_after <- mean(break_series[(true_break + 1L):n_break])
-ssr_R <- sum((break_series - mean(break_series))^2)
-ssr_U <- sum(
-  (break_series[1:true_break] - mean_before)^2
-) + sum(
-  (break_series[(true_break + 1L):n_break] - mean_after)^2
-)
-F_known <- ((ssr_R - ssr_U) / 1) /
-  (ssr_U / (n_break - 2))
-
-c(
-  mean_before = mean_before,
-  mean_after = mean_after,
-  SSR_restricted = ssr_R,
-  SSR_unrestricted = ssr_U,
-  F_known = F_known
-)
-```
-
-```
-##      mean_before       mean_after   SSR_restricted SSR_unrestricted 
-##        0.1127998        1.8286988      406.3765272      229.7179464 
-##          F_known 
-##      183.0276776
-```
-
-這個 \(F\) 公式的經典參考分配需要固定變動點與等變異獨立常態誤差。這裡資料生成過程刻意符合簡化假設；金融資料通常需要更穩健的方法。
-
-### 未知日期的回顧性搜尋
-
-每一側至少保留 40 筆，只在修剪後候選集合搜尋。最大統計量不能拿單一固定日期的普通 \(F\) 臨界值。
+最大統計量不能套用單一已知日期的普通 $F$ 臨界值。金融報酬也違反等變異獨立常態的簡化條件，因此以下不報普通 $F$ 的 $p$ 值。
 
 
 ``` r
 break_F <- function(y, tau) {
   n <- length(y)
-  ssr_r <- sum((y - mean(y))^2)
-  ssr_u <- sum((y[1:tau] - mean(y[1:tau]))^2) +
+  ssr_restricted <- sum((y - mean(y))^2)
+  ssr_unrestricted <-
+    sum((y[1:tau] - mean(y[1:tau]))^2) +
     sum((y[(tau + 1L):n] - mean(y[(tau + 1L):n]))^2)
-  ((ssr_r - ssr_u) / 1) / (ssr_u / (n - 2))
+  (ssr_restricted - ssr_unrestricted) /
+    (ssr_unrestricted / (n - 2L))
 }
 
-candidate_dates <- 40:(n_break - 40)
-F_path <- vapply(
-  candidate_dates,
-  function(tau) break_F(break_series, tau),
-  numeric(1)
-)
-estimated_break <- candidate_dates[which.max(F_path)]
-
-c(
-  true_break = true_break,
-  retrospective_estimate = estimated_break,
-  supremum_F = max(F_path)
-)
-```
-
-```
-##             true_break retrospective_estimate             supremum_F 
-##               120.0000               120.0000               183.0277
-```
-
-
-``` r
-plot(
-  candidate_dates, F_path, type = "l", lwd = 2,
-  col = "#173B57", xlab = "候選變動點", ylab = "F(tau)"
-)
-abline(v = true_break, col = "#A34045", lty = 2, lwd = 2)
-```
-
-![回顧性候選變動點統計量；紅線是真實模擬變動點。](./R07_unit_roots_differencing_breaks_files/figure-gfm/break-search-plot-1.png)
-
-## 不知道變動日的擬即時預測
-
-以下預測器從第 60 期起，一個使用全部歷史平均，另一個使用最近 60 期平均。兩者都沒有讀取 true_break 或回顧性 estimated_break 來形成預測；真實變動日只在事後分組評分時使用。
-
-
-``` r
-origins <- 60:(n_break - 1L)
-online_results <- do.call(rbind, lapply(origins, function(origin) {
-  data.frame(
-    origin = origin,
-    target = origin + 1L,
-    model = c("expanding_mean", "rolling_60"),
-    forecast = c(
-      mean(break_series[1:origin]),
-      mean(break_series[(origin - 59L):origin])
-    ),
-    actual = break_series[origin + 1L],
-    training_start = c(1L, origin - 59L),
-    training_end = origin
-  )
-}))
-online_results$error <- online_results$actual - online_results$forecast
-online_results$period <- ifelse(
-  online_results$target <= true_break, "pre_break", "post_break"
-)
-
-stopifnot(all(
-  online_results$training_end < online_results$target
-))
-
-online_score <- do.call(
-  rbind,
-  lapply(
-    split(
-      online_results,
-      list(online_results$model, online_results$period),
-      drop = TRUE
-    ),
-    function(z) c(
-      n = nrow(z),
-      RMSE = sqrt(mean(z$error^2)),
-      MAE = mean(abs(z$error))
-    )
-  )
-)
-round(online_score, 4)
-```
-
-```
-##                             n   RMSE    MAE
-## expanding_mean.post_break 120 1.5950 1.3402
-## rolling_60.post_break     120 1.2561 0.9857
-## expanding_mean.pre_break   60 0.9273 0.7755
-## rolling_60.pre_break       60 0.9291 0.7776
-```
-
-
-``` r
-plot(
-  break_series, type = "l", col = "gray65",
-  xlab = "期數", ylab = "數值"
-)
-for (nm in unique(online_results$model)) {
-  z <- online_results[online_results$model == nm, ]
-  lines(
-    z$target, z$forecast,
-    col = if (nm == "expanding_mean") "#173B57" else "#A34045",
-    lwd = 2
+scan_break <- function(y, dates, trim = 0.15) {
+  n <- length(y)
+  candidates <- ceiling(trim * n):floor((1 - trim) * n)
+  path <- vapply(candidates, function(tau) {
+    break_F(y, tau)
+  }, numeric(1))
+  selected <- candidates[which.max(path)]
+  list(
+    candidates = candidates,
+    path = path,
+    selected = selected,
+    date = dates[selected],
+    statistic = max(path),
+    pre_mean = mean(y[1:selected]),
+    post_mean = mean(y[(selected + 1L):n])
   )
 }
-abline(v = true_break + 0.5, lty = 2, col = "black")
-legend(
-  "topleft",
-  c("實際值", "擴展平均", "滾動 60 期"),
-  col = c("gray65", "#173B57", "#A34045"),
-  lty = 1, lwd = 2, bty = "n"
+
+fx_return <- return_data$log_return_twd_per_jpy
+mean_break <- scan_break(fx_return, return_data$date)
+scale_break <- scan_break(abs(fx_return), return_data$date)
+
+break_table <- data.frame(
+  搜尋序列 = c("日對數報酬", "絕對日對數報酬"),
+  回顧估計日期 = c(mean_break$date, scale_break$date),
+  最大F型統計量 = c(mean_break$statistic, scale_break$statistic),
+  斷點前平均值_pct = 100 * c(
+    mean_break$pre_mean, scale_break$pre_mean
+  ),
+  斷點後平均值_pct = 100 * c(
+    mean_break$post_mean, scale_break$post_mean
+  ),
+  check.names = FALSE
 )
+knitr::kable(break_table, digits = 5)
 ```
 
-![擴展平均與 60 期滾動平均的一步預測。](./R07_unit_roots_differencing_breaks_files/figure-gfm/online-plot-1.png)
 
-滾動視窗可能較快適應新平均數，但在穩定期使用較少資料，估計變異較大。視窗 60 若要在真實研究中選擇，必須在獨立驗證期調校，不能依本例測試結果事後決定。
+
+|搜尋序列       |回顧估計日期 | 最大F型統計量| 斷點前平均值_pct| 斷點後平均值_pct|
+|:--------------|:------------|-------------:|----------------:|----------------:|
+|日對數報酬     |2022-06-29   |       2.10323|         -0.03386|          0.05083|
+|絕對日對數報酬 |2022-05-11   |      66.23193|          0.34222|          0.63496|
+
+
+``` r
+old_par <- par(
+  mfrow = c(2, 1), mar = c(4.5, 4, 3, 1),
+  family = plot_family
+)
+plot(
+  return_data$date[mean_break$candidates], mean_break$path,
+  type = "l", lwd = 2, col = "#173B57",
+  xlab = "候選日期", ylab = "F 型統計量",
+  main = "日對數報酬平均數"
+)
+abline(v = mean_break$date, col = "#A34045", lty = 2, lwd = 2)
+
+plot(
+  return_data$date[scale_break$candidates], scale_break$path,
+  type = "l", lwd = 2, col = "#173B57",
+  xlab = "候選日期", ylab = "F 型統計量",
+  main = "絕對日對數報酬平均數"
+)
+abline(v = scale_break$date, col = "#A34045", lty = 2, lwd = 2)
+```
+
+![TWD/JPY 報酬平均數與絕對報酬平均數的回顧性變動點搜尋。](../R07_unit_roots_differencing_breaks_files/figure-gfm/break-search-plot-1.png)
+
+``` r
+par(old_par)
+```
+
+
+``` r
+old_par <- par(family = plot_family)
+plot(
+  return_data$date, 100 * fx_return,
+  type = "l", col = "gray45",
+  xlab = "日期", ylab = "日對數報酬（%）"
+)
+abline(v = scale_break$date, col = "#A34045", lty = 2, lwd = 2)
+```
+
+![TWD/JPY 日對數報酬；虛線是絕對報酬尺度代理的回顧估計變動日。](../R07_unit_roots_differencing_breaks_files/figure-gfm/fx-return-break-plot-1.png)
+
+``` r
+par(old_par)
+```
+
+絕對報酬搜尋顯示樣本後段的平均波動尺度較高，但回顧估計日期是使用全樣本找出的。它可以描述歷史，不能偷偷放回更早的預測起點，也不能僅憑日期相近就歸因於某個事件。
 
 ## 最終檢核
 
-1. ADF 的確定項與落後階數會改變臨界值與對立假設。
-2. 普通 OLS 的 \(t\) 分配不適用於單根虛無。
-3. 未知變動點搜尋的最大統計量需要專用臨界值。
-4. 回顧性變動日可解釋歷史，不能偷偷放回更早的預測起點。
-5. 結構變動分析應同時檢查平均數、動態與條件變異。
+1. ADF 的確定項與差分落後階數會改變統計量、臨界值與對立假設。
+2. 普通 OLS 的 $t$ 臨界值不適用於單根虛無。
+3. 模擬臨界值只對明寫的 i.i.d. 隨機漫步教學設計有效。
+4. 未知變動點的最大統計量需要專用推論；普通單一日期 $F$ 檢定不夠。
+5. 回顧性變動日期不是即時可用資訊，更不是因果識別。

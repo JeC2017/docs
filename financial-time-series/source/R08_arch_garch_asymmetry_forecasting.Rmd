@@ -1,179 +1,193 @@
 ---
-title: "R08：ARCH、GARCH、非對稱波動與預測"
+title: "R08：AAPL 的 ARCH、GARCH、非對稱波動與預測"
 output:
   github_document:
     toc: true
     toc_depth: 3
 ---
 
-本附錄對應第 11--12 章。所有資料均由固定亂數種子模擬，不安裝套件、不下載即時資料，也不更改工作目錄。模擬只用來驗證程式、符號與有限樣本行為，不構成理論證明。
+本附錄對應第 11--12 章，使用真實 AAPL 日對數報酬估計 GARCH(1,1) 與 GJR--GARCH(1,1)。資料源自原課程 S&P 500 價格檔；有效樣本為 2019-01-03 至 2022-06-22，共 874 筆，單位是小數日對數報酬。固定版本與建置方式見 `data/DATA_SOURCES.md`。
+
+最後 20% 樣本保留作一次性測試。平均數、變異數參數與初始尺度都只由前 80% 訓練期估計；測試期每一期先形成波動預測，才讀入當期實現報酬更新下一期狀態。本文只用 R 內建的 `optim()`，不依賴另行安裝的 GARCH 套件。
+
+條件波動模型描述歷史上的條件變異動態；正負報酬的不對稱關聯不能自動解讀成「壞消息造成波動」的因果效果，也不構成投資建議。
 
 ```{r setup}
 knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
-  fig.width = 7, fig.height = 4
+  fig.width = 8, fig.height = 5,
+  dev = "ragg_png", dpi = 144,
+  dev.args = list(background = "white")
 )
 
 required_r <- "4.3.0"
 stopifnot(getRversion() >= required_r)
-set.seed(808)
-```
 
-## 1. 軟體與重現規格
+root_candidates <- c(".", "..")
+is_root <- vapply(root_candidates, function(x) {
+  file.exists(file.path(x, "main.tex"))
+}, logical(1))
+stopifnot(any(is_root))
+project_root <- root_candidates[which(is_root)[1]]
+project_path <- function(...) file.path(project_root, ...)
 
-本檔只使用 R 內建的 `stats`、`graphics` 與 `utils`。主要函數是
-`optim()`、`lm()`、`acf()`、`Box.test()`。結果應記錄 R 版本與亂數種子；不同 R 版本的最佳化器可能在最後幾位略有差異。
-
-```{r versions}
-data.frame(
-  component = c("R", "stats", "graphics"),
-  version = c(
-    R.version.string,
-    as.character(packageVersion("stats")),
-    as.character(packageVersion("graphics"))
-  )
+stopifnot(
+  requireNamespace("ragg", quietly = TRUE),
+  requireNamespace("systemfonts", quietly = TRUE)
 )
-```
-
-## 2. 模擬 GJR--GARCH
-
-本附錄固定使用
-
-\[
-h_t=\omega+\alpha a_{t-1}^2+
-\gamma\mathbf 1(a_{t-1}<0)a_{t-1}^2+\beta h_{t-1}.
-\]
-
-因此同幅度負面衝擊的係數是 \(\alpha+\gamma\)。在對稱標準常態新衝擊下，二階持續性為
-\(\alpha+\beta+\gamma/2\)。
-
-```{r simulate-function}
-simulate_gjr <- function(n, omega, alpha, beta, gamma = 0,
-                         burn = 500, seed = 808) {
-  persistence <- alpha + beta + gamma / 2
-  stopifnot(
-    n > 20, burn >= 0, omega > 0,
-    alpha >= 0, beta >= 0, alpha + gamma >= 0,
-    persistence < 1
-  )
-
-  set.seed(seed)
-  total <- n + burn
-  z <- rnorm(total)
-  a <- numeric(total)
-  h <- numeric(total)
-  h[1] <- omega / (1 - persistence)
-  a[1] <- sqrt(h[1]) * z[1]
-
-  for (t in 2:total) {
-    negative <- as.numeric(a[t - 1] < 0)
-    h[t] <- omega +
-      alpha * a[t - 1]^2 +
-      gamma * negative * a[t - 1]^2 +
-      beta * h[t - 1]
-    a[t] <- sqrt(h[t]) * z[t]
-  }
-
-  keep <- (burn + 1):total
-  data.frame(
-    time = seq_len(n),
-    a = a[keep],
-    h = h[keep],
-    z = z[keep]
-  )
+cwtex_file <- project_path("assets", "fonts", "cwTeXQKai-Medium.ttf")
+stopifnot(file.exists(cwtex_file))
+if (!"cwTeX Online" %in% systemfonts::registry_fonts()$family) {
+  systemfonts::register_font("cwTeX Online", cwtex_file)
 }
-
-truth <- c(omega = 2e-6, alpha = 0.05, beta = 0.88, gamma = 0.08)
-sim <- simulate_gjr(
-  n = 1800,
-  omega = truth["omega"],
-  alpha = truth["alpha"],
-  beta = truth["beta"],
-  gamma = truth["gamma"]
-)
-
-truth_persistence <- with(
-  as.list(truth),
-  alpha + beta + gamma / 2
-)
-truth_persistence
+plot_family <- "cwTeX Online"
 ```
 
-```{r simulated-series}
-old_par <- par(mfrow = c(2, 1), mar = c(3, 4, 2, 1))
-plot(sim$time, 100 * sim$a, type = "l", col = "#173B57",
-     xlab = "時間", ylab = "報酬（%）",
-     main = "模擬報酬")
-plot(sim$time, 100 * sqrt(sim$h), type = "l", col = "#A34045",
-     xlab = "時間", ylab = "條件標準差（%）",
-     main = "真實條件波動")
+## 讀取資料並鎖定訓練期
+
+```{r read-split}
+aapl <- read.csv(project_path(
+  "data", "processed", "aapl_adjusted_daily_2019_2022.csv"
+))
+aapl$date <- as.Date(aapl$date)
+aapl <- aapl[order(aapl$date), ]
+aapl <- aapl[is.finite(aapl$log_return), ]
+row.names(aapl) <- NULL
+
+stopifnot(
+  !anyNA(aapl$date), !anyNA(aapl$log_return),
+  all(diff(aapl$date) > 0)
+)
+
+n <- nrow(aapl)
+train_end <- floor(0.80 * n)
+train_dates <- aapl$date[seq_len(train_end)]
+test_dates <- aapl$date[(train_end + 1L):n]
+
+# 常數平均數只用訓練期估計，之後固定。
+mu_train <- mean(aapl$log_return[seq_len(train_end)])
+train <- aapl$log_return[seq_len(train_end)] - mu_train
+test <- aapl$log_return[(train_end + 1L):n] - mu_train
+
+split_table <- data.frame(
+  區段 = c("訓練期", "測試期"),
+  起日 = c(min(train_dates), min(test_dates)),
+  迄日 = c(max(train_dates), max(test_dates)),
+  觀察值 = c(length(train), length(test)),
+  報酬單位 = "日對數報酬，小數",
+  資料來源 = "原課程 S&P 500 價格檔的 AAPL 固定版本",
+  check.names = FALSE
+)
+knitr::kable(split_table)
+
+data.frame(
+  訓練期平均日對數報酬 = mu_train,
+  訓練期報酬標準差 = sd(train),
+  check.names = FALSE
+)
+```
+
+以下 $a_t=r_t-\widehat{\mu}_{\mathrm{train}}$。固定訓練期平均數可讓波動預測的資訊邊界一目了然；它不是平均數與變異數聯合最大概似估計。
+
+## 報酬與平方報酬的相依
+
+```{r return-series, fig.cap="AAPL 日對數報酬與絕對報酬；兩圖均以百分比表示。", fig.height=6.5}
+old_par <- par(
+  mfrow = c(2, 1), mar = c(4.5, 4, 3, 1),
+  family = plot_family
+)
+plot(
+  aapl$date, 100 * aapl$log_return,
+  type = "l", col = "#173B57",
+  xlab = "日期", ylab = "日對數報酬（%）"
+)
+abline(v = max(train_dates), lty = 2, col = "#A34045")
+plot(
+  aapl$date, 100 * abs(aapl$log_return - mu_train),
+  type = "l", col = "#A34045",
+  xlab = "日期", ylab = "絕對中心化報酬（%）"
+)
+abline(v = max(train_dates), lty = 2, col = "#173B57")
 par(old_par)
 ```
 
-報酬方向可以幾乎不相關，平方報酬仍有明顯記憶。
-
-```{r acf-comparison}
-old_par <- par(mfrow = c(1, 2))
-acf(sim$a, lag.max = 30, main = "報酬 ACF")
-acf(sim$a^2, lag.max = 30, main = "平方報酬 ACF")
+```{r acf-comparison, fig.cap="AAPL 訓練期中心化報酬與平方報酬的 ACF。"}
+old_par <- par(
+  mfrow = c(1, 2), mar = c(4.2, 4, 4, 1),
+  family = plot_family, cex.main = 0.9
+)
+acf(train, lag.max = 30, main = "中心化報酬 ACF")
+acf(train^2, lag.max = 30, main = "平方報酬 ACF")
 par(old_par)
 ```
 
-## 3. ARCH--LM 輔助迴歸
+方向相關與波動相關是不同問題。平均數模型沒有明顯相關，不代表條件變異數是常數。
 
-這裡模擬平均數為零，所以直接使用 `a`。實際資料應先配適平均數方程，再把平均數殘差送入檢定。
+## ARCH--LM 輔助迴歸
 
 ```{r arch-lm}
-arch_lm <- function(residual, lags = 10) {
-  stopifnot(lags >= 1, length(residual) > 5 * lags)
+arch_lm <- function(residual, lags = 10L) {
+  stopifnot(lags >= 1L, length(residual) > 5L * lags)
   x2 <- residual^2
   n <- length(x2)
-  y <- x2[(lags + 1):n]
+  response <- x2[(lags + 1L):n]
   X <- sapply(seq_len(lags), function(j) {
-    x2[(lags + 1 - j):(n - j)]
+    x2[(lags + 1L - j):(n - j)]
   })
   colnames(X) <- paste0("lag", seq_len(lags))
-  fit <- lm(y ~ X)
+  fit <- lm(response ~ X)
   statistic <- nobs(fit) * summary(fit)$r.squared
   data.frame(
-    lags = lags,
-    statistic = statistic,
-    p_value = pchisq(statistic, df = lags, lower.tail = FALSE)
+    落後階數 = lags,
+    LM統計量 = statistic,
+    卡方近似p值 = pchisq(
+      statistic, df = lags, lower.tail = FALSE
+    ),
+    check.names = FALSE
   )
 }
 
-arch_lm(sim$a, lags = 10)
+knitr::kable(arch_lm(train, lags = 10), digits = 6)
 ```
 
-## 4. 手動常態準最大概似
+訓練期 ARCH--LM 統計量約為 166.93，卡方近似 $p$ 值在目前數值精度下顯示為 0，清楚反對常數條件變異的簡化模型。
 
-### 4.1 參數轉換
+ARCH--LM 的小 $p$ 值只是反對「指定落後的平方殘差係數同時為零」，不會自動決定 GARCH 階數或創新分配。
 
-直接最佳化 \((\omega,\alpha,\beta,\gamma)\) 容易跑到負變異數或非定態區。本例以指數確保 \(\omega>0\)，並以類似 softmax 的轉換確保：
+## GARCH 與 GJR--GARCH 規格
 
-- GARCH：\(\alpha+\beta<0.999\)；
-- GJR：\(\alpha+\beta+\gamma/2<0.999\)。
+對稱 GARCH(1,1) 設定 $\gamma=0$；GJR 模型使用
+
+\[
+h_t=\omega+\alpha a_{t-1}^2
++\gamma\mathbf 1(a_{t-1}<0)a_{t-1}^2
++\beta h_{t-1}.
+\]
+
+在對稱創新下，GJR 的二階持續性以
+$\alpha+\beta+\gamma/2$ 衡量。下列參數轉換強制
+$\omega>0$、$\alpha\geq0$、$\beta\geq0$、$\gamma\geq0$，並把持續性限制在 0.999 以下。
 
 ```{r parameter-maps}
 map_garch <- function(eta) {
   raw <- exp(eta[2:3])
-  denom <- 1 + sum(raw)
+  denominator <- 1 + sum(raw)
   c(
     omega = exp(eta[1]),
-    alpha = 0.999 * raw[1] / denom,
-    beta = 0.999 * raw[2] / denom,
+    alpha = 0.999 * raw[1] / denominator,
+    beta = 0.999 * raw[2] / denominator,
     gamma = 0
   )
 }
 
 map_gjr <- function(eta) {
   raw <- exp(eta[2:4])
-  denom <- 1 + sum(raw)
+  denominator <- 1 + sum(raw)
   c(
     omega = exp(eta[1]),
-    alpha = 0.999 * raw[1] / denom,
-    beta = 0.999 * raw[2] / denom,
-    gamma = 2 * 0.999 * raw[3] / denom
+    alpha = 0.999 * raw[1] / denominator,
+    beta = 0.999 * raw[2] / denominator,
+    gamma = 2 * 0.999 * raw[3] / denominator
   )
 }
 
@@ -182,10 +196,9 @@ filter_variance <- function(a, par) {
   h <- numeric(n)
   h[1] <- var(a)
   for (t in 2:n) {
-    negative <- as.numeric(a[t - 1] < 0)
     h[t] <- par["omega"] +
       par["alpha"] * a[t - 1]^2 +
-      par["gamma"] * negative * a[t - 1]^2 +
+      par["gamma"] * as.numeric(a[t - 1] < 0) * a[t - 1]^2 +
       par["beta"] * h[t - 1]
   }
   h
@@ -200,72 +213,130 @@ gaussian_nll <- function(eta, a, model = c("garch", "gjr")) {
 }
 ```
 
-### 4.2 鎖定訓練期
+常態準最大概似（quasi-maximum likelihood, QML）不宣稱 AAPL 創新服從常態分配。這裡也沒有計算穩健 sandwich 標準誤，因此重點放在條件變異遞迴與樣本外損失，而不是係數顯著性。
 
-最後 500 期保留作測試；任何參數、初始尺度與模型比較都不能使用這 500 期。
+## 多起點最佳化
 
-```{r split-fit}
-train_end <- 1300
-train <- sim$a[seq_len(train_end)]
-test <- sim$a[(train_end + 1):nrow(sim)]
+手動最佳化可能受初始值影響。以下為每個模型使用三組具經濟意義的起點，保留收斂且目標函數最小的結果。
 
-garch_start <- c(
-  log(var(train) * 0.05),
-  log(0.08 / (0.999 - 0.93)),
-  log(0.85 / (0.999 - 0.93))
+```{r fit-models}
+garch_start <- function(v, alpha, beta) {
+  persistence <- alpha + beta
+  slack <- 0.999 - persistence
+  stopifnot(slack > 0)
+  c(
+    log(v * (1 - persistence)),
+    log(alpha / slack),
+    log(beta / slack)
+  )
+}
+
+gjr_start <- function(v, alpha, beta, gamma) {
+  persistence <- alpha + beta + gamma / 2
+  slack <- 0.999 - persistence
+  stopifnot(slack > 0)
+  c(
+    log(v * (1 - persistence)),
+    log(alpha / slack),
+    log(beta / slack),
+    log((gamma / 2) / slack)
+  )
+}
+
+fit_multistart <- function(starts, a, model) {
+  fits <- lapply(starts, function(start) {
+    optim(
+      start, gaussian_nll, a = a, model = model,
+      method = "BFGS",
+      control = list(maxit = 3000, reltol = 1e-10)
+    )
+  })
+  acceptable <- vapply(fits, function(z) {
+    z$convergence == 0 && is.finite(z$value)
+  }, logical(1))
+  stopifnot(any(acceptable))
+  candidates <- which(acceptable)
+  fits[[candidates[which.min(vapply(
+    fits[candidates], function(z) z$value, numeric(1)
+  ))]]]
+}
+
+v_train <- var(train)
+garch_starts <- list(
+  garch_start(v_train, 0.08, 0.87),
+  garch_start(v_train, 0.10, 0.80),
+  garch_start(v_train, 0.05, 0.92)
 )
-gjr_start <- c(
-  log(var(train) * 0.03),
-  log(0.05 / (0.999 - 0.97)),
-  log(0.88 / (0.999 - 0.97)),
-  log(0.04 / (0.999 - 0.97))
+gjr_starts <- list(
+  gjr_start(v_train, 0.05, 0.88, 0.08),
+  gjr_start(v_train, 0.05, 0.84, 0.10),
+  gjr_start(v_train, 0.03, 0.90, 0.10)
 )
 
-fit_garch <- optim(
-  garch_start, gaussian_nll, a = train, model = "garch",
-  method = "BFGS", control = list(maxit = 1500)
-)
-fit_gjr <- optim(
-  gjr_start, gaussian_nll, a = train, model = "gjr",
-  method = "BFGS", control = list(maxit = 2000)
-)
-
-stopifnot(fit_garch$convergence == 0, fit_gjr$convergence == 0)
+fit_garch <- fit_multistart(garch_starts, train, "garch")
+fit_gjr <- fit_multistart(gjr_starts, train, "gjr")
 par_garch <- map_garch(fit_garch$par)
 par_gjr <- map_gjr(fit_gjr$par)
 
-rbind(
-  truth = truth,
-  GARCH = par_garch,
-  GJR = par_gjr
+parameter_table <- rbind(
+  GARCH = c(
+    par_garch,
+    persistence = unname(
+      par_garch["alpha"] + par_garch["beta"]
+    ),
+    Gaussian_QML_objective = fit_garch$value
+  ),
+  GJR = c(
+    par_gjr,
+    persistence = unname(
+      par_gjr["alpha"] + par_gjr["beta"] +
+        par_gjr["gamma"] / 2
+    ),
+    Gaussian_QML_objective = fit_gjr$value
+  )
+)
+knitr::kable(parameter_table, digits = 7)
+
+stopifnot(
+  par_garch["alpha"] + par_garch["beta"] < 0.999,
+  par_gjr["alpha"] + par_gjr["beta"] + par_gjr["gamma"] / 2 < 0.999
 )
 ```
 
-有限樣本估計不必精確等於真值；GARCH 遺漏不對稱後，其他參數也可能吸收部分效果。
+GJR 的不對稱係數估計值約為 0.1614，訓練期高斯 QML 目標函數也較低；這是條件關聯與配適結果，沒有穩健標準誤時不作顯著性宣稱，更不能作因果解讀。
 
-### 4.3 標準化殘差診斷
+兩個模型的目標函數可以在同一訓練資料上比較，但多一個參數會提高彈性；不能只看訓練期目標函數就宣告 GJR 必然有較佳預測。
+
+## 標準化殘差診斷
 
 ```{r residual-diagnostics}
-h_train_gjr <- filter_variance(train, par_gjr)
-z_train_gjr <- train / sqrt(h_train_gjr)
+diagnose_variance <- function(a, par, label) {
+  h <- filter_variance(a, par)
+  z <- a / sqrt(h)
+  q_z <- Box.test(z, lag = 20, type = "Ljung-Box")
+  q_z2 <- Box.test(z^2, lag = 20, type = "Ljung-Box")
+  data.frame(
+    模型 = label,
+    Q20_標準化殘差 = unname(q_z$statistic),
+    p_標準化殘差 = q_z$p.value,
+    Q20_平方標準化殘差 = unname(q_z2$statistic),
+    p_平方標準化殘差 = q_z2$p.value,
+    check.names = FALSE
+  )
+}
 
-rbind(
-  standardized = unlist(Box.test(
-    z_train_gjr, lag = 20, type = "Ljung-Box"
-  )[c("statistic", "p.value")]),
-  squared_standardized = unlist(Box.test(
-    z_train_gjr^2, lag = 20, type = "Ljung-Box"
-  )[c("statistic", "p.value")])
+diagnostic_table <- rbind(
+  diagnose_variance(train, par_garch, "GARCH"),
+  diagnose_variance(train, par_gjr, "GJR")
 )
+knitr::kable(diagnostic_table, digits = 6)
 ```
 
-Ljung--Box 結果是診斷線索，不是模型正確的證明。還應檢查尾部、符號不對稱與參數邊界。
+Ljung--Box 結果是診斷線索，不是模型正確的證明；尾端形狀、符號不對稱、參數邊界與樣本穩定性仍需另查。
 
-## 5. GJR 負面衝擊方向的單元式檢查
+## 無資料洩漏的一步波動預測
 
-令正負衝擊幅度皆為 2%，保持前一期 \(h\) 相同。若 `gamma > 0`，負面衝擊的下一期變異數必須較大。
-
-```{r sign-check}
+```{r forecast-functions}
 one_step_h <- function(previous_a, previous_h, par) {
   par["omega"] +
     par["alpha"] * previous_a^2 +
@@ -273,33 +344,6 @@ one_step_h <- function(previous_a, previous_h, par) {
     par["beta"] * previous_h
 }
 
-h_reference <- var(train)
-sign_check <- data.frame(
-  shock = c("positive", "negative"),
-  a_previous = c(0.02, -0.02)
-)
-sign_check$h_next <- vapply(
-  sign_check$a_previous,
-  one_step_h,
-  numeric(1),
-  previous_h = h_reference,
-  par = par_gjr
-)
-sign_check
-
-stopifnot(
-  sign_check$h_next[sign_check$shock == "negative"] >
-    sign_check$h_next[sign_check$shock == "positive"]
-)
-```
-
-這個 `stopifnot()` 是重要防線：若把指示函數誤寫成 `a > 0`，文件會在執行時失敗。
-
-## 6. 無資料洩漏的一步波動預測
-
-參數固定在訓練期估計值。測試期每一步先用上一期已知報酬產生預測，等本期報酬實現後才更新遞迴。
-
-```{r forecast-function}
 forecast_locked <- function(train, test, par) {
   h_train <- filter_variance(train, par)
   previous_a <- tail(train, 1)
@@ -308,7 +352,7 @@ forecast_locked <- function(train, test, par) {
 
   for (j in seq_along(test)) {
     forecast[j] <- one_step_h(previous_a, previous_h, par)
-    # test[j] 在 forecast[j] 形成後才進入下一期狀態。
+    # test[j] 在 forecast[j] 形成後，才進入下一期狀態。
     previous_a <- test[j]
     previous_h <- forecast[j]
   }
@@ -318,109 +362,145 @@ forecast_locked <- function(train, test, par) {
 hhat_garch <- forecast_locked(train, test, par_garch)
 hhat_gjr <- forecast_locked(train, test, par_gjr)
 
-# 60 期歷史變異數基準；每一期只使用它以前的觀察。
-all_a <- c(train, test)
-hhat_hist <- numeric(length(test))
+# 60 期歷史變異數基準：每一期只用目標日以前的觀察。
+all_centered <- c(train, test)
+hhat_hist60 <- numeric(length(test))
 for (j in seq_along(test)) {
-  t_index <- train_end + j
-  past_index <- (t_index - 60):(t_index - 1)
-  hhat_hist[j] <- var(all_a[past_index])
+  target_index <- train_end + j
+  past_index <- (target_index - 60L):(target_index - 1L)
+  hhat_hist60[j] <- var(all_centered[past_index])
 }
 
 stopifnot(
   all(hhat_garch > 0),
   all(hhat_gjr > 0),
-  all(hhat_hist > 0)
+  all(hhat_hist60 > 0)
 )
 ```
 
-### 6.1 QLIKE 與平方損失
+### QLIKE 與平方損失
 
 ```{r losses}
 qlike <- function(realized_square, variance_forecast) {
   log(variance_forecast) + realized_square / variance_forecast
 }
 
-loss_table <- rbind(
-  Historical60 = c(
-    QLIKE = mean(qlike(test^2, hhat_hist)),
-    SquaredLoss = mean((test^2 - hhat_hist)^2)
-  ),
-  GARCH = c(
-    QLIKE = mean(qlike(test^2, hhat_garch)),
-    SquaredLoss = mean((test^2 - hhat_garch)^2)
-  ),
-  GJR = c(
-    QLIKE = mean(qlike(test^2, hhat_gjr)),
-    SquaredLoss = mean((test^2 - hhat_gjr)^2)
+loss_row <- function(h, label) {
+  data.frame(
+    模型 = label,
+    QLIKE = mean(qlike(test^2, h)),
+    平方損失_x1e8 = 1e8 * mean((test^2 - h)^2),
+    平均預測日波動_pct = 100 * mean(sqrt(h)),
+    check.names = FALSE
   )
-)
-loss_table
-```
-
-`test^2` 只是不可觀察條件變異數的高雜訊代理。若有由高頻資料建構且授權清楚的實現波動，可另行替換，但評估時間邊界不變。
-
-```{r forecast-plot}
-plot(
-  seq_along(test), 100 * sqrt(hhat_gjr), type = "l",
-  col = "#A34045", lwd = 1.2,
-  xlab = "測試期", ylab = "預測條件標準差（%）",
-  main = "鎖定訓練期參數的一步預測"
-)
-lines(100 * sqrt(hhat_garch), col = "#173B57")
-lines(100 * sqrt(hhat_hist), col = "#3F7158")
-legend(
-  "topright",
-  legend = c("GJR", "GARCH", "歷史 60 期"),
-  col = c("#A34045", "#173B57", "#3F7158"),
-  lty = 1, bty = "n"
-)
-```
-
-## 7. GARCH 多步預測
-
-對對稱 GARCH(1,1)，
-
-\[
-h_{t+s\mid t}=\bar h+(\alpha+\beta)^{s-1}
-(h_{t+1\mid t}-\bar h).
-\]
-
-```{r multistep}
-garch_multistep <- function(h_one, par, horizon = 20) {
-  persistence <- par["alpha"] + par["beta"]
-  long_run <- par["omega"] / (1 - persistence)
-  s <- seq_len(horizon)
-  long_run + persistence^(s - 1) * (h_one - long_run)
 }
 
-# tail(hhat_garch, 1) 是最後一筆測試報酬實現以前形成的
-# h_{T|T-1}；先以 a_T 更新，才得到樣本末真正的 h_{T+1|T}。
-h_one <- one_step_h(
-  previous_a = tail(test, 1),
-  previous_h = tail(hhat_garch, 1),
-  par = par_garch
+loss_table <- rbind(
+  loss_row(hhat_hist60, "歷史 60 期"),
+  loss_row(hhat_garch, "GARCH"),
+  loss_row(hhat_gjr, "GJR")
 )
-multi <- garch_multistep(h_one, par_garch, horizon = 20)
-data.frame(
-  horizon = seq_along(multi),
-  variance = multi,
-  standard_deviation_percent = 100 * sqrt(multi)
+knitr::kable(loss_table, digits = 8)
+```
+
+測試期 QLIKE 以 GJR 最低，放大 $10^8$ 倍後的平方損失則以 GARCH 最低；歷史 60 期基準介於兩者之間。損失函數不同，排名確實可能改變。
+
+`test^2` 是不可觀察條件變異數的高雜訊代理，因此 QLIKE 與平方損失可能給不同排序。這正是同時報告多種損失函數、避免只挑有利指標的理由。
+
+```{r forecast-plot, fig.cap="AAPL 測試期的一步預測波動；灰線為絕對中心化報酬。", fig.height=5.5}
+old_par <- par(family = plot_family)
+plot(
+  test_dates, 100 * abs(test),
+  type = "l", col = "gray70",
+  xlab = "目標日期", ylab = "幅度或預測標準差（%）"
+)
+lines(test_dates, 100 * sqrt(hhat_garch), col = "#173B57", lwd = 1.5)
+lines(test_dates, 100 * sqrt(hhat_gjr), col = "#A34045", lwd = 1.5)
+lines(test_dates, 100 * sqrt(hhat_hist60), col = "#3F7158", lwd = 1.3)
+legend(
+  "topright",
+  c("|中心化報酬|", "GARCH", "GJR", "歷史 60 期"),
+  col = c("gray70", "#173B57", "#A34045", "#3F7158"),
+  lty = 1, lwd = c(1, 1.5, 1.5, 1.3), bty = "n"
+)
+par(old_par)
+```
+
+### 時間邊界檢查
+
+```{r leakage-audit}
+origin_dates <- c(max(train_dates), head(test_dates, -1))
+timing_table <- data.frame(
+  目標日期 = test_dates,
+  可用到的最後日期 = origin_dates,
+  時序正確 = origin_dates < test_dates,
+  check.names = FALSE
+)
+knitr::kable(head(timing_table, 8))
+stopifnot(all(timing_table$時序正確))
+```
+
+## 模擬只作單元檢查
+
+下列固定種子模擬不產生任何 AAPL 實證數字，只檢查 GJR 遞迴是否保持正變異數，以及同幅度負面衝擊是否在 $\gamma>0$ 時給出較高的下一期變異數。
+
+```{r simulation-unit-check}
+simulate_gjr <- function(
+    n, omega, alpha, beta, gamma,
+    burn = 300L, seed = 808L) {
+  persistence <- alpha + beta + gamma / 2
+  stopifnot(
+    omega > 0, alpha >= 0, beta >= 0,
+    gamma >= 0, persistence < 1
+  )
+  set.seed(seed)
+  total <- n + burn
+  z <- rnorm(total)
+  a <- numeric(total)
+  h <- numeric(total)
+  h[1] <- omega / (1 - persistence)
+  a[1] <- sqrt(h[1]) * z[1]
+  for (t in 2:total) {
+    h[t] <- omega + alpha * a[t - 1]^2 +
+      gamma * as.numeric(a[t - 1] < 0) * a[t - 1]^2 +
+      beta * h[t - 1]
+    a[t] <- sqrt(h[t]) * z[t]
+  }
+  keep <- (burn + 1L):total
+  data.frame(a = a[keep], h = h[keep])
+}
+
+unit_truth <- c(
+  omega = 2e-6, alpha = 0.05, beta = 0.88, gamma = 0.08
+)
+unit_sim <- simulate_gjr(
+  n = 500,
+  omega = unit_truth["omega"],
+  alpha = unit_truth["alpha"],
+  beta = unit_truth["beta"],
+  gamma = unit_truth["gamma"]
+)
+
+h_reference <- mean(unit_sim$h)
+positive_next <- one_step_h(0.02, h_reference, unit_truth)
+negative_next <- one_step_h(-0.02, h_reference, unit_truth)
+
+unit_table <- data.frame(
+  檢查 = c("模擬最小變異數", "+2% 衝擊的下一期變異數", "-2% 衝擊的下一期變異數"),
+  數值 = c(min(unit_sim$h), positive_next, negative_next),
+  check.names = FALSE
+)
+knitr::kable(unit_table, digits = 8)
+stopifnot(
+  all(is.finite(unit_sim$h)),
+  all(unit_sim$h > 0),
+  negative_next > positive_next
 )
 ```
 
-表中的 `horizon = 1` 因而確實是最後一筆樣本已觀察後形成的下一期預測，而不是最後一筆樣本本身的一步預測。
+## 可重現結論
 
-GJR 的多步解析式還涉及負半軸截尾二階動差；若不確定創新分配，可用參數式模擬，但模擬路徑只能從預測起點向前產生。
-
-## 8. 可重現結論
-
-本附錄驗證了四件事：
-
-1. 報酬平方可在報酬方向幾乎不相關時保持明顯相關；
-2. 受限制參數轉換能讓每次波動遞迴保持正值且二階定態；
-3. 在明確的 `a < 0` 慣例下，正 `gamma` 使負面衝擊提高更多波動；
-4. 測試期的每一個預測都在觀察當期報酬以前形成。
+本附錄把真實實證與模擬檢查分開：AAPL 係數、診斷與測試損失全部由固定資料實跑；模擬只檢查符號與遞迴。正式報告還應保存 R 版本、訓練截止日、多起點設定、所有收斂碼、損失函數與逐期預測。
 
 ```{r session-info}
 sessionInfo()

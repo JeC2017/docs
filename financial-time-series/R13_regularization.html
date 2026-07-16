@@ -27,12 +27,13 @@
     <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
       <p class="sidebar-title">線上附錄</p>
       <ol><li><a href="index.html">首頁</a></li>
+<li><a href="data.html">實證資料下載</a></li>
 <li><a href="data-policy.html">資料與重現政策</a></li>
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
 <li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與經驗特徵</a></li>
-<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA 模擬</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
 <li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
 <li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
 <li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
@@ -50,18 +51,19 @@
     </nav>
     <main id="main-content" class="content">
       <div class="publication-note">
-        本網站提供作者執行後的教學內容與程式原始檔；未經確認可再散布的原始資料不隨網站發布。
+        本網站提供作者執行後的教學內容、程式原始檔與本書實證使用的固定資料版本。
         詳見<a href="data-policy.html">資料與重現政策</a>。
       </div>
       <article>
         <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R13：Ridge、LASSO、Elastic Net 與 post-LASSO</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R13_regularization.Rmd">R Markdown 原始檔</a><a href="source/R13_regularization.md">執行後 Markdown</a></div></header>
-        <p>本附錄對應第 17--18 章。目標是以日本月資料預測下一期日本股市報酬，並比較 OLS、Ridge、LASSO、Elastic Net 與 post-LASSO。所有資料均來自專案的固定檔，不安裝套件、不改工作目錄，也不連線下載。</p>
+        <p>本附錄對應第 17--18 章。目標是以 2007 年 10 月至 2018 年 10 月、共 133 個月的真實日本總體金融凍結快照，預測下一期日本股市報酬，並比較 OLS、Ridge、LASSO、Elastic Net 與 post-LASSO。資料來自原課程的 <code>data_t.csv</code> 與 <code>yield_10.csv</code>；原變數說明記載股價、匯率、工業生產、利率、美股、失業、CPI、M3、WTI、人口結構、外資、貿易與十年期殖利率的單位及季調狀態，但沒有保存原供應者、URL、下載日或 vintage。因此本附錄沿用來源欄位尺度，不把它改稱為可從公開來源完整重建的資料。這是固定時間切分下的預測比較，不識別任何預測變數的因果效果。</p>
 <h2 id="_1">執行環境與資料<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
 <ul>
 <li>R 4.1 以上；除 <code>knitr</code> 負責轉檔外，只使用 base R。</li>
 <li>資料：<code>data/processed/japan_monthly_2007_2018.csv</code>。</li>
 <li>建置紀錄與 MD5：<code>data/processed/manifest.csv</code>。</li>
-<li>從教科書專案根目錄 knit；路徑均為相對路徑。</li>
+<li>可從教科書專案根目錄或 <code>online_appendix/</code> knit；資料位置由相對路徑搜尋函數判定。</li>
+<li>公開界線：repo 隨附作者授權的 processed CSV、程式與執行結果，可離線自含重跑；provider、URL、下載日與 vintage 的缺口仍限制從上游原始來源重建。</li>
 </ul>
 <pre><code class="language-r">knitr::opts_chunk$set(
   echo = TRUE,
@@ -72,9 +74,21 @@
 )
 set.seed(20260716)
 </code></pre>
-<pre><code class="language-r">data_path &lt;- &quot;data/processed/japan_monthly_2007_2018.csv&quot;
-manifest_path &lt;- &quot;data/processed/manifest.csv&quot;
-stopifnot(file.exists(data_path), file.exists(manifest_path))
+<pre><code class="language-r">locate_project_file &lt;- function(relative_path) {
+  candidates &lt;- c(
+    relative_path,
+    file.path(&quot;..&quot;, relative_path),
+    file.path(&quot;../..&quot;, relative_path)
+  )
+  hit &lt;- candidates[file.exists(candidates)]
+  if (length(hit) == 0L) stop(&quot;找不到專案檔案：&quot;, relative_path)
+  normalizePath(hit[1], mustWork = TRUE)
+}
+
+data_path &lt;- locate_project_file(
+  &quot;data/processed/japan_monthly_2007_2018.csv&quot;
+)
+manifest_path &lt;- locate_project_file(&quot;data/processed/manifest.csv&quot;)
 
 manifest &lt;- read.csv(manifest_path, stringsAsFactors = FALSE)
 jp &lt;- read.csv(data_path, stringsAsFactors = FALSE, check.names = FALSE)
@@ -85,9 +99,26 @@ stopifnot(nrow(jp) == 133L, ncol(jp) == 30L)
 manifest[grepl(&quot;japan_monthly&quot;, manifest$file), ]
 </code></pre>
 <pre><code>##                                         file rows columns
-## 2 data/processed/japan_monthly_2007_2018.csv  133      30
-##                                md5                built_at
-## 2 3fd45a6a7a8d26e29d48f1c2f1497ad8 2026-07-16 07:35:23 UTC
+## 8 data/processed/japan_monthly_2007_2018.csv  133      30
+##                                md5
+## 8 46b39f6fdde5d581ad31c83348d99933
+##                                                          description
+## 8 Japanese monthly macro-finance panel with 10-year government yield
+##                  built_at
+## 8 2026-07-16 09:57:40 UTC
+</code></pre>
+<pre><code class="language-r">data.frame(
+  first_month = min(jp$date),
+  last_month = max(jp$date),
+  months = nrow(jp),
+  observation_unit = &quot;monthly Japan macro-finance observation&quot;,
+  return_unit = &quot;source-file scale; not independently relabelled&quot;
+)
+</code></pre>
+<pre><code>##   first_month last_month months                        observation_unit
+## 1  2007-10-01 2018-10-01    133 monthly Japan macro-finance observation
+##                                       return_unit
+## 1 source-file scale; not independently relabelled
 </code></pre>
 <h2 id="target">建立可實現的下一期 target<a class="headerlink" href="#target" title="Permanent link">#</a></h2>
 <p>第 \(t\) 月的預測變數只能預測第 \(t+1\) 月的 <code>return_j</code>。日期、當期目標與下一期才會知道的值不進入預測變數矩陣。缺值列在完成時間對齊後一次處理。</p>
@@ -453,11 +484,12 @@ legend(
 ## loaded via a namespace (and not attached):
 ##  [1] vctrs_0.7.2        cli_3.6.5          knitr_1.51         rlang_1.1.7       
 ##  [5] xfun_0.57          otel_0.2.0         MatrixModels_0.5-4 generics_0.1.4    
-##  [9] glue_1.8.0         grid_4.5.2         evaluate_1.0.5     SparseM_1.84-2    
-## [13] MASS_7.3-65        lifecycle_1.0.5    compiler_4.5.2     pkgconfig_2.0.3   
-## [17] quantreg_6.1       lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1  
-## [21] utf8_1.2.6         splines_4.5.2      pillar_1.11.1      magrittr_2.0.4    
-## [25] Matrix_1.7-4       tools_4.5.2        withr_3.0.2        survival_3.8-3
+##  [9] textshaping_1.0.5  glue_1.8.0         ragg_1.5.2         grid_4.5.2        
+## [13] evaluate_1.0.5     SparseM_1.84-2     MASS_7.3-65        lifecycle_1.0.5   
+## [17] compiler_4.5.2     pkgconfig_2.0.3    quantreg_6.1       systemfonts_1.3.2 
+## [21] lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1   utf8_1.2.6        
+## [25] splines_4.5.2      pillar_1.11.1      magrittr_2.0.4     Matrix_1.7-4      
+## [29] tools_4.5.2        survival_3.8-3
 </code></pre>
       </article>
       <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R12_taiwan_dcc_icapm_case_study.html">← 臺灣 DCC／ICAPM 案例</a><a rel="next" href="R14_financial_factor_selection.html">金融因子選擇 →</a></nav>

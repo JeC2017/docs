@@ -27,12 +27,13 @@
     <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
       <p class="sidebar-title">線上附錄</p>
       <ol><li><a href="index.html">首頁</a></li>
+<li><a href="data.html">實證資料下載</a></li>
 <li><a href="data-policy.html">資料與重現政策</a></li>
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
 <li><a href="R03_distributions_heavy_tails.html" aria-current="page" class="active">R03　分配、厚尾與經驗特徵</a></li>
-<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA 模擬</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
 <li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
 <li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
 <li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
@@ -50,15 +51,18 @@
     </nav>
     <main id="main-content" class="content">
       <div class="publication-note">
-        本網站提供作者執行後的教學內容與程式原始檔；未經確認可再散布的原始資料不隨網站發布。
+        本網站提供作者執行後的教學內容、程式原始檔與本書實證使用的固定資料版本。
         詳見<a href="data-policy.html">資料與重現政策</a>。
       </div>
       <article>
         <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R03：分配、厚尾與經驗特徵</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R03_distributions_heavy_tails.Rmd">R Markdown 原始檔</a><a href="source/R03_distributions_heavy_tails.md">執行後 Markdown</a></div></header>
-        <p>本附錄對應第 3--4 章。先以固定種子比較常態與標準化 Student-\(t\) 模擬，再用凍結的股票日報酬面板建立等權教學投資組合，檢查分位數、偏態、峰度、Q--Q 圖、報酬與平方報酬的自相關。教學投資組合不是官方 S\&amp;P 500 指數。</p>
+        <p>本附錄對應第 3--4 章。先以固定種子比較常態與標準化 Student-$t$ 分配，再分析兩組真實日簡單報酬：1986--2008 年的 Microsoft（MSFT），以及由 89 檔股票組成的 2013--2022 年等權教學投資組合。MSFT 資料源自 Ruey S. Tsay 教科書網站的 <code>d-msft8608.txt</code>；股票面板源自原課程 S&amp;P 500 價格檔。固定版本與建置方式見 <code>data/DATA_SOURCES.md</code>。</p>
+<p>兩組報酬都以小數表示，0.01 代表 1%。等權序列不是官方 S&amp;P 500 指數，也沒有校正成分股生存者偏誤。以下分配與相依性結果是歷史描述，不能解讀成任何市場事件對報酬的因果效果。</p>
 <pre><code class="language-r">knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
-  fig.width = 7, fig.height = 4.5
+  fig.width = 8, fig.height = 5,
+  dev = &quot;ragg_png&quot;, dpi = 144,
+  dev.args = list(background = &quot;white&quot;)
 )
 set.seed(20260716)
 
@@ -69,9 +73,20 @@ is_root &lt;- vapply(root_candidates, function(x) {
 stopifnot(any(is_root))
 project_root &lt;- root_candidates[which(is_root)[1]]
 project_path &lt;- function(...) file.path(project_root, ...)
+
+stopifnot(
+  requireNamespace(&quot;ragg&quot;, quietly = TRUE),
+  requireNamespace(&quot;systemfonts&quot;, quietly = TRUE)
+)
+cwtex_file &lt;- project_path(&quot;assets&quot;, &quot;fonts&quot;, &quot;cwTeXQKai-Medium.ttf&quot;)
+stopifnot(file.exists(cwtex_file))
+if (!&quot;cwTeX Online&quot; %in% systemfonts::registry_fonts()$family) {
+  systemfonts::register_font(&quot;cwTeX Online&quot;, cwtex_file)
+}
+plot_family &lt;- &quot;cwTeX Online&quot;
 </code></pre>
-<h2 id="_1">描述統計函數<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
-<p>以下峰度使用常態分配等於 3 的定義；超額峰度等於峰度減 3。有限樣本估計量不是唯一版本，因此報告時必須說明公式。</p>
+<h2 id="jarque-bera">描述統計與 Jarque--Bera 函數<a class="headerlink" href="#jarque-bera" title="Permanent link">#</a></h2>
+<p>以下峰度採用「常態分配等於 3」的定義；超額峰度是峰度減 3。有限樣本偏態與峰度有不同修正版本，因此正式報告必須交代公式。</p>
 <pre><code class="language-r">sample_moments &lt;- function(x) {
   x &lt;- x[is.finite(x)]
   centered &lt;- x - mean(x)
@@ -92,9 +107,22 @@ project_path &lt;- function(...) file.path(project_root, ...)
     q99 = unname(quantile(x, 0.99))
   )
 }
+
+jarque_bera &lt;- function(x) {
+  m &lt;- sample_moments(x)
+  statistic &lt;- m[&quot;n&quot;] * (
+    m[&quot;skewness&quot;]^2 / 6 + m[&quot;excess_kurtosis&quot;]^2 / 24
+  )
+  c(
+    statistic = unname(statistic),
+    p_value_iid_asymptotic = unname(
+      pchisq(statistic, 2, lower.tail = FALSE)
+    )
+  )
+}
 </code></pre>
-<h2 id="_2">常態與厚尾模擬<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
-<p>自由度 5 的 Student-\(t\) 變異數為 \(5/(5-2)\)，所以除以其標準差後與標準常態具有相同理論變異數。差異主要在尾端。</p>
+<h2 id="_1">常態與厚尾模擬：只用來核對直覺<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
+<p>自由度 5 的 Student-$t$ 變異數是 $5/(5-2)$。除以理論標準差後，它與標準常態具有相同變異數，但尾端仍較厚。</p>
 <pre><code class="language-r">n_sim &lt;- 10000L
 normal_draw &lt;- rnorm(n_sim)
 t5_draw &lt;- rt(n_sim, df = 5) / sqrt(5 / 3)
@@ -103,174 +131,422 @@ simulation_summary &lt;- rbind(
   Normal = sample_moments(normal_draw),
   Student_t5 = sample_moments(t5_draw)
 )
-round(simulation_summary, 4)
+knitr::kable(round(simulation_summary, 4))
 </code></pre>
-<pre><code>##                n   mean     sd skewness kurtosis excess_kurtosis     q01
-## Normal     10000 0.0101 1.0136  -0.0016   3.0640          0.0640 -2.4048
-## Student_t5 10000 0.0007 1.0129  -0.1179   8.1864          5.1864 -2.6003
-##                q05 median    q95    q99
-## Normal     -1.6583 0.0099 1.6794 2.3828
-## Student_t5 -1.5806 0.0158 1.5817 2.6540
-</code></pre>
-<pre><code class="language-r">par(mfrow = c(1, 2))
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"></th>
+<th style="text-align: right;">n</th>
+<th style="text-align: right;">mean</th>
+<th style="text-align: right;">sd</th>
+<th style="text-align: right;">skewness</th>
+<th style="text-align: right;">kurtosis</th>
+<th style="text-align: right;">excess_kurtosis</th>
+<th style="text-align: right;">q01</th>
+<th style="text-align: right;">q05</th>
+<th style="text-align: right;">median</th>
+<th style="text-align: right;">q95</th>
+<th style="text-align: right;">q99</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Normal</td>
+<td style="text-align: right;">10000</td>
+<td style="text-align: right;">0.0101</td>
+<td style="text-align: right;">1.0136</td>
+<td style="text-align: right;">-0.0016</td>
+<td style="text-align: right;">3.0640</td>
+<td style="text-align: right;">0.0640</td>
+<td style="text-align: right;">-2.4048</td>
+<td style="text-align: right;">-1.6583</td>
+<td style="text-align: right;">0.0099</td>
+<td style="text-align: right;">1.6794</td>
+<td style="text-align: right;">2.3828</td>
+</tr>
+<tr>
+<td style="text-align: left;">Student_t5</td>
+<td style="text-align: right;">10000</td>
+<td style="text-align: right;">0.0007</td>
+<td style="text-align: right;">1.0129</td>
+<td style="text-align: right;">-0.1179</td>
+<td style="text-align: right;">8.1864</td>
+<td style="text-align: right;">5.1864</td>
+<td style="text-align: right;">-2.6003</td>
+<td style="text-align: right;">-1.5806</td>
+<td style="text-align: right;">0.0158</td>
+<td style="text-align: right;">1.5817</td>
+<td style="text-align: right;">2.6540</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-r">old_par &lt;- par(
+  mfrow = c(1, 2), mar = c(4, 4, 2, 1),
+  family = plot_family
+)
 hist(
   normal_draw, breaks = 80, probability = TRUE,
   xlim = c(-6, 6), col = &quot;#9FC2D4&quot;, border = &quot;white&quot;,
-  main = &quot;標準常態&quot;, xlab = &quot;&quot;
+  main = &quot;標準常態&quot;, xlab = &quot;模擬值&quot;
 )
 curve(dnorm(x), add = TRUE, lwd = 2, col = &quot;#A34045&quot;)
 hist(
   t5_draw, breaks = 100, probability = TRUE,
   xlim = c(-6, 6), col = &quot;#D6B0A9&quot;, border = &quot;white&quot;,
-  main = &quot;標準化 Student-t(5)&quot;, xlab = &quot;&quot;
+  main = &quot;標準化 Student-t(5)&quot;, xlab = &quot;模擬值&quot;
 )
 curve(dnorm(x), add = TRUE, lwd = 2, col = &quot;#173B57&quot;)
 </code></pre>
-<p><img alt="相同變異數下，Student-t(5) 的中央更尖且尾端較厚。" src="./R03_distributions_heavy_tails_files/figure-gfm/simulation-plots-1.png"></p>
-<pre><code class="language-r">par(mfrow = c(1, 1))
+<p><img alt="相同理論變異數下，標準化 Student-t(5) 的尾端比常態分配厚。" src="./R03_distributions_heavy_tails_files/figure-gfm/simulation-plots-1.png"></p>
+<pre><code class="language-r">par(old_par)
 </code></pre>
-<h2 id="jarque-bera">Jarque--Bera 統計量<a class="headerlink" href="#jarque-bera" title="Permanent link">#</a></h2>
-<p>以本附錄的偏態 \(S\) 與峰度 \(K\)，
-\[
-JB=n\left\{\frac{S^2}{6}+\frac{(K-3)^2}{24}\right\}.
-\]
-卡方近似依賴獨立同分配與有限高階動差；在金融時間序列有相依性或條件異質變異時，不能把下列 \(p\) 值當成完整模型診斷。</p>
-<pre><code class="language-r">jarque_bera &lt;- function(x) {
-  m &lt;- sample_moments(x)
-  stat &lt;- m[&quot;n&quot;] * (
-    m[&quot;skewness&quot;]^2 / 6 + m[&quot;excess_kurtosis&quot;]^2 / 24
-  )
-  c(statistic = stat, p_value_iid_asymptotic = pchisq(stat, 2, lower.tail = FALSE))
-}
+<p>模擬在這裡只說明「相同變異數不代表相同尾端」；真正的實證問題要由以下固定資料回答。</p>
+<h2 id="msft">讀取 MSFT 與股票面板<a class="headerlink" href="#msft" title="Permanent link">#</a></h2>
+<pre><code class="language-r">msft &lt;- read.csv(project_path(
+  &quot;data&quot;, &quot;processed&quot;, &quot;msft_daily_returns_1986_2008.csv&quot;
+))
+msft$date &lt;- as.Date(msft$date)
+msft &lt;- msft[order(msft$date), ]
 
-rbind(
-  Normal = jarque_bera(normal_draw),
-  Student_t5 = jarque_bera(t5_draw)
+panel &lt;- read.csv(
+  project_path(
+    &quot;data&quot;, &quot;processed&quot;, &quot;sp500_returns_balanced_2013_2022.csv&quot;
+  ),
+  check.names = FALSE
 )
-</code></pre>
-<pre><code>##            statistic.n p_value_iid_asymptotic.n
-## Normal         1.70919                0.4254555
-## Student_t5 11230.87169                0.0000000
-</code></pre>
-<h2 id="_3">固定股票面板與等權教學投資組合<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
-<p>固定檔有一欄日期與 89 檔股票日簡單報酬。它先依股票代碼分組再計算落後報酬，且只保留面板共同交易日；細節與授權注意事項見 data/DATA_SOURCES.md。</p>
-<pre><code class="language-r">panel_path &lt;- project_path(
-  &quot;data&quot;, &quot;processed&quot;, &quot;sp500_returns_balanced_2013_2022.csv&quot;
-)
-panel &lt;- read.csv(panel_path, check.names = FALSE)
-dates &lt;- as.Date(panel$date)
+panel$date &lt;- as.Date(panel$date)
 R &lt;- as.matrix(panel[, setdiff(names(panel), &quot;date&quot;)])
 storage.mode(R) &lt;- &quot;double&quot;
 
-stopifnot(!anyNA(dates), !anyNA(R), all(diff(dates) &gt; 0))
-portfolio_return &lt;- rowMeans(R)
-empirical &lt;- data.frame(date = dates, return = portfolio_return)
+stopifnot(
+  !anyNA(msft$date), !anyNA(msft$simple_return),
+  all(diff(msft$date) &gt; 0),
+  !anyNA(panel$date), !anyNA(R),
+  all(diff(panel$date) &gt; 0)
+)
 
-c(
-  start = format(min(empirical$date)),
-  end = format(max(empirical$date)),
-  observations = nrow(empirical),
-  stocks = ncol(R)
+sp_equal &lt;- rowMeans(R)
+
+data_profile &lt;- data.frame(
+  序列 = c(&quot;MSFT&quot;, &quot;89 檔股票等權教學投資組合&quot;),
+  起日 = c(min(msft$date), min(panel$date)),
+  迄日 = c(max(msft$date), max(panel$date)),
+  觀察值 = c(nrow(msft), nrow(panel)),
+  資產數 = c(1L, ncol(R)),
+  單位 = &quot;日簡單報酬，小數&quot;,
+  來源 = c(
+    &quot;Tsay 教科書網站 d-msft8608.txt&quot;,
+    &quot;原課程 S&amp;P 500 價格檔的平衡面板&quot;
+  ),
+  check.names = FALSE
 )
+knitr::kable(data_profile)
 </code></pre>
-<pre><code>##        start          end observations       stocks 
-## &quot;2013-01-03&quot; &quot;2022-06-22&quot;       &quot;2384&quot;         &quot;89&quot;
-</code></pre>
-<pre><code class="language-r">round(sample_moments(empirical$return), 5)
-</code></pre>
-<pre><code>##               n            mean              sd        skewness        kurtosis 
-##      2384.00000         0.00076         0.01075        -0.67951        22.94458 
-## excess_kurtosis             q01             q05          median             q95 
-##        19.94458        -0.03040        -0.01555         0.00106         0.01469 
-##             q99 
-##         0.02507
-</code></pre>
-<pre><code class="language-r">jarque_bera(empirical$return)
-</code></pre>
-<pre><code>##              statistic.n p_value_iid_asymptotic.n 
-##                 39696.89                     0.00
-</code></pre>
-<h2 id="q-q">經驗分配、常態 Q--Q 圖與時間圖<a class="headerlink" href="#q-q" title="Permanent link">#</a></h2>
-<pre><code class="language-r">par(mfrow = c(1, 3))
-plot(
-  empirical$date, empirical$return,
-  type = &quot;l&quot;, col = &quot;#173B57&quot;,
-  xlab = &quot;日期&quot;, ylab = &quot;日簡單報酬&quot;, main = &quot;時間圖&quot;
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">序列</th>
+<th style="text-align: left;">起日</th>
+<th style="text-align: left;">迄日</th>
+<th style="text-align: right;">觀察值</th>
+<th style="text-align: right;">資產數</th>
+<th style="text-align: left;">單位</th>
+<th style="text-align: left;">來源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">MSFT</td>
+<td style="text-align: left;">1986-03-14</td>
+<td style="text-align: left;">2008-12-31</td>
+<td style="text-align: right;">5752</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: left;">日簡單報酬，小數</td>
+<td style="text-align: left;">Tsay 教科書網站 d-msft8608.txt</td>
+</tr>
+<tr>
+<td style="text-align: left;">89 檔股票等權教學投資組合</td>
+<td style="text-align: left;">2013-01-03</td>
+<td style="text-align: left;">2022-06-22</td>
+<td style="text-align: right;">2384</td>
+<td style="text-align: right;">89</td>
+<td style="text-align: left;">日簡單報酬，小數</td>
+<td style="text-align: left;">原課程 S&amp;P 500 價格檔的平衡面板</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_2">真實報酬的偏態、峰度與尾端<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
+<pre><code class="language-r">empirical_summary &lt;- rbind(
+  MSFT = sample_moments(msft$simple_return),
+  SP_equal_weight = sample_moments(sp_equal)
 )
-hist(
-  empirical$return, breaks = 70, probability = TRUE,
-  col = &quot;#9FC2D4&quot;, border = &quot;white&quot;,
-  xlab = &quot;日簡單報酬&quot;, main = &quot;經驗分配&quot;
-)
-curve(
-  dnorm(x, mean(empirical$return), sd(empirical$return)),
-  add = TRUE, lwd = 2, col = &quot;#A34045&quot;
-)
-qqnorm(
-  empirical$return, pch = 16, cex = 0.45,
-  col = &quot;#173B57&quot;, main = &quot;常態 Q--Q&quot;
-)
-qqline(empirical$return, col = &quot;#A34045&quot;, lwd = 2)
+knitr::kable(round(empirical_summary, 5))
 </code></pre>
-<p><img alt="等權教學投資組合的時間圖、直方圖與常態 Q--Q 圖。" src="./R03_distributions_heavy_tails_files/figure-gfm/empirical-plots-1.png"></p>
-<pre><code class="language-r">par(mfrow = c(1, 1))
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"></th>
+<th style="text-align: right;">n</th>
+<th style="text-align: right;">mean</th>
+<th style="text-align: right;">sd</th>
+<th style="text-align: right;">skewness</th>
+<th style="text-align: right;">kurtosis</th>
+<th style="text-align: right;">excess_kurtosis</th>
+<th style="text-align: right;">q01</th>
+<th style="text-align: right;">q05</th>
+<th style="text-align: right;">median</th>
+<th style="text-align: right;">q95</th>
+<th style="text-align: right;">q99</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">MSFT</td>
+<td style="text-align: right;">5752</td>
+<td style="text-align: right;">0.00123</td>
+<td style="text-align: right;">0.02359</td>
+<td style="text-align: right;">-0.13209</td>
+<td style="text-align: right;">12.92329</td>
+<td style="text-align: right;">9.92329</td>
+<td style="text-align: right;">-0.06108</td>
+<td style="text-align: right;">-0.03306</td>
+<td style="text-align: right;">0.00000</td>
+<td style="text-align: right;">0.03846</td>
+<td style="text-align: right;">0.06344</td>
+</tr>
+<tr>
+<td style="text-align: left;">SP_equal_weight</td>
+<td style="text-align: right;">2384</td>
+<td style="text-align: right;">0.00076</td>
+<td style="text-align: right;">0.01075</td>
+<td style="text-align: right;">-0.67951</td>
+<td style="text-align: right;">22.94458</td>
+<td style="text-align: right;">19.94458</td>
+<td style="text-align: right;">-0.03040</td>
+<td style="text-align: right;">-0.01555</td>
+<td style="text-align: right;">0.00106</td>
+<td style="text-align: right;">0.01469</td>
+<td style="text-align: right;">0.02507</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-r">jb_table &lt;- rbind(
+  MSFT = jarque_bera(msft$simple_return),
+  SP_equal_weight = jarque_bera(sp_equal)
+)
+knitr::kable(jb_table, digits = 6)
 </code></pre>
-<p>Q--Q 圖的尾端偏離比只看單一峰度更容易定位哪一側出現極端值。圖形是診斷，不是分配模型已被證明的結論。</p>
-<h2 id="_4">報酬與平方報酬的時間相依<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
-<pre><code class="language-r">par(mfrow = c(1, 2))
-acf(empirical$return, lag.max = 30, main = &quot;報酬 ACF&quot;)
-acf(empirical$return^2, lag.max = 30, main = &quot;平方報酬 ACF&quot;)
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"></th>
+<th style="text-align: right;">statistic</th>
+<th style="text-align: right;">p_value_iid_asymptotic</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">MSFT</td>
+<td style="text-align: right;">23617.11</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td style="text-align: left;">SP_equal_weight</td>
+<td style="text-align: right;">39696.89</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
+<p>MSFT 的樣本峰度約為 12.92，等權教學組合約為 22.94，均遠高於常態分配的 3；兩者的 Jarque--Bera 統計量也都很大。這是厚尾與偏態的實證警訊，不代表某一個替代分配已被唯一選定。</p>
+<p>Jarque--Bera 的卡方近似依賴獨立同分配與有限高階動差。金融報酬常有條件異質變異，因此極小的漸近 $p$ 值可作常態模型的警訊，卻不能取代完整的時間序列診斷。</p>
+<pre><code class="language-r">series_list &lt;- list(
+  MSFT = list(date = msft$date, return = msft$simple_return),
+  `S&amp;P 等權教學組合` = list(date = panel$date, return = sp_equal)
+)
+
+old_par &lt;- par(
+  mfrow = c(2, 3), mar = c(4.5, 3.7, 3, 1),
+  family = plot_family
+)
+for (nm in names(series_list)) {
+  z &lt;- series_list[[nm]]
+  plot(
+    z$date, 100 * z$return, type = &quot;l&quot;, col = &quot;#173B57&quot;,
+    xlab = &quot;日期&quot;, ylab = &quot;日報酬（%）&quot;, main = nm
+  )
+  hist(
+    z$return, breaks = 70, probability = TRUE,
+    col = &quot;#9FC2D4&quot;, border = &quot;white&quot;,
+    xlab = &quot;日簡單報酬&quot;, main = paste(nm, &quot;分配&quot;)
+  )
+  curve(
+    dnorm(x, mean(z$return), sd(z$return)),
+    add = TRUE, lwd = 2, col = &quot;#A34045&quot;
+  )
+  qqnorm(
+    z$return, pch = 16, cex = 0.4,
+    col = &quot;#173B57&quot;, main = paste(nm, &quot;常態 Q--Q&quot;)
+  )
+  qqline(z$return, col = &quot;#A34045&quot;, lwd = 2)
+}
 </code></pre>
-<p><img alt="原始報酬與平方報酬的樣本 ACF。" src="./R03_distributions_heavy_tails_files/figure-gfm/acf-diagnostics-1.png"></p>
-<pre><code class="language-r">par(mfrow = c(1, 1))
+<p><img alt="MSFT 與等權教學投資組合的時間圖、經驗分配與常態 Q--Q 圖。" src="./R03_distributions_heavy_tails_files/figure-gfm/empirical-plots-1.png"></p>
+<pre><code class="language-r">par(old_par)
+</code></pre>
+<p>Q--Q 圖能分開呈現左尾與右尾的偏離。圖形是診斷證據，不是某個厚尾分配已被證明正確。</p>
+<h2 id="_3">報酬與平方報酬的時間相依<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<pre><code class="language-r">old_par &lt;- par(
+  mfrow = c(2, 2), mar = c(4, 3.5, 4, 1),
+  family = plot_family, cex.main = 0.85
+)
+for (nm in names(series_list)) {
+  z &lt;- series_list[[nm]]$return
+  acf(z, lag.max = 30, main = paste(nm, &quot;報酬 ACF&quot;))
+  acf(z^2, lag.max = 30, main = paste(nm, &quot;平方報酬 ACF&quot;))
+}
+</code></pre>
+<p><img alt="MSFT 與等權教學投資組合的報酬 ACF 與平方報酬 ACF。" src="./R03_distributions_heavy_tails_files/figure-gfm/acf-diagnostics-1.png"></p>
+<pre><code class="language-r">par(old_par)
+</code></pre>
+<pre><code class="language-r">lb_row &lt;- function(x, series_name) {
+  q_return &lt;- Box.test(x, lag = 20, type = &quot;Ljung-Box&quot;)
+  q_square &lt;- Box.test(x^2, lag = 20, type = &quot;Ljung-Box&quot;)
+  data.frame(
+    序列 = series_name,
+    Q20_報酬 = unname(q_return$statistic),
+    p_報酬 = q_return$p.value,
+    Q20_平方報酬 = unname(q_square$statistic),
+    p_平方報酬 = q_square$p.value,
+    check.names = FALSE
+  )
+}
 
 diagnostics &lt;- rbind(
-  return = unlist(Box.test(
-    empirical$return, lag = 20, type = &quot;Ljung-Box&quot;
-  )[c(&quot;statistic&quot;, &quot;parameter&quot;, &quot;p.value&quot;)]),
-  squared_return = unlist(Box.test(
-    empirical$return^2, lag = 20, type = &quot;Ljung-Box&quot;
-  )[c(&quot;statistic&quot;, &quot;parameter&quot;, &quot;p.value&quot;)])
+  lb_row(msft$simple_return, &quot;MSFT&quot;),
+  lb_row(sp_equal, &quot;S&amp;P 等權教學組合&quot;)
 )
-diagnostics
+knitr::kable(diagnostics, digits = 6)
 </code></pre>
-<pre><code>##                statistic.X-squared parameter.df p.value
-## return                     422.197           20       0
-## squared_return            4037.729           20       0
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">序列</th>
+<th style="text-align: right;">Q20_報酬</th>
+<th style="text-align: right;">p_報酬</th>
+<th style="text-align: right;">Q20_平方報酬</th>
+<th style="text-align: right;">p_平方報酬</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">MSFT</td>
+<td style="text-align: right;">41.3004</td>
+<td style="text-align: right;">0.003408</td>
+<td style="text-align: right;">1156.800</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td style="text-align: left;">S&amp;P 等權教學組合</td>
+<td style="text-align: right;">422.1970</td>
+<td style="text-align: right;">0.000000</td>
+<td style="text-align: right;">4037.729</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
+<p>報酬方向的線性相關與平方報酬的波動相依是兩個不同問題。Ljung--Box 結果只檢查指定落後集合的零自相關限制；它不直接證明報酬可交易，也不提供因果機制。</p>
+<h2 id="_4">定位極端日期<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
+<pre><code class="language-r">largest_moves &lt;- function(date, x, label, number = 5L) {
+  keep &lt;- order(abs(x), decreasing = TRUE)[seq_len(number)]
+  data.frame(
+    序列 = label,
+    日期 = date[keep],
+    日簡單報酬 = x[keep],
+    check.names = FALSE
+  )
+}
+
+extreme_table &lt;- rbind(
+  largest_moves(msft$date, msft$simple_return, &quot;MSFT&quot;),
+  largest_moves(panel$date, sp_equal, &quot;S&amp;P 等權教學組合&quot;)
+)
+knitr::kable(extreme_table, digits = 6)
 </code></pre>
-<p>原始報酬的線性相關與平方報酬的波動相依是兩個不同問題。Ljung--Box 的小 \(p\) 值只指出指定落後集合與零自相關不相容；若平方報酬有相依，後續應考慮第 11--12 章的條件變異模型。</p>
-<h2 id="_5">極端值不是自動刪除理由<a class="headerlink" href="#_5" title="Permanent link">#</a></h2>
-<pre><code class="language-r">extreme_rows &lt;- empirical[
-  order(abs(empirical$return), decreasing = TRUE)[1:10],
-]
-extreme_rows
-</code></pre>
-<pre><code>##            date      return
-## 1812 2020-03-16 -0.12158108
-## 1818 2020-03-24  0.10569128
-## 1810 2020-03-12 -0.09631514
-## 1811 2020-03-13  0.08768848
-## 1807 2020-03-09 -0.08087147
-## 1827 2020-04-06  0.07030369
-## 1820 2020-03-26  0.06286504
-## 1873 2020-06-11 -0.06081300
-## 1814 2020-03-18 -0.05945845
-## 1813 2020-03-17  0.05739548
-</code></pre>
-<p>正式分析應回到來源核對這些日期是否為市場事件、公司行動或建檔錯誤。只有確認資料錯誤才應修正；真實市場極端值恰是風險分析的重要資訊。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">序列</th>
+<th style="text-align: left;">日期</th>
+<th style="text-align: right;">日簡單報酬</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">MSFT</td>
+<td style="text-align: left;">1987-10-19</td>
+<td style="text-align: right;">-0.301158</td>
+</tr>
+<tr>
+<td style="text-align: left;">MSFT</td>
+<td style="text-align: left;">2000-10-19</td>
+<td style="text-align: right;">0.195652</td>
+</tr>
+<tr>
+<td style="text-align: left;">MSFT</td>
+<td style="text-align: left;">1987-10-26</td>
+<td style="text-align: right;">-0.186529</td>
+</tr>
+<tr>
+<td style="text-align: left;">MSFT</td>
+<td style="text-align: left;">2008-10-13</td>
+<td style="text-align: right;">0.186047</td>
+</tr>
+<tr>
+<td style="text-align: left;">MSFT</td>
+<td style="text-align: left;">1987-10-21</td>
+<td style="text-align: right;">0.179688</td>
+</tr>
+<tr>
+<td style="text-align: left;">S&amp;P 等權教學組合</td>
+<td style="text-align: left;">2020-03-16</td>
+<td style="text-align: right;">-0.121581</td>
+</tr>
+<tr>
+<td style="text-align: left;">S&amp;P 等權教學組合</td>
+<td style="text-align: left;">2020-03-24</td>
+<td style="text-align: right;">0.105691</td>
+</tr>
+<tr>
+<td style="text-align: left;">S&amp;P 等權教學組合</td>
+<td style="text-align: left;">2020-03-12</td>
+<td style="text-align: right;">-0.096315</td>
+</tr>
+<tr>
+<td style="text-align: left;">S&amp;P 等權教學組合</td>
+<td style="text-align: left;">2020-03-13</td>
+<td style="text-align: right;">0.087688</td>
+</tr>
+<tr>
+<td style="text-align: left;">S&amp;P 等權教學組合</td>
+<td style="text-align: left;">2020-03-09</td>
+<td style="text-align: right;">-0.080871</td>
+</tr>
+</tbody>
+</table>
+<p>這張表只定位需要回查的觀察值。確認是資料錯誤才修正；真實市場極端值正是厚尾與風險分析的重要資訊。</p>
       </article>
-      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R02_prices_dates_returns.html">← 價格、日期與報酬率</a><a rel="next" href="R04_ar_ma_arma_simulation.html">AR、MA 與 ARMA 模擬 →</a></nav>
+      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R02_prices_dates_returns.html">← 價格、日期與報酬率</a><a rel="next" href="R04_ar_ma_arma_simulation.html">AR、MA 與 ARMA：理論與真實報酬 →</a></nav>
       <footer>© 陳釗而　《財務時間序列分析》</footer>
     </main>
     <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
 <ul>
-<li><a href="#_1">描述統計函數</a></li>
-<li><a href="#_2">常態與厚尾模擬</a></li>
-<li><a href="#jarque-bera">Jarque--Bera 統計量</a></li>
-<li><a href="#_3">固定股票面板與等權教學投資組合</a></li>
-<li><a href="#q-q">經驗分配、常態 Q--Q 圖與時間圖</a></li>
-<li><a href="#_4">報酬與平方報酬的時間相依</a></li>
-<li><a href="#_5">極端值不是自動刪除理由</a></li>
+<li><a href="#jarque-bera">描述統計與 Jarque--Bera 函數</a></li>
+<li><a href="#_1">常態與厚尾模擬：只用來核對直覺</a></li>
+<li><a href="#msft">讀取 MSFT 與股票面板</a></li>
+<li><a href="#_2">真實報酬的偏態、峰度與尾端</a></li>
+<li><a href="#_3">報酬與平方報酬的時間相依</a></li>
+<li><a href="#_4">定位極端日期</a></li>
 </ul>
 </div>
 </aside>

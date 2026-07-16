@@ -1,114 +1,128 @@
 ---
-title: "R10：PCA、低秩重建與因子分析"
+title: "R10：真實股票報酬的 PCA、低秩重建與因子分析"
 output:
   github_document:
     toc: true
     toc_depth: 3
 ---
 
-本附錄對應第 15 章，以固定種子的合成因子資料說明主成分分析（PCA）、低秩重建、因子個數選擇與最大概似因子分析。模擬的優點是共同因子與負荷量真值可核對；它不是任何真實市場的實證結果。
+本附錄對應第 15 章，以 Tsay《Analysis of Financial Time Series》第三版課程資料中的兩組真實股票月報酬作為主體：五家公司資料用於 PCA 與跨期低秩重建，十家公司 Barra 範例用於最大概似因子分析與 varimax 旋轉。合成低秩資料只保留在最後作程式真值核對，不再充當主要實證。
+
+五公司檔涵蓋 1990 年 1 月至 2008 年 12 月，共 228 月；十公司檔涵蓋 1990 年 1 月至 2003 年 12 月，共 168 月。數值沿用原課程檔，以**月報酬百分點**表示，例如 4.5 代表約 4.5%；五公司檔為月對數報酬。資料來自原課程指向的 Ruey S. Tsay／Chicago Booth 教材檔案；公開版隨附作者授權的兩份 processed CSV，故本附錄可離線自含重跑。若另由上游教材檔重建，仍須保存教材版本與下載日。PCA 與因子分析在此只描述共同變動與低秩重建，不識別因果衝擊，也不直接證明未來報酬可預測。
 
 ```{r setup}
 knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
-  fig.width = 7, fig.height = 4
+  fig.width = 7, fig.height = 4.3
 )
 stopifnot(getRversion() >= "4.3.0")
 set.seed(1010)
 ```
 
-## 1. 軟體與時間切分
+## 1. 載入兩組真實資料
 
-本檔只使用 R 內建的 `stats` 與 `graphics`，不安裝套件、不下載資料、不使用 `setwd()`。700 期資料依時間固定切成：
+```{r locate-and-read}
+locate_project_file <- function(relative_path) {
+  candidates <- c(
+    relative_path,
+    file.path("..", relative_path),
+    file.path("../..", relative_path)
+  )
+  hit <- candidates[file.exists(candidates)]
+  if (length(hit) == 0L) stop("找不到專案檔案：", relative_path)
+  normalizePath(hit[1], mustWork = TRUE)
+}
 
-- 1--400：估計期；
-- 401--520：驗證期，只用來選主成分個數；
-- 521--700：最終測試期。
+five_file <- locate_project_file(
+  "data/processed/tsay_five_stock_monthly_returns_1990_2008.csv"
+)
+barra_file <- locate_project_file(
+  "data/processed/tsay_barra_monthly_returns_1990_2003.csv"
+)
+manifest_file <- locate_project_file("data/processed/manifest.csv")
 
-```{r versions}
-data.frame(
-  component = c("R", "stats", "graphics"),
-  version = c(
-    R.version.string,
-    as.character(packageVersion("stats")),
-    as.character(packageVersion("graphics"))
+five <- read.csv(five_file, stringsAsFactors = FALSE, check.names = FALSE)
+barra <- read.csv(barra_file, stringsAsFactors = FALSE, check.names = FALSE)
+manifest <- read.csv(manifest_file, stringsAsFactors = FALSE)
+five$month <- as.Date(five$month)
+barra$month <- as.Date(barra$month)
+five <- five[order(five$month), ]
+barra <- barra[order(barra$month), ]
+
+keys <- c(
+  "data/processed/tsay_five_stock_monthly_returns_1990_2008.csv",
+  "data/processed/tsay_barra_monthly_returns_1990_2003.csv"
+)
+manifest_rows <- manifest[match(keys, manifest$file), , drop = FALSE]
+
+stopifnot(
+  nrow(five) == 228L, ncol(five) == 6L,
+  nrow(barra) == 168L, ncol(barra) == 11L,
+  !anyNA(five), !anyNA(barra),
+  identical(unname(tools::md5sum(five_file)), manifest_rows$md5[1]),
+  identical(unname(tools::md5sum(barra_file)), manifest_rows$md5[2]),
+  all(diff(five$month) > 0), all(diff(barra$month) > 0)
+)
+
+rbind(
+  data.frame(
+    dataset = "Tsay five-stock PCA",
+    first_month = min(five$month), last_month = max(five$month),
+    months = nrow(five), stocks = ncol(five) - 1L,
+    unit = "monthly log-return percentage points"
+  ),
+  data.frame(
+    dataset = "Tsay Barra factor analysis",
+    first_month = min(barra$month), last_month = max(barra$month),
+    months = nrow(barra), stocks = ncol(barra) - 1L,
+    unit = "monthly return percentage points"
   )
 )
 ```
 
-## 2. 產生低秩共同結構
-
-令
-
-\[
-\mathbf x_t=\mathbf B\mathbf f_t+\mathbf u_t,
-\]
-
-其中三個因子具有不同持續性，十個觀察變數有不同負荷量與個別變異。
-
-```{r simulate-factors}
-T_total <- 700
-N <- 10
-r_true <- 3
-
-simulate_ar1 <- function(n, phi, sd = 1) {
-  stopifnot(abs(phi) < 1, sd > 0)
-  x <- numeric(n)
-  innovation_sd <- sd * sqrt(1 - phi^2)
-  x[1] <- rnorm(1, sd = sd)
-  for (t in 2:n) {
-    x[t] <- phi * x[t - 1] + rnorm(1, sd = innovation_sd)
-  }
-  x
-}
-
-F_true <- cbind(
-  F1 = simulate_ar1(T_total, phi = 0.55),
-  F2 = simulate_ar1(T_total, phi = 0.25),
-  F3 = simulate_ar1(T_total, phi = -0.20)
+```{r provenance}
+data.frame(
+  dataset = c("five-stock", "Barra ten-stock"),
+  original_course_file = c("m-5clog-9008.txt", "m-barra-9003.txt"),
+  source = c(
+    "Ruey S. Tsay, Analysis of Financial Time Series, 3e, Example 9.2",
+    "Ruey S. Tsay, Analysis of Financial Time Series, 3e, Example 9.4"
+  ),
+  identification_boundary = c(
+    "PCA 是共同變動的描述，不識別經濟衝擊",
+    "旋轉負荷量不是已命名或具因果意義的結構因子"
+  )
 )
-
-B_true <- rbind(
-  c(0.90, 0.10, 0.00),
-  c(0.85, 0.15, 0.05),
-  c(0.75, 0.20, 0.10),
-  c(0.10, 0.90, 0.05),
-  c(0.15, 0.85, 0.10),
-  c(0.20, 0.75, 0.15),
-  c(0.05, 0.10, 0.90),
-  c(0.10, 0.15, 0.85),
-  c(0.20, 0.10, 0.75),
-  c(0.45, 0.40, 0.35)
-)
-rownames(B_true) <- paste0("X", seq_len(N))
-colnames(B_true) <- colnames(F_true)
-
-idio_sd <- seq(0.35, 0.65, length.out = N)
-U <- matrix(rnorm(T_total * N), nrow = T_total)
-U <- sweep(U, 2, idio_sd, "*")
-X <- F_true %*% t(B_true) + U
-colnames(X) <- rownames(B_true)
-
-estimate_id <- 1:400
-validation_id <- 401:520
-test_id <- 521:700
 ```
 
-```{r data-preview}
-round(cov(X[estimate_id, ]), 2)
+## 2. 五公司真實月報酬的 PCA
+
+五家公司為 IBM、HPQ、INTC、JPM 與 BAC。先依時間固定分成 60% 估計期、20% 驗證期、20% 測試期；標準化中心、尺度與負荷量只能由估計期得到。
+
+```{r five-stock-split}
+X_five <- as.matrix(five[, -1, drop = FALSE])
+storage.mode(X_five) <- "double"
+n_five <- nrow(X_five)
+estimate_end <- floor(0.60 * n_five)
+validation_end <- floor(0.80 * n_five)
+estimate_id <- seq_len(estimate_end)
+validation_id <- (estimate_end + 1L):validation_end
+test_id <- (validation_end + 1L):n_five
+
+data.frame(
+  sample = c("估計", "驗證", "測試"),
+  first_month = five$month[c(min(estimate_id), min(validation_id), min(test_id))],
+  last_month = five$month[c(max(estimate_id), max(validation_id), max(test_id))],
+  months = c(length(estimate_id), length(validation_id), length(test_id))
+)
 ```
 
-## 3. PCA 的特徵分解
-
-`prcomp()` 以奇異值分解實作 PCA。這裡先標準化各欄，因此等價於對估計期相關矩陣做 PCA。
-
-```{r fit-pca}
+```{r fit-real-pca}
 pca_estimate <- prcomp(
-  X[estimate_id, , drop = FALSE],
+  X_five[estimate_id, , drop = FALSE],
   center = TRUE,
   scale. = TRUE
 )
-
 eigenvalues <- pca_estimate$sdev^2
 PVE <- eigenvalues / sum(eigenvalues)
 explained <- data.frame(
@@ -120,212 +134,182 @@ explained <- data.frame(
 explained
 ```
 
-```{r scree-plot}
+```{r scree-plot, fig.cap="五家公司估計期相關矩陣的陡坡圖。"}
 plot(
   explained$component, explained$eigenvalue,
   type = "b", pch = 19, col = "#173B57",
   xlab = "主成分", ylab = "特徵值",
-  main = "只用估計期建立的陡坡圖"
+  main = "Tsay 五公司真實月報酬 PCA"
 )
 abline(h = 1, lty = 2, col = "#A34045")
 ```
 
-### 3.1 以矩陣運算核對
+### 2.1 以矩陣特徵分解核對
 
 ```{r eigen-check}
 Z_estimate <- scale(
-  X[estimate_id, , drop = FALSE],
+  X_five[estimate_id, , drop = FALSE],
   center = pca_estimate$center,
   scale = pca_estimate$scale
 )
-S_estimate <- cov(Z_estimate)
-eigen_direct <- eigen(S_estimate, symmetric = TRUE)
+eigen_direct <- eigen(cov(Z_estimate), symmetric = TRUE)
+stopifnot(isTRUE(all.equal(
+  unname(eigenvalues), unname(eigen_direct$values), tolerance = 1e-10
+)))
 
-stopifnot(
-  isTRUE(all.equal(
-    unname(eigenvalues),
-    unname(eigen_direct$values),
-    tolerance = 1e-10
-  ))
+projection_prcomp <- tcrossprod(pca_estimate$rotation[, 1:2, drop = FALSE])
+projection_eigen <- tcrossprod(eigen_direct$vectors[, 1:2, drop = FALSE])
+data.frame(
+  largest_eigenvalue_difference = max(abs(eigenvalues - eigen_direct$values)),
+  two_component_projection_difference =
+    max(abs(projection_prcomp - projection_eigen))
 )
-
-# 特徵向量可整欄反號，所以比較投影外積。
-projection_prcomp <- tcrossprod(pca_estimate$rotation[, 1:3])
-projection_eigen <- tcrossprod(eigen_direct$vectors[, 1:3])
-max(abs(projection_prcomp - projection_eigen))
 ```
 
-## 4. 主成分與真因子的關係
+主成分可整欄反號，所以應比較投影空間或配適，而不是把某一個負荷量的正負號當成唯一識別。
 
-PCA 不知道真因子名稱；只能由資料找共同子空間。下表取絕對相關，避免特徵向量任意反號造成誤解。
+## 3. 事先鎖定維度並做跨期重建
 
-```{r score-factor-correlation}
-score_estimate <- pca_estimate$x[, 1:5, drop = FALSE]
-round(abs(cor(score_estimate, F_true[estimate_id, ])), 3)
+先以估計期累積解釋比例達 80% 的最小維度作透明規則；驗證期只報診斷，不再改規則。
+
+```{r select-dimension}
+r_selected <- which(explained$cumulative_PVE >= 0.80)[1]
+data.frame(
+  selected_components = r_selected,
+  training_cumulative_PVE = explained$cumulative_PVE[r_selected]
+)
 ```
-
-即使前三個主成分與三個真因子高度相關，欄次序也可能交換或混合。可識別的通常是共同子空間，不是未加限制的每一個因子名稱。
-
-## 5. 無資料洩漏的低秩重建
-
-### 5.1 固定估計期中心、尺度與負荷量
 
 ```{r reconstruction-functions}
 reconstruct_from_pca <- function(fit, newdata, r) {
-  stopifnot(r >= 0, r <= ncol(fit$rotation))
   Z <- scale(newdata, center = fit$center, scale = fit$scale)
-  if (r == 0) {
-    Z_hat <- matrix(0, nrow = nrow(Z), ncol = ncol(Z))
-  } else {
-    V <- fit$rotation[, seq_len(r), drop = FALSE]
-    score <- Z %*% V
-    Z_hat <- score %*% t(V)
-  }
+  V <- fit$rotation[, seq_len(r), drop = FALSE]
+  Z_hat <- (Z %*% V) %*% t(V)
   X_hat <- sweep(Z_hat, 2, fit$scale, "*")
   sweep(X_hat, 2, fit$center, "+")
 }
 
-reconstruction_mse <- function(actual, reconstructed) {
-  mean((actual - reconstructed)^2)
-}
-```
-
-### 5.2 只用驗證期選 \(r\)
-
-```{r choose-r}
-r_grid <- 0:N
-validation_mse <- vapply(r_grid, function(r) {
-  X_hat <- reconstruct_from_pca(
-    pca_estimate,
-    X[validation_id, , drop = FALSE],
-    r = r
+reconstruction_score <- function(actual, reconstructed) {
+  c(
+    MSE = mean((actual - reconstructed)^2),
+    fraction_variation_reconstructed =
+      1 - sum((actual - reconstructed)^2) /
+      sum((actual - matrix(colMeans(actual), nrow(actual), ncol(actual),
+                           byrow = TRUE))^2)
   )
-  reconstruction_mse(X[validation_id, ], X_hat)
-}, numeric(1))
+}
 
-selection_table <- data.frame(
-  r = r_grid,
-  validation_MSE = validation_mse
+validation_hat <- reconstruct_from_pca(
+  pca_estimate, X_five[validation_id, , drop = FALSE], r_selected
 )
-selection_table
+validation_score <- reconstruction_score(
+  X_five[validation_id, , drop = FALSE], validation_hat
+)
+validation_score
 ```
 
-若只最小化同一組變數的重建誤差，保留全部 \(N\) 個主成分必然最好，因為沒有降維懲罰。為讓問題反映「用較少維度換取多少誤差」，本例使用一個事先指定的規則：選擇重建 MSE 不超過完整 PCA 驗證誤差加上總變異 10% 的最小 \(r\)。另一種方法是預先要求累積解釋比例達 80% 或 90%。
-
-```{r parsimonious-rule}
-validation_total_variance <- mean(apply(
-  X[validation_id, , drop = FALSE], 2, var
-))
-tolerance <- validation_mse[N + 1] + 0.10 * validation_total_variance
-r_selected <- min(r_grid[validation_mse <= tolerance])
-r_selected
-```
-
-規則與容許誤差必須在查看測試期之前固定。
-
-### 5.3 鎖定 \(r\) 後重新估計，最後一次評估測試期
-
-可在選定 \(r\) 後合併估計與驗證期重新估計 PCA；測試期仍未參與。
+鎖定維度後，以估計期加驗證期重新估計一次 PCA，再只在最後測試期評量。
 
 ```{r final-test}
 development_id <- c(estimate_id, validation_id)
 pca_development <- prcomp(
-  X[development_id, , drop = FALSE],
-  center = TRUE,
-  scale. = TRUE
+  X_five[development_id, , drop = FALSE],
+  center = TRUE, scale. = TRUE
 )
-X_test_hat <- reconstruct_from_pca(
-  pca_development,
-  X[test_id, , drop = FALSE],
-  r = r_selected
+test_hat <- reconstruct_from_pca(
+  pca_development, X_five[test_id, , drop = FALSE], r_selected
 )
-test_mse <- reconstruction_mse(X[test_id, ], X_test_hat)
-
+test_score <- reconstruction_score(
+  X_five[test_id, , drop = FALSE], test_hat
+)
 data.frame(
-  selected_r = r_selected,
-  validation_tolerance = tolerance,
-  final_test_MSE = test_mse
+  selected_components = r_selected,
+  validation_MSE = unname(validation_score["MSE"]),
+  test_MSE = unname(test_score["MSE"]),
+  test_fraction_variation_reconstructed =
+    unname(test_score["fraction_variation_reconstructed"])
 )
 ```
 
-測試期資料用來計算當期主成分分數與重建，這是同日降維；若要在前一期預測本期因子，還須對分數建立時間序列模型。
+這是用同月五檔報酬計算同月分數與重建，不是以前一期資訊預測下一期報酬。
 
-## 6. 因子分析與 varimax 旋轉
+## 4. Barra 十公司真實月報酬的因子分析
 
-`factanal()` 是 R 內建的最大概似因子分析。它把每個變數變異拆成共同性與個別變異，目標不同於 PCA。
+`factanal()` 的最大概似因子分析把各股票變異拆成共同性與個別變異。以下使用完整的 1990--2003 描述樣本估計三因子並作 varimax 旋轉；沒有保留期績效或因果解讀。
 
 ```{r factor-analysis}
+X_barra <- as.matrix(barra[, -1, drop = FALSE])
+storage.mode(X_barra) <- "double"
 fa_three <- factanal(
-  X[estimate_id, , drop = FALSE],
+  X_barra,
   factors = 3,
   rotation = "varimax",
   scores = "regression"
 )
-fa_three
-```
-
-```{r factor-loadings}
 loadings_matrix <- unclass(fa_three$loadings)
-round(loadings_matrix, 3)
 
-communality <- rowSums(loadings_matrix^2)
 factor_summary <- data.frame(
-  variable = rownames(loadings_matrix),
-  communality = communality,
+  stock = rownames(loadings_matrix),
+  communality = rowSums(loadings_matrix^2),
   uniqueness = fa_three$uniquenesses
 )
+round(loadings_matrix, 3)
 factor_summary
+fa_three$PVAL
 ```
 
-因子旋轉可讓負荷量群組更清楚，但不會把統計因子自動變成已識別的經濟衝擊。若改變旋轉法，單一欄的名稱與符號可能改變，共同重建空間則可相近。
-
-## 7. 共變異數 PCA 與相關矩陣 PCA
-
-用相同估計期比較 `scale.=FALSE` 與 `scale.=TRUE`。由於本例各欄個別變異不同，兩組負荷量不會完全相同。
-
-```{r covariance-vs-correlation}
-pca_cov <- prcomp(
-  X[estimate_id, , drop = FALSE],
-  center = TRUE, scale. = FALSE
+```{r loading-plot, fig.cap="Barra 十公司三因子 varimax 旋轉後的絕對負荷量。"}
+barplot(
+  t(abs(loadings_matrix)), beside = TRUE,
+  col = c("#173B57", "#A34045", "#1D6D73"),
+  names.arg = rownames(loadings_matrix),
+  las = 2, ylab = "|factor loading|",
+  main = "真實十公司月報酬的旋轉負荷量"
 )
-pca_cor <- pca_estimate
-
-comparison <- data.frame(
-  variable = colnames(X),
-  covariance_PC1 = pca_cov$rotation[, 1],
-  correlation_PC1 = pca_cor$rotation[, 1]
-)
-comparison
-```
-
-```{r loading-plot}
-matplot(
-  seq_len(N),
-  cbind(abs(comparison$covariance_PC1),
-        abs(comparison$correlation_PC1)),
-  type = "b", pch = c(16, 1), lty = 1,
-  col = c("#173B57", "#A34045"),
-  xaxt = "n", xlab = "變數", ylab = "|PC1 負荷量|",
-  main = "尺度選擇會改變 PCA 問題"
-)
-axis(1, at = seq_len(N), labels = colnames(X))
 legend(
-  "topright",
-  legend = c("共變異數 PCA", "相關矩陣 PCA"),
-  col = c("#173B57", "#A34045"),
-  pch = c(16, 1), lty = 1, bty = "n"
+  "topright", paste0("Factor", 1:3),
+  fill = c("#173B57", "#A34045", "#1D6D73"), bty = "n"
 )
 ```
 
-## 8. 可重現結論
+旋轉後的群組可協助描述共同變動，但公司名稱與統計負荷量本身不足以把因子命名為特定產業、風險或結構性衝擊。
 
-本附錄驗證：
+## 5. 小型低秩真值單元測試
 
-1. `prcomp()` 的奇異值與相關矩陣特徵值一致；
-2. 主成分符號可反轉，應比較投影空間而非單一正負號；
-3. 驗證期只用來選 \(r\)，測試期直到最後才使用；
-4. 測試期標準化沿用發展期中心與尺度；
-5. PCA 與最大概似因子分析的目標、個別變異處理與旋轉解讀不同。
+模擬只用於確認「保留正確共同維度可以接近真共同部分」的程式性質，不作實證結論。
+
+```{r low-rank-unit-test}
+set.seed(1010)
+n_sim <- 600L
+F_true <- matrix(rnorm(n_sim * 2L), ncol = 2L)
+B_true <- rbind(
+  c(0.9, 0.1), c(0.8, 0.2), c(0.7, 0.1),
+  c(0.1, 0.9), c(0.2, 0.8), c(0.1, 0.7)
+)
+common_true <- F_true %*% t(B_true)
+X_sim <- common_true + matrix(rnorm(n_sim * 6L, sd = 0.15), ncol = 6L)
+pc_sim <- prcomp(X_sim, center = TRUE, scale. = FALSE)
+common_hat_centered <-
+  pc_sim$x[, 1:2, drop = FALSE] %*% t(pc_sim$rotation[, 1:2, drop = FALSE])
+common_true_centered <- scale(common_true, center = TRUE, scale = FALSE)
+common_correlation <- cor(
+  as.vector(common_true_centered), as.vector(common_hat_centered)
+)
+stopifnot(common_correlation > 0.95)
+data.frame(
+  true_rank = 2L,
+  retained_components = 2L,
+  correlation_with_true_common_part = common_correlation
+)
+```
+
+## 6. 可重現結論與界線
+
+1. PCA 主結果來自 1990--2008 五公司真實月報酬；FA 主結果來自 1990--2003 十公司真實月報酬。
+2. 所有數值沿用來源檔的月百分點尺度，沒有和小數報酬混用。
+3. PCA 的中心、尺度、負荷量與維度規則都在測試期之前鎖定。
+4. 因子分析使用完整樣本作描述，不冒充跨期預測或結構識別。
+5. 合成資料只作真值單元測試；公開 repo 隨附作者授權的凍結 CSV，可直接重跑真實資料主結果。
 
 ```{r session-info}
 sessionInfo()

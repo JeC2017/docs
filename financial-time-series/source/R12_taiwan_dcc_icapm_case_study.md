@@ -9,9 +9,13 @@ output:
 本附錄對應第 16 章。可重現的範圍只有兩部分：
 
 1. 用固定種子的合成標準化新衝擊，核對 DCC 遞迴、相關矩陣正規化與正定性；
-2. 用專案內凍結的 (47\times497) 第二階段追蹤資料，示範時間切分、固定效果 within 估計與保留期診斷。
+2. 用專案內凍結的 \(47\times497\) 第二階段追蹤資料，示範時間切分、固定效果 within 估計與保留期診斷。
 
 **這是局部個案研究，不是原論文或原課堂實證的完整複製。** 現有檔案沒有從原始價格與狀態變數開始的清理流程、第一階段 GARCH／DCC 估計結果、完整懲罰式追蹤資料分量迴歸（PQRFE）調校，以及相依資料的完整拔靴推論。第二階段的共變異數欄位是已生成的解釋變數；本附錄不能回溯驗證它們在每一天的第一階段資訊集合。
+
+依 Chen and Lin（2015）的資料章，原研究以 2010 年 1 月 5 日至 2011 年 12 月 30 日的臺灣 50 成分股為基礎：個股日價格與十年期指標公債利率來自臺灣經濟新報（TEJ），臺灣 50 指數來自臺灣證券交易所，臺指 VIX 來自臺灣期貨交易所，30 日融資性商業本票利率來自合作金庫票券金融；排除樣本期內才上市／改制者後為 47 家公司、497 個交易日。論文的報酬定義是日對數超額報酬乘以 100，因此 `return` 沿用百分點尺度；三個 `cov_*` 欄則沿用第一階段生成共變異數的原數值尺度，不另行換算。
+
+凍結 CSV 已把實際日期與公司代碼匿名化為 `day=1,...,497` 與 `firm=1,...,47`，且只保留第二階段六欄。公開 repo 隨附作者授權的這份 processed CSV，因此本附錄的 DCC 教學單元與第二階段個案可自含重跑。這些來源說明能界定樣本，卻不能補回缺少的原始價格建檔、第一階段程式與完整 PQRFE 推論。
 
 
 ``` r
@@ -72,7 +76,7 @@ panel_file <- locate_project_file(
 manifest_file <- locate_project_file("data/processed/manifest.csv")
 ```
 
-依 `data/DATA_SOURCES.md` 的已決定政策，公開網站不再散布這份衍生資料。MD5 檢查只能確認作者工作版本一致，不能證明來源正確或授權完備。
+公開網站隨附 `data/processed/taiwan_icapm_second_stage_47x497.csv`，MD5 檢查用來確認讀到作者授權公開的凍結版本；本 Rmd 可由公開 repo 單獨重跑。相對原研究而言，公開狀態仍是「DCC 教學單元可重現、臺灣實證僅第二階段部分重現」，因為第一階段估計與原始資料建置尚未納入。
 
 ## 2. DCC 教學遞迴：只驗證演算法，不估計真實模型
 
@@ -230,9 +234,9 @@ legend(
 )
 ```
 
-![plot of chunk dcc-correlation-plot](./R12_taiwan_dcc_icapm_case_study_files/figure-gfm/dcc-correlation-plot-1.png)
+![plot of chunk dcc-correlation-plot](../R12_taiwan_dcc_icapm_case_study_files/figure-gfm/dcc-correlation-plot-1.png)
 
-保留期的新衝擊可以逐期進入已鎖定參數的濾波器，但 (Q_bar,a,b) 沒有用保留期重新估計。這是合理的即時更新概念；然而它仍只是合成資料的演算法測試，不是臺灣 DCC 估計。
+保留期的新衝擊可以逐期進入已鎖定參數的濾波器，但參數 \((\overline Q,a,b)\) 沒有用保留期重新估計。這是合理的即時更新概念；然而它仍只是合成資料的演算法測試，不是臺灣 DCC 估計。
 
 ## 3. 載入凍結的第二階段追蹤資料
 
@@ -465,7 +469,7 @@ evaluation
 
 ## 6. 殘差的橫斷面相依診斷
 
-若同一天的公司殘差共同移動，把每一列當獨立觀察值會低估不確定性。將測試期殘差排成「日期 (\times) 公司」矩陣，查看平均絕對相關與第一特徵值占比。
+若同一天的公司殘差共同移動，把每一列當獨立觀察值會低估不確定性。將測試期殘差排成「日期 \(\times\) 公司」矩陣，查看平均絕對相關與第一特徵值占比。
 
 
 ``` r
@@ -606,9 +610,10 @@ sessionInfo()
 ## loaded via a namespace (and not attached):
 ##  [1] vctrs_0.7.2        cli_3.6.5          knitr_1.51         rlang_1.1.7       
 ##  [5] xfun_0.57          otel_0.2.0         MatrixModels_0.5-4 generics_0.1.4    
-##  [9] glue_1.8.0         grid_4.5.2         evaluate_1.0.5     SparseM_1.84-2    
-## [13] MASS_7.3-65        lifecycle_1.0.5    compiler_4.5.2     pkgconfig_2.0.3   
-## [17] quantreg_6.1       lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1  
-## [21] utf8_1.2.6         splines_4.5.2      pillar_1.11.1      magrittr_2.0.4    
-## [25] Matrix_1.7-4       tools_4.5.2        withr_3.0.2        survival_3.8-3
+##  [9] textshaping_1.0.5  glue_1.8.0         ragg_1.5.2         grid_4.5.2        
+## [13] evaluate_1.0.5     SparseM_1.84-2     MASS_7.3-65        lifecycle_1.0.5   
+## [17] compiler_4.5.2     pkgconfig_2.0.3    quantreg_6.1       systemfonts_1.3.2 
+## [21] lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1   utf8_1.2.6        
+## [25] splines_4.5.2      pillar_1.11.1      magrittr_2.0.4     Matrix_1.7-4      
+## [29] tools_4.5.2        survival_3.8-3
 ```

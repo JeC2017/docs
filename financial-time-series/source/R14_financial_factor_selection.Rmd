@@ -6,7 +6,9 @@ output:
     toc_depth: 3
 ---
 
-本附錄對應第 19 章。它使用專案固定的十產業因子面板，以第 \(t\) 月的預測變數預測製造業第 \(t+1\) 月超額報酬。重點是時間對齊、只依訓練資料進行前處理、展開視窗驗證、基準比較與選取穩定性。
+本附錄對應第 19 章。它使用 1967 年 1 月至 2021 年 11 月、659 個月乘 10 產業的真實凍結因子面板，以第 \(t\) 月的預測變數預測製造業第 \(t+1\) 月超額報酬。`ret`、Fama--French 與 Global-q 因子均為月小數報酬，例如 0.01 代表 1%；總體預測變數則沿用各自定義的比率、利差或對數尺度。重點是時間對齊、只依訓練資料進行前處理、展開視窗驗證、基準比較與選取穩定性。
+
+資料來源方面，原課程 `fffqmacro.R` 從 Kenneth French Data Library 取得 FF3 與十產業投資組合、從 Global-q 取得 q5 因子、從 Welch--Goyal 工作簿取得總體預測變數，並以 FRED `CPIAUCNS` 輔助建檔；`ret` 是十產業總報酬減去當月 FF 無風險利率。各供應者版本與再散布條款必須分別保存。尤其 Fama--French 建構法後來由 CRSP FIZ 改為 CIZ，現在即時重抓不保證等於本 2021 工作快照。以下只評估固定時間切分下的預測表現；因子被選入不識別因果效果或風險價格，也不構成投資建議。
 
 ## 執行條件
 
@@ -14,6 +16,7 @@ output:
 - 不安裝套件、不呼叫網路、不使用 `setwd()`。
 - 固定資料：`data/processed/ff_qf_macro_industries_1967_2021.csv`。
 - 資料建置與再散布注意事項：`data/DATA_SOURCES.md`。
+- 公開界線：repo 隨附作者授權的 processed 合併 CSV、程式與執行結果，可離線自含重跑；若另由上游來源重建，必須固定各供應者版本與轉換規則。
 
 ```{r setup}
 knitr::opts_chunk$set(
@@ -23,8 +26,20 @@ knitr::opts_chunk$set(
 ```
 
 ```{r read-data}
-path <- "data/processed/ff_qf_macro_industries_1967_2021.csv"
-stopifnot(file.exists(path))
+locate_project_file <- function(relative_path) {
+  candidates <- c(
+    relative_path,
+    file.path("..", relative_path),
+    file.path("../..", relative_path)
+  )
+  hit <- candidates[file.exists(candidates)]
+  if (length(hit) == 0L) stop("找不到專案檔案：", relative_path)
+  normalizePath(hit[1], mustWork = TRUE)
+}
+
+path <- locate_project_file(
+  "data/processed/ff_qf_macro_industries_1967_2021.csv"
+)
 d <- read.csv(path, stringsAsFactors = FALSE, check.names = FALSE)
 d$month <- as.Date(d$month)
 d <- d[order(d$industry, d$month), ]
@@ -32,6 +47,13 @@ d <- d[order(d$industry, d$month), ]
 stopifnot(nrow(d) == 6590L, ncol(d) == 24L)
 table(d$industry)
 range(d$month)
+data.frame(
+  first_month = min(d$month),
+  last_month = max(d$month),
+  months = length(unique(d$month)),
+  industries = length(unique(d$industry)),
+  return_unit = "decimal per month"
+)
 ```
 
 ## 日期與面板完整性
@@ -284,7 +306,7 @@ abline(h = 0, lty = 2, col = "#62717E")
 1. 預先固定預測期距、測試月份、字典、折與 lambda 網格。
 2. 每個產業可在自己的驗證折選 lambda；不得看測試結果後另改網格。
 3. 報告全部十產業，包括負的樣本外表現。
-4. 若資料供應條款在公開版要求讀者自行建置，應保留 manifest 與建置說明，不可改成執行時即時下載。
+4. 公開版直接使用固定 processed CSV 與 manifest；若另作上游重建，應保存建置說明與版本，不可把即時下載默認為同一份歷史快照。
 
 ```{r session-info}
 sessionInfo()

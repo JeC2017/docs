@@ -6,14 +6,15 @@ output:
     toc_depth: 3
 ---
 
-本附錄對應第 17--18 章。目標是以日本月資料預測下一期日本股市報酬，並比較 OLS、Ridge、LASSO、Elastic Net 與 post-LASSO。所有資料均來自專案的固定檔，不安裝套件、不改工作目錄，也不連線下載。
+本附錄對應第 17--18 章。目標是以 2007 年 10 月至 2018 年 10 月、共 133 個月的真實日本總體金融凍結快照，預測下一期日本股市報酬，並比較 OLS、Ridge、LASSO、Elastic Net 與 post-LASSO。資料來自原課程的 `data_t.csv` 與 `yield_10.csv`；原變數說明記載股價、匯率、工業生產、利率、美股、失業、CPI、M3、WTI、人口結構、外資、貿易與十年期殖利率的單位及季調狀態，但沒有保存原供應者、URL、下載日或 vintage。因此本附錄沿用來源欄位尺度，不把它改稱為可從公開來源完整重建的資料。這是固定時間切分下的預測比較，不識別任何預測變數的因果效果。
 
 ## 執行環境與資料
 
 - R 4.1 以上；除 `knitr` 負責轉檔外，只使用 base R。
 - 資料：`data/processed/japan_monthly_2007_2018.csv`。
 - 建置紀錄與 MD5：`data/processed/manifest.csv`。
-- 從教科書專案根目錄 knit；路徑均為相對路徑。
+- 可從教科書專案根目錄或 `online_appendix/` knit；資料位置由相對路徑搜尋函數判定。
+- 公開界線：repo 隨附作者授權的 processed CSV、程式與執行結果，可離線自含重跑；provider、URL、下載日與 vintage 的缺口仍限制從上游原始來源重建。
 
 
 ``` r
@@ -29,9 +30,21 @@ set.seed(20260716)
 
 
 ``` r
-data_path <- "data/processed/japan_monthly_2007_2018.csv"
-manifest_path <- "data/processed/manifest.csv"
-stopifnot(file.exists(data_path), file.exists(manifest_path))
+locate_project_file <- function(relative_path) {
+  candidates <- c(
+    relative_path,
+    file.path("..", relative_path),
+    file.path("../..", relative_path)
+  )
+  hit <- candidates[file.exists(candidates)]
+  if (length(hit) == 0L) stop("找不到專案檔案：", relative_path)
+  normalizePath(hit[1], mustWork = TRUE)
+}
+
+data_path <- locate_project_file(
+  "data/processed/japan_monthly_2007_2018.csv"
+)
+manifest_path <- locate_project_file("data/processed/manifest.csv")
 
 manifest <- read.csv(manifest_path, stringsAsFactors = FALSE)
 jp <- read.csv(data_path, stringsAsFactors = FALSE, check.names = FALSE)
@@ -44,9 +57,30 @@ manifest[grepl("japan_monthly", manifest$file), ]
 
 ```
 ##                                         file rows columns
-## 2 data/processed/japan_monthly_2007_2018.csv  133      30
-##                                md5                built_at
-## 2 3fd45a6a7a8d26e29d48f1c2f1497ad8 2026-07-16 07:35:23 UTC
+## 8 data/processed/japan_monthly_2007_2018.csv  133      30
+##                                md5
+## 8 46b39f6fdde5d581ad31c83348d99933
+##                                                          description
+## 8 Japanese monthly macro-finance panel with 10-year government yield
+##                  built_at
+## 8 2026-07-16 09:57:40 UTC
+```
+
+``` r
+data.frame(
+  first_month = min(jp$date),
+  last_month = max(jp$date),
+  months = nrow(jp),
+  observation_unit = "monthly Japan macro-finance observation",
+  return_unit = "source-file scale; not independently relabelled"
+)
+```
+
+```
+##   first_month last_month months                        observation_unit
+## 1  2007-10-01 2018-10-01    133 monthly Japan macro-finance observation
+##                                       return_unit
+## 1 source-file scale; not independently relabelled
 ```
 
 ## 建立可實現的下一期 target
@@ -276,7 +310,7 @@ legend("topleft", c("Ridge", "LASSO", "Elastic Net"),
        col = c("#173B57", "#A34045", "#1D6D73"), lwd = 2, bty = "n")
 ```
 
-![Expanding-window validation MSE。](./R13_regularization_files/figure-gfm/validation-plot-1.png)
+![Expanding-window validation MSE。](../R13_regularization_files/figure-gfm/validation-plot-1.png)
 
 ## 在完全未見的測試期間比較模型
 
@@ -444,7 +478,7 @@ legend(
 )
 ```
 
-![最終 test period：實現值與正則化預測。](./R13_regularization_files/figure-gfm/test-plot-1.png)
+![最終 test period：實現值與正則化預測。](../R13_regularization_files/figure-gfm/test-plot-1.png)
 
 ## 解讀限制
 
@@ -482,9 +516,10 @@ sessionInfo()
 ## loaded via a namespace (and not attached):
 ##  [1] vctrs_0.7.2        cli_3.6.5          knitr_1.51         rlang_1.1.7       
 ##  [5] xfun_0.57          otel_0.2.0         MatrixModels_0.5-4 generics_0.1.4    
-##  [9] glue_1.8.0         grid_4.5.2         evaluate_1.0.5     SparseM_1.84-2    
-## [13] MASS_7.3-65        lifecycle_1.0.5    compiler_4.5.2     pkgconfig_2.0.3   
-## [17] quantreg_6.1       lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1  
-## [21] utf8_1.2.6         splines_4.5.2      pillar_1.11.1      magrittr_2.0.4    
-## [25] Matrix_1.7-4       tools_4.5.2        withr_3.0.2        survival_3.8-3
+##  [9] textshaping_1.0.5  glue_1.8.0         ragg_1.5.2         grid_4.5.2        
+## [13] evaluate_1.0.5     SparseM_1.84-2     MASS_7.3-65        lifecycle_1.0.5   
+## [17] compiler_4.5.2     pkgconfig_2.0.3    quantreg_6.1       systemfonts_1.3.2 
+## [21] lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1   utf8_1.2.6        
+## [25] splines_4.5.2      pillar_1.11.1      magrittr_2.0.4     Matrix_1.7-4      
+## [29] tools_4.5.2        survival_3.8-3
 ```

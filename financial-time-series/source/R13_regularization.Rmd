@@ -6,14 +6,15 @@ output:
     toc_depth: 3
 ---
 
-本附錄對應第 17--18 章。目標是以日本月資料預測下一期日本股市報酬，並比較 OLS、Ridge、LASSO、Elastic Net 與 post-LASSO。所有資料均來自專案的固定檔，不安裝套件、不改工作目錄，也不連線下載。
+本附錄對應第 17--18 章。目標是以 2007 年 10 月至 2018 年 10 月、共 133 個月的真實日本總體金融凍結快照，預測下一期日本股市報酬，並比較 OLS、Ridge、LASSO、Elastic Net 與 post-LASSO。資料來自原課程的 `data_t.csv` 與 `yield_10.csv`；原變數說明記載股價、匯率、工業生產、利率、美股、失業、CPI、M3、WTI、人口結構、外資、貿易與十年期殖利率的單位及季調狀態，但沒有保存原供應者、URL、下載日或 vintage。因此本附錄沿用來源欄位尺度，不把它改稱為可從公開來源完整重建的資料。這是固定時間切分下的預測比較，不識別任何預測變數的因果效果。
 
 ## 執行環境與資料
 
 - R 4.1 以上；除 `knitr` 負責轉檔外，只使用 base R。
 - 資料：`data/processed/japan_monthly_2007_2018.csv`。
 - 建置紀錄與 MD5：`data/processed/manifest.csv`。
-- 從教科書專案根目錄 knit；路徑均為相對路徑。
+- 可從教科書專案根目錄或 `online_appendix/` knit；資料位置由相對路徑搜尋函數判定。
+- 公開界線：repo 隨附作者授權的 processed CSV、程式與執行結果，可離線自含重跑；provider、URL、下載日與 vintage 的缺口仍限制從上游原始來源重建。
 
 ```{r setup}
 knitr::opts_chunk$set(
@@ -27,9 +28,21 @@ set.seed(20260716)
 ```
 
 ```{r read-data}
-data_path <- "data/processed/japan_monthly_2007_2018.csv"
-manifest_path <- "data/processed/manifest.csv"
-stopifnot(file.exists(data_path), file.exists(manifest_path))
+locate_project_file <- function(relative_path) {
+  candidates <- c(
+    relative_path,
+    file.path("..", relative_path),
+    file.path("../..", relative_path)
+  )
+  hit <- candidates[file.exists(candidates)]
+  if (length(hit) == 0L) stop("找不到專案檔案：", relative_path)
+  normalizePath(hit[1], mustWork = TRUE)
+}
+
+data_path <- locate_project_file(
+  "data/processed/japan_monthly_2007_2018.csv"
+)
+manifest_path <- locate_project_file("data/processed/manifest.csv")
 
 manifest <- read.csv(manifest_path, stringsAsFactors = FALSE)
 jp <- read.csv(data_path, stringsAsFactors = FALSE, check.names = FALSE)
@@ -38,6 +51,13 @@ jp <- jp[order(jp$date), ]
 
 stopifnot(nrow(jp) == 133L, ncol(jp) == 30L)
 manifest[grepl("japan_monthly", manifest$file), ]
+data.frame(
+  first_month = min(jp$date),
+  last_month = max(jp$date),
+  months = nrow(jp),
+  observation_unit = "monthly Japan macro-finance observation",
+  return_unit = "source-file scale; not independently relabelled"
+)
 ```
 
 ## 建立可實現的下一期 target

@@ -27,12 +27,13 @@
     <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
       <p class="sidebar-title">線上附錄</p>
       <ol><li><a href="index.html">首頁</a></li>
+<li><a href="data.html">實證資料下載</a></li>
 <li><a href="data-policy.html" aria-current="page" class="active">資料與重現政策</a></li>
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
 <li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與經驗特徵</a></li>
-<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA 模擬</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
 <li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
 <li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
 <li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
@@ -50,7 +51,7 @@
     </nav>
     <main id="main-content" class="content">
       <div class="publication-note">
-        本網站提供作者執行後的教學內容與程式原始檔；未經確認可再散布的原始資料不隨網站發布。
+        本網站提供作者執行後的教學內容、程式原始檔與本書實證使用的固定資料版本。
         詳見<a href="data-policy.html">資料與重現政策</a>。
       </div>
       <article>
@@ -58,16 +59,16 @@
         
 <section>
   <h2>公開範圍</h2>
-  <p>公開網站包含十九份執行後的 HTML、相對應的 R Markdown／Markdown 原始檔，以及由作者程式產生的圖表。網站不包含教學專案內的凍結 CSV、資料 manifest、私人課程路徑或內部建檔程式。</p>
-  <h2>為何不附原始資料</h2>
-  <p>S&amp;P 500 價格衍生面板、日本總體金融資料、因子與產業組合面板、臺灣 ICAPM 第二階段資料的公開再散布權利尚未逐一取得可保存的依據。因此公開版採「程式與結果可讀、資料不再散布」政策；這不是資料已取得開放授權的宣告。</p>
+  <p>公開網站包含十九份執行後的 HTML、相對應的 R Markdown／Markdown 原始檔、作者程式產生的圖表、十個實證 CSV、資料 manifest、資料字典及來源說明。學生名冊、學生作業、評分檔、合約、行政資料與個人資料均不在公開範圍。</p>
+  <h2>資料授權與來源</h2>
+  <p>作者同意公開本課程用於教學與研究重現的工作資料。部分欄位源自 FRED、Kenneth French Data Library、global-q、Welch--Goyal 與 Ruey S. Tsay 教科書網站；本站保留來源識別及轉換紀錄，使用者仍須遵守原始供應者條款。公開固定版本是為了核對本書結果，並非替第三方授權作一般性保證。</p>
   <h2>如何重現</h2>
   <ol>
-    <li>不需外部資料的模擬附錄可直接依 R Markdown 執行。</li>
-    <li>資料型附錄須由讀者從合法來源自行取得資料，整理成程式開頭記載的欄位與時間順序，再執行同一分析。</li>
-    <li>網站中的 MD5、列數與欄數只用來識別作者工作版本，不能代替資料來源、授權或經濟意義查核。</li>
+    <li>從<a href="data.html">實證資料下載頁</a>取得 CSV，維持原檔名與 `data/processed/` 目錄。</li>
+    <li>下載相應的 R Markdown，從教科書專案根目錄執行；程式會核對必要欄位、時間順序與部分 MD5。</li>
+    <li>需要已知真值的演算法檢查仍使用固定亂數種子；估計結論則以真實資料區段為主。</li>
   </ol>
-  <div class="callout"><strong>重要：</strong>若未來取得可公開再散布的依據，或完成合法下載與重建流程，資料政策與重現步驟會在此頁更新；在此之前，不應把網站上的程式解讀為附帶資料下載授權。</div>
+  <div class="callout"><strong>重要：</strong>MD5、列數與欄數只用來識別作者工作版本，不能代替資料來源、經濟意義與識別假設的查核。臺灣 ICAPM 檔只支援第二階段部分重現，不能冒充完整 DCC／PQR 第一階段。</div>
 </section>
 
       </article>

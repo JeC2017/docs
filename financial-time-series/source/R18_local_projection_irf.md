@@ -6,13 +6,13 @@ output:
     toc_depth: 3
 ---
 
-本附錄對應選讀第 23 章。它以**已知且可觀察的外生衝擊**建立教學模擬，比較 VAR 與局部投影（LP）IRF，並示範重疊預測期距的 HAC 標準誤。後段提供 DML/AIPW 評分函數與狀態相依性的小型核對例；不宣稱重現專案中三篇 2024--2026 年論文。
+本附錄對應選讀第 23 章。前半以**已知且可觀察的外生衝擊**建立教學模擬，比較 VAR 與局部投影（LP）IRF，並示範 HAC 標準誤。接著使用固定日本月資料，估計油價變動創新與股價報酬、十年期殖利率變動的縮減式條件反應。最後提供 DML/AIPW 評分函數與狀態相依性的小型核對例；不宣稱重現專案中三篇 2024--2026 年論文。
 
 ## 執行條件
 
 - base R 與 `knitr`；不安裝套件、不下載資料。
-- 所有結果由固定種子教學模擬產生。
-- 衝擊識別由資料生成過程明示；若換成觀察性政策變數，這項條件不會自動保留。
+- 模擬使用固定種子；實證使用 `data/processed/japan_monthly_2007_2018.csv`。
+- 模擬衝擊的識別由資料生成過程明示；日本資料只有落後資訊條件下的油價變動創新，沒有外生結構衝擊的識別。
 
 
 ``` r
@@ -188,7 +188,7 @@ legend("topright", c("Truth", "VAR(1)", "LP with pointwise HAC interval"),
        lty = c(1, 2, NA), pch = c(NA, NA, 16), lwd = c(2, 2, NA), bty = "n")
 ```
 
-![正確低階 VAR DGP：真實、VAR 與 LP response。](./R18_local_projection_irf_files/figure-gfm/compare-correct-dgp-1.png)
+![正確低階 VAR DGP：真實、VAR 與 LP response。](../R18_local_projection_irf_files/figure-gfm/compare-correct-dgp-1.png)
 
 在正確且簡約的 VAR 資料生成過程下，VAR 遞迴通常利用較多跨預測期距限制；LP 點估計可能較不平滑。單次圖不能比較涵蓋率，需重複模擬。
 
@@ -257,7 +257,7 @@ legend("topright", c("Truth", "Misspecified VAR(1)", "LP"),
        lwd = c(2, 2, 1.5), lty = c(1, 2, 3), bty = "n")
 ```
 
-![plot of chunk misspecification](./R18_local_projection_irf_files/figure-gfm/misspecification-1.png)
+![plot of chunk misspecification](../R18_local_projection_irf_files/figure-gfm/misspecification-1.png)
 
 ``` r
 mc_ma <- monte_carlo(repetitions = 80, Tn = 350, horizon = 8, C = C_small)
@@ -321,6 +321,322 @@ data.frame(
 
 HAC 頻寬是推論設定的一部分。重疊累積應變數至少要正視 \(h-1\) 階機械相依；本例應變數是未來水準，仍可能因動態控制變數與預測誤差而相關。
 
+## 日本月資料：縮減式 LP 的資料界線
+
+凍結檔由原課程的 `data_t.csv` 與 `yield_10.csv` 依月份鍵結後整理。原始說明把 `opi` 定義為 WTI 現貨價，`opi_change` 是相對前月的百分比變動；`yield_10_change` 是十年期殖利率相對前月的百分比變動，殖利率接近零時會出現極端比率；`return_j` 是資料內預先計算的日本股價報酬，但原始說明沒有保留它的精確公式與明確單位。資料夾也沒有完整記錄所有供應者。因此，本節只分析固定課程快照，不把數值與其他資料庫直接拼接。
+
+來源檔有 133 個月（2007 年 10 月至 2018 年 10 月）。三個變動欄位的第一個月皆缺值；先按日期排序，再對三欄共同刪除不完整列，得到 132 個月（2007 年 11 月至 2018 年 10 月）。為避免未記錄的原始尺度主導迴歸，三欄都以這 132 月的平均數與標準差標準化。因此實證反應的單位是「應變數的樣本標準差」，油價創新正規化為油價月變動的 1 個樣本標準差。
+
+
+``` r
+jp_path <- "data/processed/japan_monthly_2007_2018.csv"
+jp <- read.csv(jp_path, stringsAsFactors = FALSE)
+jp$date <- as.Date(jp$date)
+jp <- jp[order(jp$date), ]
+required <- c("date", "opi_change", "return_j", "yield_10_change")
+stopifnot(all(required %in% names(jp)), !anyDuplicated(jp$date))
+
+raw_names <- c("opi_change", "return_j", "yield_10_change")
+keep <- complete.cases(jp[, raw_names])
+Z_raw <- as.matrix(jp[keep, raw_names])
+dates_jp <- jp$date[keep]
+Z_jp <- scale(Z_raw)
+colnames(Z_jp) <- c("OilChange", "StockReturn", "YieldChange")
+
+data.frame(
+  source_rows = nrow(jp), complete_rows = nrow(Z_jp),
+  source_start = min(jp$date), source_end = max(jp$date),
+  analysis_start = min(dates_jp), analysis_end = max(dates_jp),
+  duplicate_dates = anyDuplicated(jp$date)
+)
+```
+
+```
+##   source_rows complete_rows source_start source_end analysis_start analysis_end
+## 1         133           132   2007-10-01 2018-10-01     2007-11-01   2018-10-01
+##   duplicate_dates
+## 1               0
+```
+
+``` r
+data.frame(
+  variable = raw_names,
+  missing = vapply(jp[raw_names], function(x) sum(is.na(x)), integer(1)),
+  mean = colMeans(Z_raw), sd = apply(Z_raw, 2, sd),
+  min = apply(Z_raw, 2, min), max = apply(Z_raw, 2, max)
+)
+```
+
+```
+##                        variable missing       mean        sd        min
+## opi_change           opi_change       1 0.26249300  8.920919  -28.58635
+## return_j               return_j       1 0.01708592  2.224311  -10.76673
+## yield_10_change yield_10_change       1 4.32846014 57.760973 -168.42105
+##                        max
+## opi_change       23.845646
+## return_j          4.284162
+## yield_10_change 500.000000
+```
+
+## 含落後控制的實證 LP
+
+基準式對每個 \(h=0,\ldots,12\) 估計
+
+\[
+z_{t+h}=a_h+\theta_h o_t+\sum_{\ell=1}^{2}\Gamma_{h\ell}'
+(o_{t-\ell},r_{t-\ell},q_{t-\ell})'+u_{t+h}^{(h)},
+\]
+
+其中 \(o_t\) 是標準化油價月變動、\(r_t\) 是標準化股價報酬、\(q_t\) 是標準化殖利率變動。依 Frisch--Waugh--Lovell 定理，\(\theta_h\) 等於先把 \(o_t\) 對同一組落後控制殘差化後的係數，所以可稱為「落後資訊條件下的油價變動創新反應」。基準 HAC 頻寬為 \(\max(h,4)\)，區間是逐點 95% 區間。
+
+
+``` r
+lag_controls <- function(system, index, p) {
+  controls <- do.call(cbind, lapply(seq_len(p), function(lag) {
+    system[index - lag, , drop = FALSE]
+  }))
+  colnames(controls) <- unlist(lapply(seq_len(p), function(lag) {
+    paste0(colnames(system), "_L", lag)
+  }))
+  controls
+}
+
+estimate_reduced_lp <- function(system, response_name,
+                                shock_name = "OilChange",
+                                horizon_max = 12L, p = 2L,
+                                bandwidth_rule = function(h) max(h, 4L)) {
+  system <- as.matrix(system)
+  Tn <- nrow(system)
+  response_col <- match(response_name, colnames(system))
+  shock_col <- match(shock_name, colnames(system))
+  stopifnot(!is.na(response_col), !is.na(shock_col), p >= 1L)
+
+  out <- data.frame(
+    response = response_name, h = 0:horizon_max,
+    theta = NA_real_, se_hac = NA_real_, lower = NA_real_, upper = NA_real_,
+    n = NA_integer_, bandwidth = NA_integer_, p_lags = p
+  )
+  for (h in 0:horizon_max) {
+    index <- (p + 1L):(Tn - h)
+    y_h <- system[index + h, response_col]
+    controls <- lag_controls(system, index, p)
+    X <- cbind(Intercept = 1,
+               OilInnovation = system[index, shock_col],
+               controls)
+    fit <- lm.fit(X, y_h)
+    stopifnot(fit$rank == ncol(X))
+    L <- as.integer(bandwidth_rule(h))
+    V <- newey_west_vcov(X, fit$residuals, L)
+    theta <- fit$coefficients["OilInnovation"]
+    se <- sqrt(V["OilInnovation", "OilInnovation"])
+    out[h + 1L, c("theta", "se_hac", "lower", "upper", "n", "bandwidth")] <-
+      c(theta, se, theta - 1.96 * se, theta + 1.96 * se,
+        length(y_h), L)
+  }
+  out
+}
+```
+
+
+``` r
+H_emp <- 12L
+p_emp <- 2L
+lp_stock <- estimate_reduced_lp(
+  Z_jp, "StockReturn", horizon_max = H_emp, p = p_emp
+)
+lp_yield <- estimate_reduced_lp(
+  Z_jp, "YieldChange", horizon_max = H_emp, p = p_emp
+)
+lp_empirical <- rbind(lp_stock, lp_yield)
+lp_empirical[lp_empirical$h %in% c(0, 1, 3, 6, 12), ]
+```
+
+```
+##       response  h       theta     se_hac       lower      upper   n bandwidth
+## 1  StockReturn  0  0.29567788 0.10485752  0.09015714 0.50119862 130         4
+## 2  StockReturn  1  0.14900496 0.08898050 -0.02539683 0.32340674 129         4
+## 4  StockReturn  3  0.09724640 0.08935338 -0.07788623 0.27237902 127         4
+## 7  StockReturn  6 -0.10528774 0.10699751 -0.31500286 0.10442738 124         6
+## 13 StockReturn 12  0.06940062 0.06159401 -0.05132363 0.19012487 118        12
+## 14 YieldChange  0  0.06935053 0.05741645 -0.04318570 0.18188676 130         4
+## 15 YieldChange  1  0.12574058 0.07349346 -0.01830660 0.26978777 129         4
+## 17 YieldChange  3  0.05681455 0.07564610 -0.09145181 0.20508092 127         4
+## 20 YieldChange  6 -0.14082395 0.10689945 -0.35034688 0.06869897 124         6
+## 26 YieldChange 12  0.07794831 0.05849429 -0.03670051 0.19259712 118        12
+##    p_lags
+## 1       2
+## 2       2
+## 4       2
+## 7       2
+## 13      2
+## 14      2
+## 15      2
+## 17      2
+## 20      2
+## 26      2
+```
+
+``` r
+# 列出逐點 95% 區間未涵蓋零的 horizon；未校正多重比較。
+pointwise_nonzero <- lp_empirical[
+  lp_empirical$lower > 0 | lp_empirical$upper < 0,
+  c("response", "h", "theta", "se_hac", "lower", "upper")
+]
+pointwise_nonzero
+```
+
+```
+##      response h     theta     se_hac       lower     upper
+## 1 StockReturn 0 0.2956779 0.10485752 0.090157141 0.5011986
+## 3 StockReturn 2 0.1930352 0.09718402 0.002554493 0.3835158
+```
+
+``` r
+# 油價月變動的可預測部分與條件創新尺度。
+innovation_index <- (p_emp + 1L):nrow(Z_jp)
+innovation_X <- cbind(
+  Intercept = 1,
+  lag_controls(Z_jp, innovation_index, p_emp)
+)
+innovation_fit <- lm.fit(innovation_X, Z_jp[innovation_index, "OilChange"])
+innovation_r2 <- 1 - sum(innovation_fit$residuals^2) /
+  sum((Z_jp[innovation_index, "OilChange"] -
+         mean(Z_jp[innovation_index, "OilChange"]))^2)
+c(p_lags = p_emp, innovation_R2 = innovation_r2,
+  innovation_residual_sd = sd(innovation_fit$residuals))
+```
+
+```
+##                 p_lags          innovation_R2 innovation_residual_sd 
+##              2.0000000              0.1408325              0.9295058
+```
+
+
+``` r
+par(mfrow = c(2, 1), mar = c(4, 4.5, 2, 1))
+for (object in list(lp_stock, lp_yield)) {
+  response_label <- if (object$response[1] == "StockReturn") {
+    "Stock return response (SD)"
+  } else {
+    "Yield-change response (SD)"
+  }
+  plot(object$h, object$theta, type = "n",
+       ylim = range(object$lower, object$upper),
+       xlab = "Horizon (months)",
+       ylab = response_label)
+  polygon(c(object$h, rev(object$h)),
+          c(object$lower, rev(object$upper)),
+          col = adjustcolor("#173B57", alpha.f = 0.18), border = NA)
+  lines(object$h, object$theta, lwd = 2, col = "#173B57")
+  points(object$h, object$theta, pch = 16, cex = 0.6, col = "#173B57")
+  abline(h = 0, lty = 3, col = "grey40")
+}
+```
+
+![日本月資料：一個樣本標準差油價變動創新的縮減式 LP 條件反應；陰影為逐點 HAC 95% 區間。](../R18_local_projection_irf_files/figure-gfm/empirical-lp-plot-1.png)
+
+``` r
+par(mfrow = c(1, 1))
+```
+
+基準規格中，未經多重比較校正而逐點未涵蓋零的只有股價報酬的第 0 與第 2 個月。當期係數為 0.296，逐點 95% 區間為 [0.090, 0.501]；第 2 個月係數為 0.193，區間下界僅為 0.003。這些仍只是條件關聯，不是油價的因果效果，也不是整條反應曲線的聯合顯著性。
+
+## 實證 lag 與 HAC 頻寬敏感度
+
+先固定基準頻寬規則，比較 1、2、4 個月的系統落後控制。再固定兩個 lag，比較 \(L=\max(h,1)\)、固定 \(L=4\) 與固定 \(L=12\)。同一個 lag 規格下，改變 HAC 頻寬只會改標準誤，不會改 OLS 點估計。
+
+
+``` r
+lag_sensitivity <- do.call(rbind, lapply(c(1L, 2L, 4L), function(p) {
+  do.call(rbind, lapply(c("StockReturn", "YieldChange"), function(response_name) {
+    object <- estimate_reduced_lp(
+      Z_jp, response_name, horizon_max = H_emp, p = p
+    )
+    object[object$h %in% c(0, 2, 3, 6, 12),
+           c("response", "h", "theta", "se_hac", "n", "p_lags")]
+  }))
+}))
+rownames(lag_sensitivity) <- NULL
+lag_sensitivity
+```
+
+```
+##       response  h       theta     se_hac   n p_lags
+## 1  StockReturn  0  0.29874937 0.10610567 131      1
+## 2  StockReturn  2  0.17007423 0.09406762 129      1
+## 3  StockReturn  3  0.08470456 0.07716267 128      1
+## 4  StockReturn  6 -0.11193069 0.10949029 125      1
+## 5  StockReturn 12  0.06862051 0.06412245 119      1
+## 6  YieldChange  0  0.07423121 0.05731105 131      1
+## 7  YieldChange  2  0.07788685 0.08655896 129      1
+## 8  YieldChange  3  0.05433397 0.07759161 128      1
+## 9  YieldChange  6 -0.14094320 0.10666576 125      1
+## 10 YieldChange 12  0.08532047 0.05554306 119      1
+## 11 StockReturn  0  0.29567788 0.10485752 130      2
+## 12 StockReturn  2  0.19303517 0.09718402 128      2
+## 13 StockReturn  3  0.09724640 0.08935338 127      2
+## 14 StockReturn  6 -0.10528774 0.10699751 124      2
+## 15 StockReturn 12  0.06940062 0.06159401 118      2
+## 16 YieldChange  0  0.06935053 0.05741645 130      2
+## 17 YieldChange  2  0.09735192 0.08631590 128      2
+## 18 YieldChange  3  0.05681455 0.07564610 127      2
+## 19 YieldChange  6 -0.14082395 0.10689945 124      2
+## 20 YieldChange 12  0.07794831 0.05849429 118      2
+## 21 StockReturn  0  0.28262430 0.10358273 128      4
+## 22 StockReturn  2  0.16257148 0.09568776 126      4
+## 23 StockReturn  3  0.05583951 0.07576911 125      4
+## 24 StockReturn  6 -0.08951154 0.10226002 122      4
+## 25 StockReturn 12  0.07866287 0.06643118 116      4
+## 26 YieldChange  0  0.03296602 0.07802756 128      4
+## 27 YieldChange  2  0.07788090 0.08990555 126      4
+## 28 YieldChange  3  0.07374069 0.08089777 125      4
+## 29 YieldChange  6 -0.10874857 0.07803958 122      4
+## 30 YieldChange 12  0.08753388 0.07902115 116      4
+```
+
+
+``` r
+bandwidth_objects <- lapply(c("StockReturn", "YieldChange"), function(response_name) {
+  Lh <- estimate_reduced_lp(
+    Z_jp, response_name, horizon_max = H_emp, p = p_emp,
+    bandwidth_rule = function(h) max(h, 1L)
+  )
+  L4 <- estimate_reduced_lp(
+    Z_jp, response_name, horizon_max = H_emp, p = p_emp,
+    bandwidth_rule = function(h) 4L
+  )
+  L12 <- estimate_reduced_lp(
+    Z_jp, response_name, horizon_max = H_emp, p = p_emp,
+    bandwidth_rule = function(h) 12L
+  )
+  data.frame(
+    response = response_name, h = 0:H_emp, theta = L4$theta,
+    se_Lh = Lh$se_hac, se_L4 = L4$se_hac, se_L12 = L12$se_hac
+  )
+})
+bandwidth_sensitivity <- do.call(rbind, bandwidth_objects)
+rownames(bandwidth_sensitivity) <- NULL
+bandwidth_sensitivity[bandwidth_sensitivity$h %in% c(0, 2, 3, 6, 12), ]
+```
+
+```
+##       response  h       theta      se_Lh      se_L4     se_L12
+## 1  StockReturn  0  0.29567788 0.10975334 0.10485752 0.09290636
+## 3  StockReturn  2  0.19303517 0.09698707 0.09718402 0.09950998
+## 4  StockReturn  3  0.09724640 0.08444790 0.08935338 0.11267867
+## 7  StockReturn  6 -0.10528774 0.10699751 0.10218099 0.12636521
+## 13 StockReturn 12  0.06940062 0.06159401 0.06402939 0.06159401
+## 14 YieldChange  0  0.06935053 0.06114085 0.05741645 0.03560320
+## 16 YieldChange  2  0.09735192 0.08296915 0.08631590 0.07540317
+## 17 YieldChange  3  0.05681455 0.06966803 0.07564610 0.07842283
+## 20 YieldChange  6 -0.14082395 0.10689945 0.10238319 0.11915542
+## 26 YieldChange 12  0.07794831 0.05849429 0.06522293 0.05849429
+```
+
+股價報酬第 2 個月的正向係數在一個與四個 lag 規格下，其逐點 95\% 區間都涵蓋零，只有兩個 lag 的基準規格勉強未涵蓋零，因此並不穩健。第 0 個月的正向係數對 lag 數較穩定，但它是同月條件關聯，尤其不能被讀成油價變動先發生、股價其後反應的因果時序。
+
+油價變動會同時反映全球供需、風險偏好、美元與其他遺漏消息；僅控制兩期落後值不能使它外生。即使某個逐點區間沒有涵蓋零，也只能說是這個固定樣本與條件資訊集下的縮減式關聯，不能稱為「外生油價衝擊」、「油價供給衝擊」或因果效果。lag 或頻寬一改結論就變時，應把敏感度本身列為主要發現。
+
 ## DML/AIPW IRF 評分函數的可執行小例
 
 以下為獨立同分配教學例，只核對專案所附 2024 年 PDF 使用的增廣評分函數形式。真實傾向分數與應變數迴歸由資料生成過程已知，因此不涉及機器學習調校。
@@ -383,7 +699,7 @@ legend("topleft", c("Truth", "Linear interaction", "Quadratic basis"),
        lwd = 2, lty = c(1, 2, 3), bty = "n")
 ```
 
-![plot of chunk state-dependent-demo](./R18_local_projection_irf_files/figure-gfm/state-dependent-demo-1.png)
+![plot of chunk state-dependent-demo](../R18_local_projection_irf_files/figure-gfm/state-dependent-demo-1.png)
 
 ## 解讀與退場規則
 
@@ -391,8 +707,9 @@ legend("topleft", c("Truth", "Linear interaction", "Quadratic basis"),
 2. VAR/LP 比較必須使用同一待估對象、衝擊、樣本與正規化方式。
 3. Pointwise 1.96 intervals 不是整條曲線的 simultaneous bands。
 4. MA 壓力測試只說明特定資料生成過程，不概括專案所附 2026 年 LP/VAR 論文的定理。
-5. AIPW/DML 仍需 consistency、無未觀察混淆、overlap 與相依資料推論。
-6. 狀態相依的因果解讀需要對衝擊的線性條件平均數限制與衝擊外生性；基底選擇也屬估計程序。
+5. 日本油價案例只是落後控制下的縮減式 LP；沒有額外識別資訊便不具因果意義。
+6. AIPW/DML 仍需 consistency、無未觀察混淆、overlap 與相依資料推論。
+7. 狀態相依的因果解讀需要對衝擊的線性條件平均數限制與衝擊外生性；基底選擇也屬估計程序。
 
 
 ``` r
@@ -423,9 +740,11 @@ sessionInfo()
 ## loaded via a namespace (and not attached):
 ##  [1] vctrs_0.7.2        cli_3.6.5          knitr_1.51         rlang_1.1.7       
 ##  [5] xfun_0.57          otel_0.2.0         MatrixModels_0.5-4 generics_0.1.4    
-##  [9] glue_1.8.0         grid_4.5.2         evaluate_1.0.5     SparseM_1.84-2    
-## [13] MASS_7.3-65        lifecycle_1.0.5    compiler_4.5.2     pkgconfig_2.0.3   
-## [17] quantreg_6.1       lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1  
-## [21] utf8_1.2.6         splines_4.5.2      pillar_1.11.1      magrittr_2.0.4    
-## [25] Matrix_1.7-4       tools_4.5.2        withr_3.0.2        survival_3.8-3
+##  [9] textshaping_1.0.5  glue_1.8.0         ragg_1.5.2         glmnet_4.1-10     
+## [13] grid_4.5.2         evaluate_1.0.5     SparseM_1.84-2     MASS_7.3-65       
+## [17] foreach_1.5.2      lifecycle_1.0.5    compiler_4.5.2     codetools_0.2-20  
+## [21] Rcpp_1.1.0         pkgconfig_2.0.3    quantreg_6.1       systemfonts_1.3.2 
+## [25] lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1   utf8_1.2.6        
+## [29] shape_1.4.6.1      splines_4.5.2      pillar_1.11.1      magrittr_2.0.4    
+## [33] Matrix_1.7-4       tools_4.5.2        iterators_1.0.14   survival_3.8-3
 ```

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="《財務時間序列分析》R 線上附錄：實證資料下載">
+  <title>實證資料下載｜財務時間序列分析</title>
+  <link rel="stylesheet" href="assets/site.css">
+  <script>
+    window.MathJax = {
+      tex: {inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']]},
+      svg: {fontCache: 'local'},
+      options: {skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']}
+    };
+  </script>
+  <script defer src="assets/mathjax-loader.js"></script>
+  <script defer src="assets/site.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要內容</a>
+  <header class="site-header">
+    <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
+    <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
+    <a class="policy-link" href="data-policy.html">資料政策</a>
+  </header>
+  <div class="layout">
+    <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
+      <p class="sidebar-title">線上附錄</p>
+      <ol><li><a href="index.html">首頁</a></li>
+<li><a href="data.html" aria-current="page" class="active">實證資料下載</a></li>
+<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
+<li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
+<li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
+<li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與經驗特徵</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html">R09　投資組合、CAPM 與財務因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
+<li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
+<li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
+    </nav>
+    <main id="main-content" class="content">
+      <div class="publication-note">
+        本網站提供作者執行後的教學內容、程式原始檔與本書實證使用的固定資料版本。
+        詳見<a href="data-policy.html">資料與重現政策</a>。
+      </div>
+      <article>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>實證資料下載</h1></header>
+        
+<section>
+  <h2>可直接執行的固定資料</h2>
+  <p>下列十個 CSV 與線上附錄使用的版本完全相同。請保留檔名並放在 <code>data/processed/</code>；詳細欄位定義見<a href="data-dictionary.html">資料字典</a>，來源與實證界線見<a href="data-sources.html">來源說明</a>。</p>
+  <table class="data-table"><thead><tr><th>資料檔</th><th>列 × 欄</th><th>大小</th><th>內容</th></tr></thead><tbody><tr><td><a href="data/aapl_adjusted_daily_2019_2022.csv" download>aapl_adjusted_daily_2019_2022.csv</a></td><td>875 × 7</td><td>0.09 MB</td><td>AAPL adjusted prices and returns from the course S&amp;P 500 price file</td></tr><tr><td><a href="data/msft_daily_returns_1986_2008.csv" download>msft_daily_returns_1986_2008.csv</a></td><td>5,752 × 2</td><td>0.11 MB</td><td>Microsoft daily simple returns used in the return-properties lecture</td></tr><tr><td><a href="data/fred_jpy_twd_daily_2020_2022.csv" download>fred_jpy_twd_daily_2020_2022.csv</a></td><td>772 × 5</td><td>0.04 MB</td><td>FRED JPY/USD and TWD/USD daily rates and the derived TWD/JPY cross rate</td></tr><tr><td><a href="data/tsay_five_stock_monthly_returns_1990_2008.csv" download>tsay_five_stock_monthly_returns_1990_2008.csv</a></td><td>228 × 6</td><td>0.01 MB</td><td>Five-company monthly log returns used in Tsay PCA example 9.2</td></tr><tr><td><a href="data/tsay_barra_monthly_returns_1990_2003.csv" download>tsay_barra_monthly_returns_1990_2003.csv</a></td><td>168 × 11</td><td>0.01 MB</td><td>Ten-company monthly returns used in Tsay factor-analysis example 9.4</td></tr><tr><td><a href="data/california_schools.csv" download>california_schools.csv</a></td><td>3,932 × 110</td><td>3.35 MB</td><td>California school and district data used in the PCA/high-dimensional lecture</td></tr><tr><td><a href="data/sp500_returns_balanced_2013_2022.csv" download>sp500_returns_balanced_2013_2022.csv</a></td><td>2,384 × 90</td><td>4.05 MB</td><td>Balanced daily returns for 89 S&amp;P 500 constituents; lag computed within symbol</td></tr><tr><td><a href="data/japan_monthly_2007_2018.csv" download>japan_monthly_2007_2018.csv</a></td><td>133 × 30</td><td>0.04 MB</td><td>Japanese monthly macro-finance panel with 10-year government yield</td></tr><tr><td><a href="data/ff_qf_macro_industries_1967_2021.csv" download>ff_qf_macro_industries_1967_2021.csv</a></td><td>6,590 × 24</td><td>1.42 MB</td><td>Fama-French/global-q/macro/ten-industry monthly panel</td></tr><tr><td><a href="data/taiwan_icapm_second_stage_47x497.csv" download>taiwan_icapm_second_stage_47x497.csv</a></td><td>23,359 × 6</td><td>1.81 MB</td><td>Prepared Taiwan ICAPM second-stage panel; not a full first-stage replication</td></tr></tbody></table>
+  <p><a href="data/manifest.csv" download>下載 manifest（含 MD5）</a></p>
+  <h2>原課程來源快照</h2>
+  <p>FRED 與 Tsay 教科書網站在原課程程式中直接下載的文字快照，也保存在 <code>data/source_snapshots/</code>，供讀者核對下載值與清理步驟。大型長表不重複發布；其可執行的 AAPL 子樣本與 89 檔平衡報酬面板已列於上表。</p>
+  <ul><li><a href="data/source_snapshots/DEXJPUS_2020_2022.csv" download>DEXJPUS_2020_2022.csv</a></li><li><a href="data/source_snapshots/DEXTAUS_2020_2022.csv" download>DEXTAUS_2020_2022.csv</a></li><li><a href="data/source_snapshots/README.md" download>README.md</a></li><li><a href="data/source_snapshots/d-msft8608.txt" download>d-msft8608.txt</a></li><li><a href="data/source_snapshots/m-5clog-9008.txt" download>m-5clog-9008.txt</a></li><li><a href="data/source_snapshots/m-barra-9003.txt" download>m-barra-9003.txt</a></li></ul>
+  <div class="callout"><strong>使用提醒：</strong>本頁公開的是教學重現版本。若把資料用於新研究、商業用途或再發布，請另行核對原始供應者的最新條款與變數定義。</div>
+</section>
+
+      </article>
+      
+      <footer>© 陳釗而　《財務時間序列分析》</footer>
+    </main>
+    
+  </div>
+</body>
+</html>

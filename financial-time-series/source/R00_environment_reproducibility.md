@@ -12,7 +12,7 @@ output:
 
 - R 4.1 以上，並已具備 knitr 與 rmarkdown。
 - 從教科書專案根目錄或 online_appendix 目錄執行皆可。
-- 正式資料位於 data/processed，建置紀錄位於 manifest.csv。
+- 十個公開實證資料位於 data/processed，建置紀錄位於 manifest.csv；網站的「實證資料下載」頁提供相同版本。
 
 
 ``` r
@@ -45,6 +45,7 @@ project_path <- function(...) file.path(project_root, ...)
 required_paths <- c(
   "data/processed/manifest.csv",
   "data/DATA_SOURCES.md",
+  "data/DATA_DICTIONARY.md",
   "chapters/chapter01.tex",
   "online_appendix/README.md"
 )
@@ -61,8 +62,9 @@ path_check
 ##                          path exists
 ## 1 data/processed/manifest.csv   TRUE
 ## 2        data/DATA_SOURCES.md   TRUE
-## 3      chapters/chapter01.tex   TRUE
-## 4   online_appendix/README.md   TRUE
+## 3     data/DATA_DICTIONARY.md   TRUE
+## 4      chapters/chapter01.tex   TRUE
+## 5   online_appendix/README.md   TRUE
 ```
 
 ``` r
@@ -71,7 +73,7 @@ stopifnot(all(path_check$exists))
 
 ## 用 manifest 核對固定資料
 
-manifest.csv 記錄檔名、列數、欄數、MD5 與建立時間。MD5 不能證明資料正確，但能確認讀者拿到的位元內容是否與教科書版本相同。
+manifest.csv 記錄十個公開實證檔的檔名、列數、欄數、MD5、內容說明與建立時間。MD5 不能證明資料正確，但能確認讀者拿到的位元內容是否與教科書版本相同。
 
 
 ``` r
@@ -91,21 +93,61 @@ verification
 ```
 
 ```
-##                                                  file  rows columns
-## 1 data/processed/sp500_returns_balanced_2013_2022.csv  2384      90
-## 2          data/processed/japan_monthly_2007_2018.csv   133      30
-## 3 data/processed/ff_qf_macro_industries_1967_2021.csv  6590      24
-## 4 data/processed/taiwan_icapm_second_stage_47x497.csv 23359       6
-##                                md5                built_at
-## 1 09c9690effb82b3fabdccaa982397e83 2026-07-16 07:35:23 UTC
-## 2 3fd45a6a7a8d26e29d48f1c2f1497ad8 2026-07-16 07:35:23 UTC
-## 3 4d9eea7ddeea063a7b635f238dd7ba24 2026-07-16 07:35:23 UTC
-## 4 98fb791d16ee3b3e536ef0ce33381e93 2026-07-16 07:35:23 UTC
-##                         actual_md5 md5_match file_exists
-## 1 09c9690effb82b3fabdccaa982397e83      TRUE        TRUE
-## 2 3fd45a6a7a8d26e29d48f1c2f1497ad8      TRUE        TRUE
-## 3 4d9eea7ddeea063a7b635f238dd7ba24      TRUE        TRUE
-## 4 98fb791d16ee3b3e536ef0ce33381e93      TRUE        TRUE
+##                                                            file  rows columns
+## 1              data/processed/aapl_adjusted_daily_2019_2022.csv   875       7
+## 2               data/processed/msft_daily_returns_1986_2008.csv  5752       2
+## 3               data/processed/fred_jpy_twd_daily_2020_2022.csv   772       5
+## 4  data/processed/tsay_five_stock_monthly_returns_1990_2008.csv   228       6
+## 5       data/processed/tsay_barra_monthly_returns_1990_2003.csv   168      11
+## 6                         data/processed/california_schools.csv  3932     110
+## 7           data/processed/sp500_returns_balanced_2013_2022.csv  2384      90
+## 8                    data/processed/japan_monthly_2007_2018.csv   133      30
+## 9           data/processed/ff_qf_macro_industries_1967_2021.csv  6590      24
+## 10          data/processed/taiwan_icapm_second_stage_47x497.csv 23359       6
+##                                 md5
+## 1  8205cf538da8ea57fd8c93264861c28d
+## 2  d2f6b2d5d74be413385347a17c82b754
+## 3  e50c18c906c6bbba9ddbfd10fd735080
+## 4  8fff77a351970b335333a7fe88fba8b7
+## 5  85eb8ec635cd19818ffa00d73acc5d39
+## 6  28b3dff5db50448608925cad32feb18a
+## 7  09c9690effb82b3fabdccaa982397e83
+## 8  46b39f6fdde5d581ad31c83348d99933
+## 9  69563611584d8a2dfd984ec6a53822a4
+## 10 98fb791d16ee3b3e536ef0ce33381e93
+##                                                                       description
+## 1             AAPL adjusted prices and returns from the course S&P 500 price file
+## 2            Microsoft daily simple returns used in the return-properties lecture
+## 3         FRED JPY/USD and TWD/USD daily rates and the derived TWD/JPY cross rate
+## 4                   Five-company monthly log returns used in Tsay PCA example 9.2
+## 5            Ten-company monthly returns used in Tsay factor-analysis example 9.4
+## 6    California school and district data used in the PCA/high-dimensional lecture
+## 7  Balanced daily returns for 89 S&P 500 constituents; lag computed within symbol
+## 8              Japanese monthly macro-finance panel with 10-year government yield
+## 9                           Fama-French/global-q/macro/ten-industry monthly panel
+## 10   Prepared Taiwan ICAPM second-stage panel; not a full first-stage replication
+##                   built_at                       actual_md5 md5_match
+## 1  2026-07-16 09:57:40 UTC 8205cf538da8ea57fd8c93264861c28d      TRUE
+## 2  2026-07-16 09:57:40 UTC d2f6b2d5d74be413385347a17c82b754      TRUE
+## 3  2026-07-16 09:57:40 UTC e50c18c906c6bbba9ddbfd10fd735080      TRUE
+## 4  2026-07-16 09:57:40 UTC 8fff77a351970b335333a7fe88fba8b7      TRUE
+## 5  2026-07-16 09:57:40 UTC 85eb8ec635cd19818ffa00d73acc5d39      TRUE
+## 6  2026-07-16 09:57:40 UTC 28b3dff5db50448608925cad32feb18a      TRUE
+## 7  2026-07-16 09:57:40 UTC 09c9690effb82b3fabdccaa982397e83      TRUE
+## 8  2026-07-16 09:57:40 UTC 46b39f6fdde5d581ad31c83348d99933      TRUE
+## 9  2026-07-16 09:57:40 UTC 69563611584d8a2dfd984ec6a53822a4      TRUE
+## 10 2026-07-16 09:57:40 UTC 98fb791d16ee3b3e536ef0ce33381e93      TRUE
+##    file_exists
+## 1         TRUE
+## 2         TRUE
+## 3         TRUE
+## 4         TRUE
+## 5         TRUE
+## 6         TRUE
+## 7         TRUE
+## 8         TRUE
+## 9         TRUE
+## 10        TRUE
 ```
 
 ``` r
@@ -128,16 +170,28 @@ dimensions[, c("file", "rows", "columns", "row_match", "column_match")]
 ```
 
 ```
-##                                                  file  rows columns row_match
-## 1 data/processed/sp500_returns_balanced_2013_2022.csv  2384      90      TRUE
-## 2          data/processed/japan_monthly_2007_2018.csv   133      30      TRUE
-## 3 data/processed/ff_qf_macro_industries_1967_2021.csv  6590      24      TRUE
-## 4 data/processed/taiwan_icapm_second_stage_47x497.csv 23359       6      TRUE
-##   column_match
-## 1         TRUE
-## 2         TRUE
-## 3         TRUE
-## 4         TRUE
+##                                                            file  rows columns
+## 1              data/processed/aapl_adjusted_daily_2019_2022.csv   875       7
+## 2               data/processed/msft_daily_returns_1986_2008.csv  5752       2
+## 3               data/processed/fred_jpy_twd_daily_2020_2022.csv   772       5
+## 4  data/processed/tsay_five_stock_monthly_returns_1990_2008.csv   228       6
+## 5       data/processed/tsay_barra_monthly_returns_1990_2003.csv   168      11
+## 6                         data/processed/california_schools.csv  3932     110
+## 7           data/processed/sp500_returns_balanced_2013_2022.csv  2384      90
+## 8                    data/processed/japan_monthly_2007_2018.csv   133      30
+## 9           data/processed/ff_qf_macro_industries_1967_2021.csv  6590      24
+## 10          data/processed/taiwan_icapm_second_stage_47x497.csv 23359       6
+##    row_match column_match
+## 1       TRUE         TRUE
+## 2       TRUE         TRUE
+## 3       TRUE         TRUE
+## 4       TRUE         TRUE
+## 5       TRUE         TRUE
+## 6       TRUE         TRUE
+## 7       TRUE         TRUE
+## 8       TRUE         TRUE
+## 9       TRUE         TRUE
+## 10      TRUE         TRUE
 ```
 
 ``` r
@@ -239,7 +293,7 @@ environment_record
 
 ```
 ## $generated_at
-## [1] "2026-07-16 08:35:58 UTC"
+## [1] "2026-07-16 10:33:45 UTC"
 ## 
 ## $R
 ## [1] "R version 4.5.2 (2025-10-31)"
@@ -259,7 +313,7 @@ environment_record
 
 ## 可重現研究檢核表
 
-1. 原始或凍結資料來源、授權與建立方式有書面說明。
+1. 原始或固定資料的來源、公開範圍與建立方式有書面說明。
 2. 分析只讀固定檔，路徑由專案結構推導。
 3. 日期、主鍵、單位、缺值與排序在入口檢查。
 4. 模擬固定種子，正式結果記錄 R 與套件版本。

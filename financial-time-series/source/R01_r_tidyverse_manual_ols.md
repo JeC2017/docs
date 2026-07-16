@@ -82,7 +82,7 @@ glimpse(returns)
 ## $ NVDA <dbl> 0.0007860068, 0.0329928166, -0.0288975086, -0.0219260948, -0.0224…
 ```
 
-資料是作者工作版價格檔建立的固定版本。依 `data/DATA_SOURCES.md` 的已決定政策，公開網站提供程式與執行結果，但不再散布這份凍結資料。
+資料是原課程價格長表建立的固定版本，並已隨公開網站提供。建檔時先在每一股票內依日期計算報酬，再保留 89 檔皆有觀察值的共同交易日；來源、修正理由、MD5 與公開界線見 `data/DATA_SOURCES.md`。
 
 ## 向量、資料框與管線
 
@@ -289,7 +289,7 @@ qqnorm(residual_manual, pch = 16, cex = 0.45, col = "#173B57")
 qqline(residual_manual, col = "#A34045", lwd = 2)
 ```
 
-![OLS 殘差與配適值；此圖只診斷線性投影，不代表預測或因果。](./R01_r_tidyverse_manual_ols_files/figure-gfm/diagnostics-1.png)
+![OLS 殘差與配適值；此圖只診斷線性投影，不代表預測或因果。](../R01_r_tidyverse_manual_ols_files/figure-gfm/diagnostics-1.png)
 
 ``` r
 par(mfrow = c(1, 1))

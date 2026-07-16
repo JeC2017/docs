@@ -1,200 +1,241 @@
 ---
-title: "R04：AR、MA 與 ARMA 模擬"
+title: "R04：AR、MA、ARMA 與真實報酬的 ACF"
 output:
   github_document:
     toc: true
     toc_depth: 3
 ---
 
-本附錄對應第 4--6 章。以固定種子模擬 AR(1)、MA(1) 與 ARMA(1,1)，把已知參數、理論 ACF、樣本 ACF、特徵根與衝擊反應放在同一處核對。最後用重疊十二期報酬展示機械性 MA(11) 相依。
+本附錄對應第 4--6 章。第一部分保留一個小型固定種子模擬，因為只有在資料生成參數已知時，才能直接核對 AR、MA 與 ARMA 的理論自相關函數（autocorrelation function, ACF）。第二部分改用真實的 MSFT 與 AAPL 日簡單報酬，檢查樣本 ACF 與 Ljung--Box 統計量。
+
+MSFT 樣本為 1986-03-14 至 2008-12-31，共 5,752 筆；AAPL 樣本為 2019-01-03 至 2022-06-22，共 874 筆有效報酬。兩者單位都是日簡單報酬的小數。資料來源分別是 Tsay 教科書網站及原課程 S&P 500 價格檔，詳見 `data/DATA_SOURCES.md`。以下相關性是歷史描述，不能作因果解釋。
 
 ```{r setup}
 knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
-  fig.width = 7, fig.height = 4.5
+  fig.width = 8, fig.height = 4.8,
+  dev = "ragg_png", dpi = 144,
+  dev.args = list(background = "white")
 )
 set.seed(20260716)
+
+root_candidates <- c(".", "..")
+is_root <- vapply(root_candidates, function(x) {
+  file.exists(file.path(x, "main.tex"))
+}, logical(1))
+stopifnot(any(is_root))
+project_root <- root_candidates[which(is_root)[1]]
+project_path <- function(...) file.path(project_root, ...)
+
+stopifnot(
+  requireNamespace("ragg", quietly = TRUE),
+  requireNamespace("systemfonts", quietly = TRUE)
+)
+cwtex_file <- project_path("assets", "fonts", "cwTeXQKai-Medium.ttf")
+stopifnot(file.exists(cwtex_file))
+if (!"cwTeX Online" %in% systemfonts::registry_fonts()$family) {
+  systemfonts::register_font("cwTeX Online", cwtex_file)
+}
+plot_family <- "cwTeX Online"
 ```
 
-## 三個資料生成過程
+## 小型真值模擬
 
-為降低初始值影響，arima.sim 會自動使用前置模擬。所有序列平均數設為零、創新標準差設為 1。
+設定三個平均數為零、創新標準差為 1 的資料生成過程：
+
+\[
+\begin{aligned}
+\text{AR(1)} &: Y_t=0.70Y_{t-1}+a_t,\\
+\text{MA(1)} &: Y_t=a_t+0.60a_{t-1},\\
+\text{ARMA(1,1)} &: Y_t=0.50Y_{t-1}+a_t+0.40a_{t-1}.
+\end{aligned}
+\]
+
+模擬只用來核對公式與程式，不是金融市場的實證證據。
 
 ```{r simulate-models}
-n <- 1200L
-phi <- 0.70
-theta <- 0.60
+n_sim <- 600L
+phi_ar <- 0.70
+theta_ma <- 0.60
 phi_arma <- 0.50
 theta_arma <- 0.40
 
 ar1 <- as.numeric(arima.sim(
-  model = list(ar = phi), n = n, sd = 1
+  model = list(ar = phi_ar), n = n_sim, sd = 1
 ))
 ma1 <- as.numeric(arima.sim(
-  model = list(ma = theta), n = n, sd = 1
+  model = list(ma = theta_ma), n = n_sim, sd = 1
 ))
 arma11 <- as.numeric(arima.sim(
-  model = list(ar = phi_arma, ma = theta_arma), n = n, sd = 1
+  model = list(ar = phi_arma, ma = theta_arma),
+  n = n_sim, sd = 1
 ))
 
-summary_table <- rbind(
-  AR1 = c(mean = mean(ar1), variance = var(ar1)),
-  MA1 = c(mean = mean(ma1), variance = var(ma1)),
-  ARMA11 = c(mean = mean(arma11), variance = var(arma11))
+simulation_table <- data.frame(
+  模型 = c("AR(1)", "MA(1)", "ARMA(1,1)"),
+  樣本平均數 = c(mean(ar1), mean(ma1), mean(arma11)),
+  樣本變異數 = c(var(ar1), var(ma1), var(arma11)),
+  理論變異數 = c(
+    1 / (1 - phi_ar^2),
+    1 + theta_ma^2,
+    1 + (phi_arma + theta_arma)^2 / (1 - phi_arma^2)
+  ),
+  check.names = FALSE
 )
-round(summary_table, 3)
+knitr::kable(simulation_table, digits = 4)
 ```
 
-理論上 AR(1) 變異數是 \(1/(1-\phi^2)\)，MA(1) 是
-\(1+\theta^2\)，ARMA(1,1) 是
-\[
-1+\frac{(\phi+\theta)^2}{1-\phi^2}.
-\]
-
-```{r theoretical-variance}
-c(
-  AR1 = 1 / (1 - phi^2),
-  MA1 = 1 + theta^2,
-  ARMA11 = 1 + (phi_arma + theta_arma)^2 / (1 - phi_arma^2)
-)
-```
-
-## 時間圖與平均數回復
-
-```{r series-plots, fig.cap="三個固定種子模擬序列的前 200 期。"}
+```{r series-plots, fig.cap="三個已知資料生成過程的前 120 期。"}
+old_par <- par(family = plot_family)
 matplot(
-  1:200,
-  cbind(ar1[1:200], ma1[1:200], arma11[1:200]),
+  1:120,
+  cbind(ar1[1:120], ma1[1:120], arma11[1:120]),
   type = "l", lty = 1, lwd = 1,
   col = c("#173B57", "#A34045", "#1D6D73"),
-  xlab = "期數", ylab = "數值"
+  xlab = "期數", ylab = "模擬值"
 )
 legend(
   "topright", c("AR(1)", "MA(1)", "ARMA(1,1)"),
   col = c("#173B57", "#A34045", "#1D6D73"),
   lty = 1, bty = "n"
 )
+par(old_par)
 ```
 
-AR(1) 的條件平均路徑由 \(\phi^h x_0\) 給出。它是預期路徑，不代表每次模擬都會平滑回到零。
+## 理論 ACF 與樣本 ACF
 
-```{r ar-mean-path}
-h <- 0:20
-initial_deviation <- 3
-mean_path <- initial_deviation * phi^h
-data.frame(horizon = h, conditional_mean_deviation = mean_path)
-```
-
-## 理論 ACF 對照樣本 ACF
-
-```{r acf-comparison, fig.cap="實線為樣本 ACF，紅點為已知參數下的理論 ACF。"}
+```{r acf-comparison, fig.cap="模擬樣本 ACF（柱線）與已知參數的理論 ACF（紅點）。", fig.width=9}
 lag_max <- 20L
-series_list <- list(AR1 = ar1, MA1 = ma1, ARMA11 = arma11)
-theory_list <- list(
-  AR1 = ARMAacf(ar = phi, lag.max = lag_max),
-  MA1 = ARMAacf(ma = theta, lag.max = lag_max),
+series_sim <- list(AR1 = ar1, MA1 = ma1, ARMA11 = arma11)
+theory_sim <- list(
+  AR1 = ARMAacf(ar = phi_ar, lag.max = lag_max),
+  MA1 = ARMAacf(ma = theta_ma, lag.max = lag_max),
   ARMA11 = ARMAacf(
     ar = phi_arma, ma = theta_arma, lag.max = lag_max
   )
 )
 
-par(mfrow = c(1, 3))
-for (nm in names(series_list)) {
-  sample_acf <- acf(
-    series_list[[nm]], lag.max = lag_max,
-    plot = FALSE
-  )$acf[, , 1]
+old_par <- par(
+  mfrow = c(1, 3), mar = c(4, 3.5, 2, 1),
+  family = plot_family
+)
+for (nm in names(series_sim)) {
+  sample_acf <- as.numeric(acf(
+    series_sim[[nm]], lag.max = lag_max, plot = FALSE
+  )$acf)
   plot(
     0:lag_max, sample_acf, type = "h", lwd = 2,
     ylim = c(-0.25, 1), xlab = "落後階數",
     ylab = "ACF", main = nm
   )
-  points(0:lag_max, theory_list[[nm]], pch = 16, col = "#A34045")
+  points(0:lag_max, theory_sim[[nm]], pch = 16, col = "#A34045")
   abline(h = 0, col = "gray60")
 }
-par(mfrow = c(1, 1))
+par(old_par)
 ```
 
-MA(1) 的母體 ACF 在一階後為零；圖上後續樣本柱形仍會因抽樣誤差偏離零。AR 與 ARMA 的 ACF 則通常拖尾。
+MA(1) 的母體 ACF 在一階之後為零，但有限樣本柱線仍會因抽樣誤差偏離零。AR 與 ARMA 的 ACF 通常拖尾。
 
-## 定態根與可逆根
+## 根與衝擊反應的程式核對
 
-```{r roots}
-ar_root <- polyroot(c(1, -phi))
-ma_root <- polyroot(c(1, theta))
-arma_ar_root <- polyroot(c(1, -phi_arma))
-arma_ma_root <- polyroot(c(1, theta_arma))
-
+```{r roots-irf}
 root_table <- data.frame(
-  model_part = c("AR(1) AR", "MA(1) MA", "ARMA AR", "ARMA MA"),
-  real = Re(c(ar_root, ma_root, arma_ar_root, arma_ma_root)),
-  imaginary = Im(c(ar_root, ma_root, arma_ar_root, arma_ma_root)),
-  modulus = Mod(c(ar_root, ma_root, arma_ar_root, arma_ma_root))
+  部分 = c("AR(1) 的 AR 根", "MA(1) 的 MA 根", "ARMA 的 AR 根", "ARMA 的 MA 根"),
+  根 = Re(c(
+    polyroot(c(1, -phi_ar)),
+    polyroot(c(1, theta_ma)),
+    polyroot(c(1, -phi_arma)),
+    polyroot(c(1, theta_arma))
+  )),
+  check.names = FALSE
 )
-root_table
-stopifnot(all(root_table$modulus > 1))
-```
+root_table$模 <- abs(root_table$根)
+knitr::kable(root_table, digits = 4)
+stopifnot(all(root_table$模 > 1))
 
-AR 根在單位圓外對應因果定態表示；MA 根在單位圓外對應可逆表示。兩者必須分開檢查。
-
-## ARMA(1,1) 的衝擊反應
-
-依課文，\(\psi_0=1\)，且 \(j\geq1\) 時
-\(\psi_j=(\phi+\theta)\phi^{j-1}\)。
-
-```{r impulse-response}
 j <- 0:12
-psi_manual <- c(
-  1,
-  (phi_arma + theta_arma) * phi_arma^(0:11)
-)
-psi_r <- ARMAtoMA(
+psi_manual <- c(1, (phi_arma + theta_arma) * phi_arma^(0:11))
+psi_r <- c(1, ARMAtoMA(
   ar = phi_arma, ma = theta_arma, lag.max = 12
-)
-psi_r <- c(1, psi_r)
-
-data.frame(j, manual = psi_manual, R = psi_r)
-stopifnot(isTRUE(all.equal(psi_manual, psi_r)))
-```
-
-## 重疊十二期報酬
-
-先模擬互不相關的單期報酬，再形成每期更新的十二期加總。相鄰加總共享十一個創新，因此理論 ACF 在 \(h=0,\ldots,11\) 為 \((12-h)/12\)。
-
-```{r overlapping-returns}
-set.seed(20260717)
-one_period <- rnorm(2500, sd = 0.04)
-overlap_12 <- as.numeric(stats::filter(
-  one_period, filter = rep(1, 12), sides = 1
 ))
-overlap_12 <- overlap_12[is.finite(overlap_12)]
-
-sample_overlap_acf <- acf(
-  overlap_12, lag.max = 16, plot = FALSE
-)$acf[, , 1]
-theory_overlap_acf <- c((12:1) / 12, rep(0, 5))
-
-data.frame(
-  lag = 0:16,
-  sample_acf = sample_overlap_acf,
-  theoretical_acf = theory_overlap_acf
-)
+stopifnot(isTRUE(all.equal(psi_manual, psi_r)))
+knitr::kable(data.frame(期距 = j, 手算 = psi_manual, R = psi_r), digits = 6)
 ```
 
-```{r overlap-plot, fig.cap="重疊十二期報酬的樣本與理論 ACF。"}
-plot(
-  0:16, sample_overlap_acf, type = "h", lwd = 2,
-  xlab = "落後階數", ylab = "ACF", ylim = c(-0.15, 1)
+AR 根在單位圓外對應因果定態表示；MA 根在單位圓外對應可逆表示。這兩個限制不能混為一談。
+
+## 真實 MSFT 與 AAPL 報酬
+
+```{r read-real-data}
+msft <- read.csv(project_path(
+  "data", "processed", "msft_daily_returns_1986_2008.csv"
+))
+msft$date <- as.Date(msft$date)
+
+aapl <- read.csv(project_path(
+  "data", "processed", "aapl_adjusted_daily_2019_2022.csv"
+))
+aapl$date <- as.Date(aapl$date)
+aapl <- aapl[is.finite(aapl$simple_return), ]
+
+stopifnot(
+  all(diff(msft$date) > 0), !anyNA(msft$simple_return),
+  all(diff(aapl$date) > 0), !anyNA(aapl$simple_return)
 )
-points(0:16, theory_overlap_acf, pch = 16, col = "#A34045")
-abline(h = 0, col = "gray60")
+
+real_profile <- data.frame(
+  序列 = c("MSFT", "AAPL"),
+  起日 = c(min(msft$date), min(aapl$date)),
+  迄日 = c(max(msft$date), max(aapl$date)),
+  觀察值 = c(nrow(msft), nrow(aapl)),
+  單位 = "日簡單報酬，小數",
+  來源 = c("Tsay d-msft8608.txt", "原課程 S&P 500 價格檔"),
+  check.names = FALSE
+)
+knitr::kable(real_profile)
 ```
 
-這個高度相關完全由重疊建構產生，不能解讀為原始單期報酬可預測。若把重疊報酬放進迴歸，推論也必須處理其序列相依。
+```{r real-acf, fig.cap="真實 MSFT 與 AAPL 報酬及平方報酬的樣本 ACF。", fig.width=9, fig.height=7}
+real_series <- list(
+  MSFT = msft$simple_return,
+  AAPL = aapl$simple_return
+)
 
-## 模擬檢核
+old_par <- par(
+  mfrow = c(2, 2), mar = c(4, 3.5, 4, 1),
+  family = plot_family, cex.main = 0.85
+)
+for (nm in names(real_series)) {
+  z <- real_series[[nm]]
+  acf(z, lag.max = 30, main = paste(nm, "報酬 ACF"))
+  acf(z^2, lag.max = 30, main = paste(nm, "平方報酬 ACF"))
+}
+par(old_par)
+```
 
-1. 增加樣本長度後，樣本 ACF 應更接近理論 ACF。
-2. 把 AR 參數改成負值，ACF 會正負交替。
-3. 把 MA 參數改成倒數並調整創新變異，可看到相同二階動差但不可逆的表示。
-4. 任何參數改動後都重新檢查根，而不是只看係數是否小於 1。
+## Ljung--Box 聯合檢查
+
+```{r real-ljung-box}
+lb_row <- function(x, label) {
+  q_return <- Box.test(x, lag = 20, type = "Ljung-Box")
+  q_square <- Box.test(x^2, lag = 20, type = "Ljung-Box")
+  data.frame(
+    序列 = label,
+    Q20_報酬 = unname(q_return$statistic),
+    p_報酬 = q_return$p.value,
+    Q20_平方報酬 = unname(q_square$statistic),
+    p_平方報酬 = q_square$p.value,
+    check.names = FALSE
+  )
+}
+
+lb_table <- rbind(
+  lb_row(msft$simple_return, "MSFT"),
+  lb_row(aapl$simple_return, "AAPL")
+)
+knitr::kable(lb_table, digits = 6)
+```
+
+在這兩個固定樣本中，報酬與平方報酬的 20 階聯合零自相關限制都遭拒絕；平方報酬的統計量尤其大。這說明真實資料不應被縮減成「只看模擬 ACF」的練習。
+
+拒絕「前 20 階自相關同時為零」只表示這組限制與樣本不相容。它不告訴我們應選哪一個 ARMA 階數，也不保證相關性足以克服交易成本。平方報酬的相依則提示第 11--12 章的條件變異模型，而不是把它誤當成平均報酬的因果機制。

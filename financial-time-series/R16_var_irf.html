@@ -27,12 +27,13 @@
     <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
       <p class="sidebar-title">線上附錄</p>
       <ol><li><a href="index.html">首頁</a></li>
+<li><a href="data.html">實證資料下載</a></li>
 <li><a href="data-policy.html">資料與重現政策</a></li>
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
 <li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與經驗特徵</a></li>
-<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA 模擬</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
 <li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
 <li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
 <li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
@@ -50,12 +51,12 @@
     </nav>
     <main id="main-content" class="content">
       <div class="publication-note">
-        本網站提供作者執行後的教學內容與程式原始檔；未經確認可再散布的原始資料不隨網站發布。
+        本網站提供作者執行後的教學內容、程式原始檔與本書實證使用的固定資料版本。
         詳見<a href="data-policy.html">資料與重現政策</a>。
       </div>
       <article>
         <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R16：VAR、識別與衝擊反應函數</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R16_var_irf.Rmd">R Markdown 原始檔</a><a href="source/R16_var_irf.md">執行後 Markdown</a></div></header>
-        <p>本附錄對應第 21 章。第一部分使用已知結構的教學模擬核對 VAR、Cholesky 當期影響矩陣與 IRF；第二部分使用固定日本月資料示範縮減式落後階數選擇與排序敏感度。沒有額外外生資訊時，實證曲線不命名為已識別的政策衝擊。</p>
+        <p>本附錄對應第 21 章。第一部分使用已知結構的教學模擬核對 VAR、Cholesky 當期影響矩陣與 IRF；第二部分使用固定日本月資料估計真正的縮減式 VAR，完整交代資料尺度、落後階數、殘差診斷與排序敏感度。沒有額外外生資訊時，實證曲線不命名為已識別的政策衝擊，也不作因果解讀。</p>
 <h2 id="_1">執行條件<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
 <ul>
 <li>base R 與 <code>knitr</code>；不安裝套件、不連線下載。</li>
@@ -281,27 +282,83 @@ legend(&quot;topright&quot;, c(&quot;Estimate&quot;, &quot;Pointwise bootstrap i
        lwd = c(2, 8, 2), lty = c(1, 1, 2), bty = &quot;n&quot;)
 </code></pre>
 <p><img alt="plot of chunk bootstrap-irf" src="./R16_var_irf_files/figure-gfm/bootstrap-irf-1.png"></p>
-<h2 id="reduced-form">固定日本月資料：reduced-form 示範<a class="headerlink" href="#reduced-form" title="Permanent link">#</a></h2>
-<p>使用 <code>return_j</code> 與 <code>yield_10_change</code>。兩者已是變動/報酬尺度，但是否定態仍須另做圖形與單根診斷。這裡只示範 VAR 程序。</p>
+<h2 id="_2">固定日本月資料：來源、樣本與尺度<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
+<p>凍結檔由原課程資料 <code>slides/L10_Lasso/W2L2_Hands_on_Metrics_methods/data/data_t.csv</code> 與 <code>yield_10.csv</code> 依月份鍵結後整理而成。原始說明把 <code>opi</code> 定義為西德州中級原油（WTI）現貨價、把 <code>inr</code> 定義為日本貼現率，但沒有記錄所有資料提供者，也沒有交代 <code>return_j</code> 的精確轉換公式。因此，本節是<strong>固定課程快照的可重現分析</strong>，不是即時資料庫的重建。</p>
+<p>本例使用三個已轉換欄位：</p>
+<ul>
+<li><code>opi_change</code>：WTI 現貨價相對前月的百分比變動；</li>
+<li><code>yield_10_change</code>：十年期殖利率相對前月的百分比變動。殖利率接近零時，這個比率可能非常大；</li>
+<li><code>return_j</code>：檔案內預先計算的日本股價報酬欄位。原始說明沒有保留公式與明確單位，所以以下只稱「原檔尺度」。</li>
+</ul>
+<p>原檔有 133 個月，從 2007 年 10 月到 2018 年 10 月。三個變動欄位在第一個月皆缺值；依日期排序並一次刪除不完整列後，VAR 使用 132 個月（2007 年 11 月至 2018 年 10 月）。沒有逐欄刪除後再按列拼接。</p>
 <pre><code class="language-r">jp_path &lt;- &quot;data/processed/japan_monthly_2007_2018.csv&quot;
 jp &lt;- read.csv(jp_path, stringsAsFactors = FALSE)
 jp$date &lt;- as.Date(jp$date)
-jp &lt;- jp[order(jp$date), ]
-keep &lt;- complete.cases(jp[, c(&quot;return_j&quot;, &quot;yield_10_change&quot;)])
-Y_jp &lt;- as.matrix(jp[keep, c(&quot;yield_10_change&quot;, &quot;return_j&quot;)])
-dates_jp &lt;- jp$date[keep]
-colnames(Y_jp) &lt;- c(&quot;dYield10&quot;, &quot;StockReturn&quot;)
+required &lt;- c(&quot;date&quot;, &quot;opi_change&quot;, &quot;yield_10_change&quot;, &quot;return_j&quot;)
+stopifnot(all(required %in% names(jp)))
 
-matplot(dates_jp, Y_jp, type = &quot;l&quot;, lty = 1,
-        col = c(&quot;#173B57&quot;, &quot;#A34045&quot;),
-        xlab = &quot;Date&quot;, ylab = &quot;Observed scale&quot;)
-legend(&quot;topleft&quot;, colnames(Y_jp), col = c(&quot;#173B57&quot;, &quot;#A34045&quot;),
-       lty = 1, bty = &quot;n&quot;)
+jp &lt;- jp[order(jp$date), ]
+stopifnot(!anyDuplicated(jp$date))
+raw_names &lt;- c(&quot;opi_change&quot;, &quot;yield_10_change&quot;, &quot;return_j&quot;)
+keep &lt;- complete.cases(jp[, raw_names])
+
+sample_audit &lt;- data.frame(
+  source_rows = nrow(jp),
+  source_start = min(jp$date),
+  source_end = max(jp$date),
+  complete_rows = sum(keep),
+  analysis_start = min(jp$date[keep]),
+  analysis_end = max(jp$date[keep]),
+  duplicate_dates = anyDuplicated(jp$date)
+)
+sample_audit
 </code></pre>
-<p><img alt="plot of chunk japan-data" src="./R16_var_irf_files/figure-gfm/japan-data-1.png"></p>
-<pre><code class="language-r">candidates &lt;- lapply(1:4, function(p) fit_var(Y_jp, p))
+<pre><code>##   source_rows source_start source_end complete_rows analysis_start analysis_end
+## 1         133   2007-10-01 2018-10-01           132     2007-11-01   2018-10-01
+##   duplicate_dates
+## 1               0
+</code></pre>
+<pre><code class="language-r">raw_summary &lt;- data.frame(
+  variable = raw_names,
+  missing = vapply(jp[raw_names], function(x) sum(is.na(x)), integer(1)),
+  mean = vapply(jp[raw_names], function(x) mean(x, na.rm = TRUE), numeric(1)),
+  sd = vapply(jp[raw_names], function(x) sd(x, na.rm = TRUE), numeric(1)),
+  min = vapply(jp[raw_names], function(x) min(x, na.rm = TRUE), numeric(1)),
+  max = vapply(jp[raw_names], function(x) max(x, na.rm = TRUE), numeric(1))
+)
+raw_summary
+</code></pre>
+<pre><code>##                        variable missing       mean        sd        min
+## opi_change           opi_change       1 0.26249300  8.920919  -28.58635
+## yield_10_change yield_10_change       1 4.32846014 57.760973 -168.42105
+## return_j               return_j       1 0.01708592  2.224311  -10.76673
+##                        max
+## opi_change       23.845646
+## yield_10_change 500.000000
+## return_j          4.284162
+</code></pre>
+<p>為了讓 Cholesky 衝擊與反應可在同一圖比較，VAR 先把每個欄位以完整樣本平均數與標準差標準化。這不改變 VAR 的動態根，也不替資料補上未記錄的單位。</p>
+<pre><code class="language-r">Z_jp &lt;- as.matrix(jp[keep, raw_names])
+dates_jp &lt;- jp$date[keep]
+Y_jp &lt;- scale(Z_jp)
+colnames(Y_jp) &lt;- c(&quot;OilChange&quot;, &quot;YieldChange&quot;, &quot;StockReturn&quot;)
+
+par(mfrow = c(3, 1), mar = c(3, 4, 2, 1))
+for (j in seq_len(ncol(Z_jp))) {
+  plot(dates_jp, Z_jp[, j], type = &quot;l&quot;, col = c(&quot;#173B57&quot;, &quot;#1D6D73&quot;, &quot;#A34045&quot;)[j],
+       xlab = &quot;&quot;, ylab = raw_names[j], main = raw_names[j])
+  abline(h = 0, lty = 3, col = &quot;grey55&quot;)
+}
+</code></pre>
+<p><img alt="plot of chunk japan-series" src="./R16_var_irf_files/figure-gfm/japan-series-1.png"></p>
+<pre><code class="language-r">par(mfrow = c(1, 1))
+</code></pre>
+<h2 id="var_1">縮減式 VAR：落後階數與係數<a class="headerlink" href="#var_1" title="Permanent link">#</a></h2>
+<p>在同一個 132 月樣本上比較 1 至 6 階 VAR，以系統 BIC 最小值選階；<code>max_root</code> 是 companion matrix 特徵根模數的最大值。這是小樣本中的工作規則，不是經濟理論限制。</p>
+<pre><code class="language-r">lag_grid &lt;- 1:6
+candidates &lt;- lapply(lag_grid, function(p) fit_var(Y_jp, p))
 bic_table &lt;- data.frame(
-  lag = 1:4,
+  lag = lag_grid,
   BIC = vapply(candidates, function(x) x$bic, numeric(1)),
   max_root = vapply(candidates, function(x) {
     max(Mod(eigen(companion_matrix(x$A))$values))
@@ -310,50 +367,135 @@ bic_table &lt;- data.frame(
 bic_table
 </code></pre>
 <pre><code>##   lag       BIC  max_root
-## 1   1  9.831048 0.2457373
-## 2   2  9.960418 0.4215238
-## 3   3 10.090121 0.5065380
-## 4   4 10.198418 0.7417764
+## 1   1 0.0889332 0.3446379
+## 2   2 0.3874994 0.5707731
+## 3   3 0.6573005 0.6007098
+## 4   4 0.8802549 0.7455485
+## 5   5 1.1944974 0.7856402
+## 6   6 1.4710990 0.8286850
 </code></pre>
 <pre><code class="language-r">p_selected &lt;- bic_table$lag[which.min(bic_table$BIC)]
-fit_jp &lt;- candidates[[p_selected]]
+fit_jp &lt;- candidates[[which.min(bic_table$BIC)]]
+c(selected_lag = p_selected,
+  effective_rows = nrow(fit_jp$residuals),
+  max_companion_root = max(Mod(eigen(companion_matrix(fit_jp$A))$values)))
 </code></pre>
-<pre><code class="language-r">par(mfrow = c(2, 2))
-for (j in 1:2) {
-  acf(fit_jp$residuals[, j], main = paste(&quot;Residual ACF:&quot;, colnames(Y_jp)[j]))
+<pre><code>##       selected_lag     effective_rows max_companion_root 
+##          1.0000000        131.0000000          0.3446379
+</code></pre>
+<pre><code class="language-r">round(t(fit_jp$coef), 3)
+</code></pre>
+<pre><code>##             Intercept OilChange_L1 YieldChange_L1 StockReturn_L1
+## OilChange      -0.008        0.323         -0.059          0.054
+## YieldChange     0.002        0.144         -0.064          0.011
+## StockReturn     0.011        0.119         -0.027          0.212
+</code></pre>
+<p>本樣本的 BIC 選擇 VAR(1)，有效估計列數為 131，最大 companion root 為 0.345。根在單位圓內只表示這個估計規格的動態穩定；它不保證殘差已成為白噪音。</p>
+<h2 id="_3">殘差與條件異質變異診斷<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<p>下表對每一方程回報 12 階 Ljung--Box 檢定；平方殘差版本只是 ARCH 型相依的初步篩檢。三變量系統的正式殘差診斷還應使用多變量 portmanteau 檢定。</p>
+<pre><code class="language-r">lb_lag &lt;- 12L
+resid_diag &lt;- do.call(rbind, lapply(seq_len(ncol(Y_jp)), function(j) {
+  q_raw &lt;- Box.test(fit_jp$residuals[, j], lag = lb_lag,
+                    type = &quot;Ljung-Box&quot;, fitdf = ncol(Y_jp) * p_selected)
+  q_sq &lt;- Box.test(fit_jp$residuals[, j]^2, lag = lb_lag,
+                   type = &quot;Ljung-Box&quot;)
+  data.frame(
+    equation = colnames(Y_jp)[j],
+    Q_residual = unname(q_raw$statistic),
+    p_residual = q_raw$p.value,
+    Q_squared = unname(q_sq$statistic),
+    p_squared = q_sq$p.value
+  )
+}))
+resid_diag
+</code></pre>
+<pre><code>##      equation Q_residual  p_residual Q_squared    p_squared
+## 1   OilChange   16.82826 0.051474341 42.980771 2.274971e-05
+## 2 YieldChange   23.41347 0.005331567  4.616307 9.695838e-01
+## 3 StockReturn   10.61740 0.302848349  4.920975 9.605664e-01
+</code></pre>
+<pre><code class="language-r">round(cov2cor(fit_jp$sigma), 3)
+</code></pre>
+<pre><code>##             OilChange YieldChange StockReturn
+## OilChange       1.000       0.070       0.293
+## YieldChange     0.070       1.000       0.114
+## StockReturn     0.293       0.114       1.000
+</code></pre>
+<pre><code class="language-r">par(mfrow = c(3, 2), mar = c(3, 3, 4, 1))
+for (j in seq_len(ncol(Y_jp))) {
+  acf(fit_jp$residuals[, j], main = paste(&quot;Residual:&quot;, colnames(Y_jp)[j]))
   acf(fit_jp$residuals[, j]^2,
-      main = paste(&quot;Squared residual ACF:&quot;, colnames(Y_jp)[j]))
+      main = paste(&quot;Squared residual:&quot;, colnames(Y_jp)[j]))
 }
 </code></pre>
 <p><img alt="plot of chunk residual-diagnostics" src="./R16_var_irf_files/figure-gfm/residual-diagnostics-1.png"></p>
 <pre><code class="language-r">par(mfrow = c(1, 1))
 </code></pre>
-<h2 id="_2">排序敏感度<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
-<pre><code class="language-r">irf_order_1 &lt;- recursive_irf(fit_jp, 12)
+<p>診斷確實留下警訊：<code>YieldChange</code> 方程的殘差 Ljung--Box p 值為 0.0053；<code>OilChange</code> 方程的平方殘差 p 值為 2.27e-05。因此 VAR(1) 是 BIC 基準，不是已完全通過殘差檢驗的最終模型；推論時還應考慮更豐富動態與條件異質變異。</p>
+<h2 id="_4">排序敏感度：油價變動排第一或最後<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
+<p>以下只改變 Cholesky 遞迴排序，VAR 的縮減式資訊集與所選 lag 不變。為了公平比較，每條曲線都除以油價變動本身的當期反應，使衝擊正規化為「標準化油價變動當期增加 1 單位」。</p>
+<pre><code class="language-r">ordered_irf &lt;- function(Y, order_names, p, horizon = 12L) {
+  fit &lt;- fit_var(Y[, order_names, drop = FALSE], p)
+  list(order = order_names, irf = recursive_irf(fit, horizon))
+}
 
-# 反轉變數、重估，再把 response/shock 索引轉回原順序。
-Y_rev &lt;- Y_jp[, 2:1]
-fit_rev &lt;- fit_var(Y_rev, p_selected)
-irf_rev &lt;- recursive_irf(fit_rev, 12)
+named_response &lt;- function(object, response_name, shock_name = &quot;OilChange&quot;) {
+  ri &lt;- match(response_name, object$order)
+  si &lt;- match(shock_name, object$order)
+  raw &lt;- vapply(object$irf$Theta, function(M) M[ri, si], numeric(1))
+  oil_impact &lt;- object$irf$Theta[[1]][si, si]
+  raw / oil_impact
+}
 
-# 原順序：dYield10 第一，StockReturn 第二。
-response_order_1 &lt;- response(irf_order_1$Theta, 2, 1)
-# 反順序：StockReturn 第一、dYield10 第二；目標改為 shock 2 對 response 1。
-response_order_2 &lt;- response(irf_rev$Theta, 1, 2)
+oil_first &lt;- ordered_irf(
+  Y_jp, c(&quot;OilChange&quot;, &quot;YieldChange&quot;, &quot;StockReturn&quot;), p_selected
+)
+oil_last &lt;- ordered_irf(
+  Y_jp, c(&quot;YieldChange&quot;, &quot;StockReturn&quot;, &quot;OilChange&quot;), p_selected
+)
 
-plot(0:12, response_order_1, type = &quot;l&quot;, lwd = 2,
-     ylim = range(response_order_1, response_order_2),
-     xlab = &quot;Horizon&quot;, ylab = &quot;Stock-return response&quot;,
-     col = &quot;#173B57&quot;)
-lines(0:12, response_order_2, lwd = 2, lty = 2, col = &quot;#A34045&quot;)
+irf_sensitivity &lt;- data.frame(
+  h = 0:12,
+  yield_oil_first = named_response(oil_first, &quot;YieldChange&quot;),
+  yield_oil_last = named_response(oil_last, &quot;YieldChange&quot;),
+  stock_oil_first = named_response(oil_first, &quot;StockReturn&quot;),
+  stock_oil_last = named_response(oil_last, &quot;StockReturn&quot;)
+)
+irf_sensitivity[c(1, 2, 4, 7, 13), ]
+</code></pre>
+<pre><code>##     h yield_oil_first yield_oil_last stock_oil_first stock_oil_last
+## 1   0    7.423121e-02   0.000000e+00    2.987494e-01   0.000000e+00
+## 2   1    1.419440e-01   1.435235e-01    1.801813e-01   1.188151e-01
+## 4   3    1.383560e-02   1.281014e-02    2.756238e-02   2.371097e-02
+## 7   6    5.500336e-04   4.992688e-04    1.197597e-03   1.078459e-03
+## 13 12    9.183849e-07   8.315064e-07    2.021513e-06   1.830091e-06
+</code></pre>
+<pre><code class="language-r">par(mfrow = c(2, 1), mar = c(4, 4, 2, 1))
+plot(irf_sensitivity$h, irf_sensitivity$yield_oil_first,
+     type = &quot;l&quot;, lwd = 2, col = &quot;#173B57&quot;,
+     ylim = range(irf_sensitivity[, c(&quot;yield_oil_first&quot;, &quot;yield_oil_last&quot;)]),
+     xlab = &quot;Horizon (months)&quot;, ylab = &quot;Yield response (SD units)&quot;)
+lines(irf_sensitivity$h, irf_sensitivity$yield_oil_last,
+      lwd = 2, lty = 2, col = &quot;#A34045&quot;)
 abline(h = 0, lty = 3)
-legend(&quot;topright&quot;,
-       c(&quot;dYield10 ordered first&quot;, &quot;StockReturn ordered first&quot;),
+legend(&quot;topright&quot;, c(&quot;Oil ordered first&quot;, &quot;Oil ordered last&quot;),
+       col = c(&quot;#173B57&quot;, &quot;#A34045&quot;), lwd = 2, lty = c(1, 2), bty = &quot;n&quot;)
+
+plot(irf_sensitivity$h, irf_sensitivity$stock_oil_first,
+     type = &quot;l&quot;, lwd = 2, col = &quot;#173B57&quot;,
+     ylim = range(irf_sensitivity[, c(&quot;stock_oil_first&quot;, &quot;stock_oil_last&quot;)]),
+     xlab = &quot;Horizon (months)&quot;, ylab = &quot;Stock-return response (SD units)&quot;)
+lines(irf_sensitivity$h, irf_sensitivity$stock_oil_last,
+      lwd = 2, lty = 2, col = &quot;#A34045&quot;)
+abline(h = 0, lty = 3)
+legend(&quot;topright&quot;, c(&quot;Oil ordered first&quot;, &quot;Oil ordered last&quot;),
        col = c(&quot;#173B57&quot;, &quot;#A34045&quot;), lwd = 2, lty = c(1, 2), bty = &quot;n&quot;)
 </code></pre>
 <p><img alt="plot of chunk ordering-sensitivity" src="./R16_var_irf_files/figure-gfm/ordering-sensitivity-1.png"></p>
-<p>兩條曲線只是在不同遞迴限制下得到的正交化創新項反應。沒有外部工具、制度時點或高頻識別，不能只因第一條較符合敘事就稱為政策衝擊。</p>
-<h2 id="_3">最低報告清單<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<pre><code class="language-r">par(mfrow = c(1, 1))
+</code></pre>
+<p>兩組曲線只是不同零限制下的正交化創新項反應。油價可能同時反映全球需求、金融情勢與供給消息；沒有外部工具、敘事事件、制度限制或高頻識別時，這些結果不能稱為外生油價衝擊，更不能當作因果效果。排序明顯影響曲線時，正確結論是「結構解讀依賴未驗證限制」，不是挑選較符合故事的一條。</p>
+<h2 id="_5">最低報告清單<a class="headerlink" href="#_5" title="Permanent link">#</a></h2>
 <ol>
 <li>變數轉換、順序、樣本期與 lag rule。</li>
 <li>companion roots、殘差及平方殘差 ACF。</li>
@@ -387,11 +529,13 @@ legend(&quot;topright&quot;,
 ## loaded via a namespace (and not attached):
 ##  [1] vctrs_0.7.2        cli_3.6.5          knitr_1.51         rlang_1.1.7       
 ##  [5] xfun_0.57          otel_0.2.0         MatrixModels_0.5-4 generics_0.1.4    
-##  [9] glue_1.8.0         grid_4.5.2         evaluate_1.0.5     SparseM_1.84-2    
-## [13] MASS_7.3-65        lifecycle_1.0.5    compiler_4.5.2     pkgconfig_2.0.3   
-## [17] quantreg_6.1       lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1  
-## [21] utf8_1.2.6         splines_4.5.2      pillar_1.11.1      magrittr_2.0.4    
-## [25] Matrix_1.7-4       tools_4.5.2        withr_3.0.2        survival_3.8-3
+##  [9] textshaping_1.0.5  glue_1.8.0         ragg_1.5.2         glmnet_4.1-10     
+## [13] grid_4.5.2         evaluate_1.0.5     SparseM_1.84-2     MASS_7.3-65       
+## [17] foreach_1.5.2      lifecycle_1.0.5    compiler_4.5.2     codetools_0.2-20  
+## [21] Rcpp_1.1.0         pkgconfig_2.0.3    quantreg_6.1       systemfonts_1.3.2 
+## [25] lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1   utf8_1.2.6        
+## [29] shape_1.4.6.1      splines_4.5.2      pillar_1.11.1      magrittr_2.0.4    
+## [33] Matrix_1.7-4       tools_4.5.2        iterators_1.0.14   survival_3.8-3
 </code></pre>
       </article>
       <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R15_double_selection_dml.html">← 雙重選擇、正交化與 DML</a><a rel="next" href="R17_cointegration_vecm.html">共整合、Johansen 檢定與 VECM →</a></nav>
@@ -403,9 +547,11 @@ legend(&quot;topright&quot;,
 <li><a href="#var">VAR 工具函數</a></li>
 <li><a href="#var1">已知結構的 VAR(1) 模擬</a></li>
 <li><a href="#pointwise-intervals">殘差拔靴法 pointwise intervals</a></li>
-<li><a href="#reduced-form">固定日本月資料：reduced-form 示範</a></li>
-<li><a href="#_2">排序敏感度</a></li>
-<li><a href="#_3">最低報告清單</a></li>
+<li><a href="#_2">固定日本月資料：來源、樣本與尺度</a></li>
+<li><a href="#var_1">縮減式 VAR：落後階數與係數</a></li>
+<li><a href="#_3">殘差與條件異質變異診斷</a></li>
+<li><a href="#_4">排序敏感度：油價變動排第一或最後</a></li>
+<li><a href="#_5">最低報告清單</a></li>
 </ul>
 </div>
 </aside>

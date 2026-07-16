@@ -27,12 +27,13 @@
     <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
       <p class="sidebar-title">線上附錄</p>
       <ol><li><a href="index.html">首頁</a></li>
+<li><a href="data.html">實證資料下載</a></li>
 <li><a href="data-policy.html">資料與重現政策</a></li>
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
 <li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與經驗特徵</a></li>
-<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA 模擬</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
 <li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
 <li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
 <li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
@@ -50,26 +51,40 @@
     </nav>
     <main id="main-content" class="content">
       <div class="publication-note">
-        本網站提供作者執行後的教學內容與程式原始檔；未經確認可再散布的原始資料不隨網站發布。
+        本網站提供作者執行後的教學內容、程式原始檔與本書實證使用的固定資料版本。
         詳見<a href="data-policy.html">資料與重現政策</a>。
       </div>
       <article>
         <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R14：金融因子選擇</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R14_financial_factor_selection.Rmd">R Markdown 原始檔</a><a href="source/R14_financial_factor_selection.md">執行後 Markdown</a></div></header>
-        <p>本附錄對應第 19 章。它使用專案固定的十產業因子面板，以第 \(t\) 月的預測變數預測製造業第 \(t+1\) 月超額報酬。重點是時間對齊、只依訓練資料進行前處理、展開視窗驗證、基準比較與選取穩定性。</p>
+        <p>本附錄對應第 19 章。它使用 1967 年 1 月至 2021 年 11 月、659 個月乘 10 產業的真實凍結因子面板，以第 \(t\) 月的預測變數預測製造業第 \(t+1\) 月超額報酬。<code>ret</code>、Fama--French 與 Global-q 因子均為月小數報酬，例如 0.01 代表 1%；總體預測變數則沿用各自定義的比率、利差或對數尺度。重點是時間對齊、只依訓練資料進行前處理、展開視窗驗證、基準比較與選取穩定性。</p>
+<p>資料來源方面，原課程 <code>fffqmacro.R</code> 從 Kenneth French Data Library 取得 FF3 與十產業投資組合、從 Global-q 取得 q5 因子、從 Welch--Goyal 工作簿取得總體預測變數，並以 FRED <code>CPIAUCNS</code> 輔助建檔；<code>ret</code> 是十產業總報酬減去當月 FF 無風險利率。各供應者版本與再散布條款必須分別保存。尤其 Fama--French 建構法後來由 CRSP FIZ 改為 CIZ，現在即時重抓不保證等於本 2021 工作快照。以下只評估固定時間切分下的預測表現；因子被選入不識別因果效果或風險價格，也不構成投資建議。</p>
 <h2 id="_1">執行條件<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
 <ul>
 <li>只使用 base R 與 <code>knitr</code>。</li>
 <li>不安裝套件、不呼叫網路、不使用 <code>setwd()</code>。</li>
 <li>固定資料：<code>data/processed/ff_qf_macro_industries_1967_2021.csv</code>。</li>
 <li>資料建置與再散布注意事項：<code>data/DATA_SOURCES.md</code>。</li>
+<li>公開界線：repo 隨附作者授權的 processed 合併 CSV、程式與執行結果，可離線自含重跑；若另由上游來源重建，必須固定各供應者版本與轉換規則。</li>
 </ul>
 <pre><code class="language-r">knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
   fig.width = 7, fig.height = 4.5
 )
 </code></pre>
-<pre><code class="language-r">path &lt;- &quot;data/processed/ff_qf_macro_industries_1967_2021.csv&quot;
-stopifnot(file.exists(path))
+<pre><code class="language-r">locate_project_file &lt;- function(relative_path) {
+  candidates &lt;- c(
+    relative_path,
+    file.path(&quot;..&quot;, relative_path),
+    file.path(&quot;../..&quot;, relative_path)
+  )
+  hit &lt;- candidates[file.exists(candidates)]
+  if (length(hit) == 0L) stop(&quot;找不到專案檔案：&quot;, relative_path)
+  normalizePath(hit[1], mustWork = TRUE)
+}
+
+path &lt;- locate_project_file(
+  &quot;data/processed/ff_qf_macro_industries_1967_2021.csv&quot;
+)
 d &lt;- read.csv(path, stringsAsFactors = FALSE, check.names = FALSE)
 d$month &lt;- as.Date(d$month)
 d &lt;- d[order(d$industry, d$month), ]
@@ -84,6 +99,17 @@ table(d$industry)
 <pre><code class="language-r">range(d$month)
 </code></pre>
 <pre><code>## [1] &quot;1967-01-01&quot; &quot;2021-11-01&quot;
+</code></pre>
+<pre><code class="language-r">data.frame(
+  first_month = min(d$month),
+  last_month = max(d$month),
+  months = length(unique(d$month)),
+  industries = length(unique(d$industry)),
+  return_unit = &quot;decimal per month&quot;
+)
+</code></pre>
+<pre><code>##   first_month last_month months industries       return_unit
+## 1  1967-01-01 2021-11-01    659         10 decimal per month
 </code></pre>
 <h2 id="_2">日期與面板完整性<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
 <pre><code class="language-r">key &lt;- paste(d$industry, d$month)
@@ -362,7 +388,7 @@ abline(h = 0, lty = 2, col = &quot;#62717E&quot;)
 <li>預先固定預測期距、測試月份、字典、折與 lambda 網格。</li>
 <li>每個產業可在自己的驗證折選 lambda；不得看測試結果後另改網格。</li>
 <li>報告全部十產業，包括負的樣本外表現。</li>
-<li>若資料供應條款在公開版要求讀者自行建置，應保留 manifest 與建置說明，不可改成執行時即時下載。</li>
+<li>公開版直接使用固定 processed CSV 與 manifest；若另作上游重建，應保存建置說明與版本，不可把即時下載默認為同一份歷史快照。</li>
 </ol>
 <pre><code class="language-r">sessionInfo()
 </code></pre>
@@ -389,11 +415,12 @@ abline(h = 0, lty = 2, col = &quot;#62717E&quot;)
 ## loaded via a namespace (and not attached):
 ##  [1] vctrs_0.7.2        cli_3.6.5          knitr_1.51         rlang_1.1.7       
 ##  [5] xfun_0.57          otel_0.2.0         MatrixModels_0.5-4 generics_0.1.4    
-##  [9] glue_1.8.0         grid_4.5.2         evaluate_1.0.5     SparseM_1.84-2    
-## [13] MASS_7.3-65        lifecycle_1.0.5    compiler_4.5.2     pkgconfig_2.0.3   
-## [17] quantreg_6.1       lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1  
-## [21] utf8_1.2.6         splines_4.5.2      pillar_1.11.1      magrittr_2.0.4    
-## [25] Matrix_1.7-4       tools_4.5.2        withr_3.0.2        survival_3.8-3
+##  [9] textshaping_1.0.5  glue_1.8.0         ragg_1.5.2         grid_4.5.2        
+## [13] evaluate_1.0.5     SparseM_1.84-2     MASS_7.3-65        lifecycle_1.0.5   
+## [17] compiler_4.5.2     pkgconfig_2.0.3    quantreg_6.1       systemfonts_1.3.2 
+## [21] lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1   utf8_1.2.6        
+## [25] splines_4.5.2      pillar_1.11.1      magrittr_2.0.4     Matrix_1.7-4      
+## [29] tools_4.5.2        survival_3.8-3
 </code></pre>
       </article>
       <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R13_regularization.html">← Ridge、LASSO、Elastic Net 與 post-LASSO</a><a rel="next" href="R15_double_selection_dml.html">雙重選擇、正交化與 DML →</a></nav>
