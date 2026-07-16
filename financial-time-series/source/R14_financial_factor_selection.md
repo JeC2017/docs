@@ -6,9 +6,9 @@ output:
     toc_depth: 3
 ---
 
-本附錄對應第 19 章。它使用 1967 年 1 月至 2021 年 11 月、659 個月乘 10 產業的真實凍結因子面板，以第 \(t\) 月的預測變數預測製造業第 \(t+1\) 月超額報酬。`ret`、Fama--French 與 Global-q 因子均為月小數報酬，例如 0.01 代表 1%；總體預測變數則沿用各自定義的比率、利差或對數尺度。重點是時間對齊、只依訓練資料進行前處理、展開視窗驗證、基準比較與選取穩定性。
+本附錄對應第 19 章。它使用 1967 年 1 月至 2021 年 11 月、659 個月乘 10 產業的真實凍結因子面板，以標示為第 \(t\) 月的事後凍結金融因子與標示為第 \(t-1\) 月的總體變數，預測製造業第 \(t+1\) 月超額報酬。`ret`、Fama--French 與 Global-q 因子均為月小數報酬，例如 0.01 代表 1%；總體預測變數則沿用各自定義的比率、利差或對數尺度。重點是保守的月份標籤對齊、只依訓練資料進行前處理、擴展視窗驗證、基準比較與選取穩定性。
 
-資料來源方面，原課程 `fffqmacro.R` 從 Kenneth French Data Library 取得 FF3 與十產業投資組合、從 Global-q 取得 q5 因子、從 Welch--Goyal 工作簿取得總體預測變數，並以 FRED `CPIAUCNS` 輔助建檔；`ret` 是十產業總報酬減去當月 FF 無風險利率。各供應者版本與再散布條款必須分別保存。尤其 Fama--French 建構法後來由 CRSP FIZ 改為 CIZ，現在即時重抓不保證等於本 2021 工作快照。以下只評估固定時間切分下的預測表現；因子被選入不識別因果效果或風險價格，也不構成投資建議。
+資料來源方面，原課程 `fffqmacro.R` 從 Kenneth French Data Library 取得 FF3 與十產業投資組合、從 Global-q 取得 q5 因子、從 Welch--Goyal 工作簿取得總體預測變數，並以 FRED `CPIAUCNS` 輔助建檔；`ret` 是十產業總報酬減去當月 FF 無風險利率。原課程快照沒有保留每一個月總體欄的首次發布日與當時版本，所以本附錄將全部 13 個總體欄一律再落後一個月。因子欄同樣沒有保存逐月發布／可重建時點、歷史形成權重與成分版本；使用 \(F_t\) 等於假設預測形成時第 \(t\) 月因子已實現且可取得。這些處理降低部分前視風險，卻不能還原歷史資料修訂或驗證完整的即時資訊集，因此本結果只是在指定可得性假設下、按月份標籤排序的擬樣本外評估，不是已驗證的即時可交易回測。各供應者版本與再散布條款仍必須分別保存。尤其 Fama--French 建構法後來由 CRSP FIZ 改為 CIZ，現在即時重抓不保證等於本 2021 工作快照。以下只評估固定時間切分下的預測表現；因子被選入不識別因果效果或風險價格，也不構成投資建議。
 
 ## 執行條件
 
@@ -117,7 +117,15 @@ one <- one[order(one$month), ]
 factor_names <- grep("^factor_", names(one), value = TRUE)
 macro_names <- grep("^macro_", names(one), value = TRUE)
 
-X_main <- as.matrix(one[, c(factor_names, macro_names)])
+# 金融因子使用標示為 t 月的事後凍結值；其歷史可得時點未保存。
+# 總體欄因首次發布日與 real-time vintage 未完整保留，一律再落後一個月。
+X_factor <- as.matrix(one[, factor_names, drop = FALSE])
+X_macro_lag1 <- rbind(
+  rep(NA_real_, length(macro_names)),
+  as.matrix(one[-nrow(one), macro_names, drop = FALSE])
+)
+colnames(X_macro_lag1) <- macro_names
+X_main <- cbind(X_factor, X_macro_lag1)
 storage.mode(X_main) <- "double"
 
 interaction_list <- vector("list", length(factor_names) * length(macro_names))
@@ -134,7 +142,8 @@ X_int <- do.call(cbind, interaction_list)
 colnames(X_int) <- interaction_names
 X <- cbind(X_main, X_int)
 
-# 第 t 月 predictors 預測 t+1 月報酬；最後一列沒有 target。
+# 在指定可得性假設下，以第 t 月因子與 t-1 月總體欄預測 t+1 月報酬；
+# 第一列沒有落後總體欄，最後一列沒有 target。
 y <- c(one$ret[-1], NA_real_)
 keep <- complete.cases(X, y)
 X <- X[keep, , drop = FALSE]
@@ -147,18 +156,22 @@ c(observations = nrow(X), dictionary_columns = ncol(X))
 
 ```
 ##       observations dictionary_columns 
-##                658                125
+##                657                125
 ```
 
 ``` r
-head(data.frame(predictor_month = dates, target_next = y), 3)
+head(data.frame(
+  factor_month = dates,
+  macro_information_month = one$month[match(dates, one$month) - 1L],
+  target_next = y
+), 3)
 ```
 
 ```
-##   predictor_month target_next
-## 1      1967-01-01      0.0085
-## 2      1967-02-01      0.0541
-## 3      1967-03-01      0.0342
+##   factor_month macro_information_month target_next
+## 1   1967-02-01              1967-01-01      0.0541
+## 2   1967-03-01              1967-02-01      0.0342
+## 3   1967-04-01              1967-03-01     -0.0405
 ```
 
 ## LASSO 座標下降與只依訓練資料進行的標準化
@@ -215,7 +228,7 @@ fit_predict_lasso <- function(X_train, y_train, X_new, lambda) {
 }
 ```
 
-## 保留測試集，再用展開視窗折調校
+## 保留測試集，再用擴展視窗折調校
 
 
 ``` r
@@ -277,7 +290,7 @@ data.frame(best_lambda = best_lambda, validation_mse = min(mean_loss))
 
 ```
 ##   best_lambda validation_mse
-## 1 0.003798291    0.002486418
+## 1 0.006898709    0.002519735
 ```
 
 ## 原課程套件捷徑：以 `glmnet` 跑相同的時序折
@@ -331,8 +344,8 @@ data.frame(
 
 ```
 ##              implementation best_lambda validation_MSE same_time_folds
-## 1 manual coordinate descent 0.003798291    0.002486418            TRUE
-## 2            glmnet package 0.003798291    0.002486430            TRUE
+## 1 manual coordinate descent 0.006898709    0.002519735            TRUE
+## 2            glmnet package 0.006898709    0.002519738            TRUE
 ```
 
 兩個版本使用相同目標函數族與資料切分，但停止準則、標準化細節及路徑計算的
@@ -354,8 +367,6 @@ legend(
   lwd = c(2, 1.5), bty = "n"
 )
 ```
-
-![製造業 expanding-window validation loss。](../R14_financial_factor_selection_files/figure-gfm/cv-plot-1.png)
 
 ## 最終測試評量
 
@@ -409,10 +420,10 @@ rbind(
 ```
 
 ```
-##                        MSE        MAE      OOS_R2
-## HistoricalMean 0.002112639 0.03413601  0.00000000
-## LASSO_manual   0.002136697 0.03393833 -0.01138775
-## LASSO_glmnet   0.002136831 0.03393859 -0.01145105
+##                        MSE        MAE        OOS_R2
+## HistoricalMean 0.002112716 0.03413743  0.000000e+00
+## LASSO_manual   0.002112716 0.03413743  0.000000e+00
+## LASSO_glmnet   0.002112716 0.03413743 -2.220446e-16
 ```
 
 
@@ -424,6 +435,12 @@ glmnet_selected <- setdiff(
   names(glmnet_coef)[abs(glmnet_coef) > 1e-8], "(Intercept)"
 )
 manual_selected <- final$names[abs(final$beta) > 1e-8]
+selected_union <- union(manual_selected, glmnet_selected)
+selected_overlap <- if (length(selected_union) == 0L) {
+  NA_real_
+} else {
+  length(intersect(manual_selected, glmnet_selected)) / length(selected_union)
+}
 
 data.frame(
   comparison = c(
@@ -434,26 +451,25 @@ data.frame(
   value = c(
     max(abs(final$pred - glmnet_prediction)),
     max(abs(final$pred - glmnet_prediction_at_manual_lambda)),
-    length(intersect(manual_selected, glmnet_selected)) /
-      max(1L, length(union(manual_selected, glmnet_selected)))
+    selected_overlap
   ),
   interpretation = c(
     "includes any difference in selected lambda",
     "isolates numerical implementation at a fixed lambda",
-    "Jaccard share of the two nonzero sets"
+    "Jaccard share; undefined when both nonzero sets are empty"
   )
 )
 ```
 
 ```
-##                           comparison       value
-## 1      chosen-lambda test prediction 4.77403e-05
-## 2 same-manual-lambda test prediction 4.77403e-05
-## 3          selected-variable overlap 1.00000e+00
-##                                        interpretation
-## 1          includes any difference in selected lambda
-## 2 isolates numerical implementation at a fixed lambda
-## 3               Jaccard share of the two nonzero sets
+##                           comparison        value
+## 1      chosen-lambda test prediction 8.673617e-19
+## 2 same-manual-lambda test prediction 8.673617e-19
+## 3          selected-variable overlap           NA
+##                                              interpretation
+## 1                includes any difference in selected lambda
+## 2       isolates numerical implementation at a fixed lambda
+## 3 Jaccard share; undefined when both nonzero sets are empty
 ```
 
 ``` r
@@ -466,12 +482,12 @@ data.frame(
 
 ```
 ##   implementation nonzero_predictors best_lambda
-## 1         manual                  7 0.003798291
-## 2         glmnet                  7 0.003798291
+## 1         manual                  0 0.006898709
+## 2         glmnet                  0 0.006898709
 ```
 
-歷史平均相對自己的 `OOS_R2` 分母與分子相同，故為 0。兩個 LASSO 版本的負
-`OOS_R2` 都必須原樣報告，不可因結果不理想而移動測試起點或重新選字典。
+歷史平均相對自己的 `OOS_R2` 分母與分子相同，故為 0。保守地將總體欄再落後一個月後，兩個 LASSO 版本在最終訓練樣本都沒有留下非零斜率，因而與截距專屬的歷史平均預測一致；`glmnet` 的
+\(-2.22\times10^{-16}\) `OOS_R2` 只是浮點數誤差，在報告精度下為 0。這個結果不可因不理想而移動測試起點或重新選字典。
 
 
 ``` r
@@ -485,8 +501,6 @@ legend("topleft", c("Actual", "LASSO (manual)", "LASSO (glmnet)",
        col = c("black", "#A34045", "#1D6D73", "#62717E"),
        lty = c(1, 1, 3, 2), lwd = c(1.8, 1.5, 1.3, 1), bty = "n")
 ```
-
-![固定 test period 的製造業下一期報酬預測。](../R14_financial_factor_selection_files/figure-gfm/prediction-plot-1.png)
 
 ## 非零係數與跨折選取頻率
 
@@ -502,14 +516,8 @@ head(selected_final, 20)
 ```
 
 ```
-##                   predictor   coefficient
-## 122   factor_q_eg:macro_ltr  0.0038608918
-## 104 factor_q_roe:macro_svar -0.0023348662
-## 95    factor_q_ia:macro_lty -0.0018041462
-## 91   factor_q_ia:macro_svar -0.0013755408
-## 19                macro_tms  0.0009067502
-## 97    factor_q_ia:macro_tms -0.0006899683
-## 28  factor_ff_rf:macro_ntis -0.0003856468
+## [1] predictor   coefficient
+## <0 rows> (or 0-length row.names)
 ```
 
 ``` r
@@ -527,29 +535,29 @@ head(data.frame(predictor = names(frequency), selection_frequency = frequency), 
 
 ```
 ##                                       predictor selection_frequency
-## factor_ff_rf:macro_ntis factor_ff_rf:macro_ntis                 1.0
-## factor_q_roe:macro_svar factor_q_roe:macro_svar                 1.0
-## factor_q_eg:macro_ltr     factor_q_eg:macro_ltr                 1.0
-## macro_dfy                             macro_dfy                 0.8
-## factor_q_ia:macro_lty     factor_q_ia:macro_lty                 0.8
-## macro_tbl                             macro_tbl                 0.6
-## macro_infl                           macro_infl                 0.6
-## factor_ff_rf:macro_ep     factor_ff_rf:macro_ep                 0.6
-## factor_q_ia:macro_tms     factor_q_ia:macro_tms                 0.6
-## factor_q_roe:macro_tms   factor_q_roe:macro_tms                 0.6
-## factor_q_eg:macro_infl   factor_q_eg:macro_infl                 0.6
-## macro_dp                               macro_dp                 0.4
-## macro_tms                             macro_tms                 0.4
-## factor_q_ia:macro_ep       factor_q_ia:macro_ep                 0.4
-## macro_ltr                             macro_ltr                 0.2
-## factor_ff_rf:macro_ltr   factor_ff_rf:macro_ltr                 0.2
-## factor_ff_rf:macro_tms   factor_ff_rf:macro_tms                 0.2
-## factor_ff_smb:macro_dfy factor_ff_smb:macro_dfy                 0.2
-## factor_q_me:macro_dfy     factor_q_me:macro_dfy                 0.2
-## factor_q_ia:macro_dy       factor_q_ia:macro_dy                 0.2
+## factor_ff_rf:macro_svar factor_ff_rf:macro_svar                 0.4
+## macro_dfy                             macro_dfy                 0.2
+## factor_ff_rf:macro_ntis factor_ff_rf:macro_ntis                 0.2
+## factor_q_ia:macro_dp       factor_q_ia:macro_dp                 0.2
+## factor_q_ia:macro_ep       factor_q_ia:macro_ep                 0.2
+## factor_q_roe:macro_infl factor_q_roe:macro_infl                 0.2
+## factor_ff_rf                       factor_ff_rf                 0.0
+## factor_ff_mkt_excess       factor_ff_mkt_excess                 0.0
+## factor_ff_smb                     factor_ff_smb                 0.0
+## factor_ff_hml                     factor_ff_hml                 0.0
+## factor_q_me                         factor_q_me                 0.0
+## factor_q_ia                         factor_q_ia                 0.0
+## factor_q_roe                       factor_q_roe                 0.0
+## factor_q_eg                         factor_q_eg                 0.0
+## macro_dp                               macro_dp                 0.0
+## macro_dy                               macro_dy                 0.0
+## macro_ep                               macro_ep                 0.0
+## macro_de                               macro_de                 0.0
+## macro_svar                           macro_svar                 0.0
+## macro_bm                               macro_bm                 0.0
 ```
 
-選取頻率是這組歷史折、字典與固定 `best_lambda` 下的描述，不是 \(p\) 值或「被定價機率」。高度相關的預測變數可能互相替代。
+選取頻率是這組歷史折、字典與固定 `best_lambda` 下的描述，不是 \(p\) 值或「被定價機率」。本次最高選取頻率只有 0.4，而且最終完整訓練樣本沒有任何非零斜率；這比「挑出一張因子名單」更支持簡單基準。高度相關的預測變數仍可能互相替代，所以不可把單一欄的低頻率反向解讀為經濟上完全無關。
 
 ## 累積損失差與結構穩定性
 
@@ -561,8 +569,6 @@ plot(dates[test], cumsum(loss_difference), type = "l", lwd = 2,
      ylab = "Cumulative loss difference")
 abline(h = 0, lty = 2, col = "#62717E")
 ```
-
-![LASSO 相對歷史平均的累積平方損失差；下降表示 LASSO 在該段累積較佳。](../R14_financial_factor_selection_files/figure-gfm/cumulative-loss-1.png)
 
 ## 延伸到十產業的安全規則
 

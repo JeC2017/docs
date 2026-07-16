@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="《財務時間序列分析》R 線上附錄：R03：分配、厚尾與經驗特徵">
-  <title>R03：分配、厚尾與經驗特徵｜財務時間序列分析</title>
+  <meta name="description" content="《財務時間序列分析》R 線上附錄：R03：分配、厚尾與實證特徵">
+  <title>R03：分配、厚尾與實證特徵｜財務時間序列分析</title>
   <link rel="stylesheet" href="assets/site.css">
   <script>
     window.MathJax = {
@@ -32,7 +32,7 @@
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
-<li><a href="R03_distributions_heavy_tails.html" aria-current="page" class="active">R03　分配、厚尾與經驗特徵</a></li>
+<li><a href="R03_distributions_heavy_tails.html" aria-current="page" class="active">R03　分配、厚尾與實證特徵</a></li>
 <li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
 <li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
 <li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
@@ -55,7 +55,7 @@
         詳見<a href="data-policy.html">資料與重現政策</a>。
       </div>
       <article>
-        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R03：分配、厚尾與經驗特徵</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R03_distributions_heavy_tails.Rmd">R Markdown 原始檔</a><a href="source/R03_distributions_heavy_tails.md">執行後 Markdown</a></div></header>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R03：分配、厚尾與實證特徵</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R03_distributions_heavy_tails.Rmd">R Markdown 原始檔</a><a href="source/R03_distributions_heavy_tails.md">執行後 Markdown</a></div></header>
         <p>本附錄對應第 3--4 章。先以固定種子比較常態與標準化 Student-$t$ 分配，再分析兩組真實日簡單報酬：1986--2008 年的 Microsoft（MSFT），以及由 89 檔股票組成的 2013--2022 年等權教學投資組合。MSFT 資料源自 Ruey S. Tsay 教科書網站的 <code>d-msft8608.txt</code>；股票面板源自原課程 S&amp;P 500 價格檔。固定版本與建置方式見 <code>data/DATA_SOURCES.md</code>。</p>
 <p>兩組報酬都以小數表示，0.01 代表 1%。等權序列不是官方 S&amp;P 500 指數，也沒有校正成分股生存者偏誤。以下分配與相依性結果是歷史描述，不能解讀成任何市場事件對報酬的因果效果。</p>
 <pre><code class="language-r">knitr::opts_chunk$set(

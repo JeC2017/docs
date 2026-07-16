@@ -14,13 +14,34 @@ output:
 ``` r
 knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
-  fig.width = 7, fig.height = 4.5
+  fig.width = 8, fig.height = 5,
+  dev = "ragg_png", dpi = 144,
+  dev.args = list(background = "white")
 )
 stopifnot(getRversion() >= "4.3.0")
 if (!requireNamespace("glmnet", quietly = TRUE)) {
   stop("本附錄需要 glmnet；請先在合法可重現環境中安裝。")
 }
 set.seed(1515)
+
+root_candidates <- c(".", "..")
+is_root <- vapply(root_candidates, function(x) {
+  file.exists(file.path(x, "main.tex"))
+}, logical(1))
+stopifnot(any(is_root))
+project_root <- root_candidates[which(is_root)[1]]
+project_path <- function(...) file.path(project_root, ...)
+
+stopifnot(
+  requireNamespace("ragg", quietly = TRUE),
+  requireNamespace("systemfonts", quietly = TRUE)
+)
+cwtex_file <- project_path("assets", "fonts", "cwTeXQKai-Medium.ttf")
+stopifnot(file.exists(cwtex_file))
+if (!"cwTeX Online" %in% systemfonts::registry_fonts()$family) {
+  systemfonts::register_font("cwTeX Online", cwtex_file)
+}
+plot_family <- "cwTeX Online"
 ```
 
 ## 1. 資料、樣本與識別界線
@@ -376,17 +397,22 @@ data.frame(
 
 
 ``` r
+old_par <- par(family = plot_family)
 plot(
   v_hat, u_hat,
   pch = 16, cex = 0.45, col = grDevices::adjustcolor("#173B57", 0.25),
-  xlab = "Out-of-fold str_s residual",
-  ylab = "Out-of-fold testscore residual",
-  main = "California schools: DML-style residual-on-residual"
+  xlab = "交叉配適後的師生比殘差",
+  ylab = "交叉配適後的測驗分數殘差",
+  main = "加州學校：DML 式殘差對殘差迴歸"
 )
 abline(a = 0, b = theta_dml, col = "#A34045", lwd = 2)
 ```
 
 ![交叉配適後的真實結果殘差與師生比殘差；直線只呈現 partialling 斜率。](../R15_double_selection_dml_files/figure-gfm/orthogonality-check-1.png)
+
+``` r
+par(old_par)
+```
 
 ## 6. 小型真值單元測試
 
@@ -464,35 +490,11 @@ sessionInfo()
 ## attached base packages:
 ## [1] stats     graphics  grDevices utils     datasets  methods   base     
 ## 
-## other attached packages:
-## [1] tibble_3.3.0 dplyr_1.2.1 
-## 
 ## loaded via a namespace (and not attached):
-##  [1] shape_1.4.6.1       gtable_0.3.6        xfun_0.57          
-##  [4] ggplot2_4.0.3       collapse_2.1.7      lattice_0.22-7     
-##  [7] quadprog_1.5-8      vctrs_0.7.2         tools_4.5.2        
-## [10] Rdpack_2.6.6        generics_0.1.4      curl_7.0.0         
-## [13] parallel_4.5.2      sandwich_3.1-1      xts_0.14.2         
-## [16] pkgconfig_2.0.3     gbutils_0.5.1       Matrix_1.7-4       
-## [19] tidyverse_2.0.0     RColorBrewer_1.1-3  S7_0.2.1           
-## [22] lifecycle_1.0.5     compiler_4.5.2      farver_2.1.2       
-## [25] MatrixModels_0.5-4  maxLik_1.5-2.2      textshaping_1.0.5  
-## [28] codetools_0.2-20    SparseM_1.84-2      quantreg_6.1       
-## [31] htmltools_0.5.9     glmnet_4.1-10       Formula_1.2-5      
-## [34] pillar_1.11.1       MASS_7.3-65         plm_2.6-7          
-## [37] iterators_1.0.14    foreach_1.5.2       nlme_3.1-168       
-## [40] fracdiff_1.5-4      pls_2.9-0           fBasics_4052.98    
-## [43] tidyselect_1.2.1    bdsmatrix_1.3-7     digest_0.6.39      
-## [46] labeling_0.4.3      splines_4.5.2       tseries_0.10-62    
-## [49] miscTools_0.6-30    fastmap_1.2.0       grid_4.5.2         
-## [52] colorspace_2.1-2    cli_3.6.5           magrittr_2.0.4     
-## [55] utf8_1.2.6          survival_3.8-3      withr_3.0.2        
-## [58] scales_1.4.0        forecast_9.0.2      TTR_0.24.4         
-## [61] rmarkdown_2.31      quantmod_0.4.29     otel_0.2.0         
-## [64] timeDate_4052.112   ragg_1.5.2          zoo_1.8-15         
-## [67] timeSeries_4052.112 fGarch_4052.93      urca_1.3-4         
-## [70] evaluate_1.0.5      knitr_1.51          rbibutils_2.4.1    
-## [73] lmtest_0.9-40       rlang_1.1.7         spatial_7.3-18     
-## [76] Rcpp_1.1.0          glue_1.8.0          R6_2.6.1           
-## [79] cvar_0.6            systemfonts_1.3.2
+##  [1] codetools_0.2-20  shape_1.4.6.1     xfun_0.57         Matrix_1.7-4     
+##  [5] lattice_0.22-7    splines_4.5.2     iterators_1.0.14  knitr_1.51       
+##  [9] lifecycle_1.0.5   cli_3.6.5         foreach_1.5.2     grid_4.5.2       
+## [13] textshaping_1.0.5 systemfonts_1.3.2 compiler_4.5.2    tools_4.5.2      
+## [17] ragg_1.5.2        evaluate_1.0.5    survival_3.8-3    Rcpp_1.1.0       
+## [21] otel_0.2.0        rlang_1.1.7       glmnet_4.1-10
 ```

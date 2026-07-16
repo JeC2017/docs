@@ -1,5 +1,5 @@
 ---
-title: "R03：分配、厚尾與經驗特徵"
+title: "R03：分配、厚尾與實證特徵"
 output:
   github_document:
     toc: true

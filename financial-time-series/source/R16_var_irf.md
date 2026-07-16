@@ -10,7 +10,7 @@ output:
 
 ## 執行條件
 
-- base R 與 `knitr`；不安裝套件、不連線下載。
+- 模型計算使用 base R；`knitr` 負責轉檔，`ragg` 與 `systemfonts` 負責以 cwTeX 字型產生圖檔；不連線下載。
 - 固定實證資料：`data/processed/japan_monthly_2007_2018.csv`。
 - 模擬固定種子；所有矩陣與 IRF 函數明列如下。
 
@@ -18,9 +18,30 @@ output:
 ``` r
 knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
-  fig.width = 7, fig.height = 4.6
+  fig.width = 8, fig.height = 5,
+  dev = "ragg_png", dpi = 144,
+  dev.args = list(background = "white")
 )
 set.seed(20260716)
+
+root_candidates <- c(".", "..")
+is_root <- vapply(root_candidates, function(x) {
+  file.exists(file.path(x, "main.tex"))
+}, logical(1))
+stopifnot(any(is_root))
+project_root <- root_candidates[which(is_root)[1]]
+project_path <- function(...) file.path(project_root, ...)
+
+stopifnot(
+  requireNamespace("ragg", quietly = TRUE),
+  requireNamespace("systemfonts", quietly = TRUE)
+)
+cwtex_file <- project_path("assets", "fonts", "cwTeXQKai-Medium.ttf")
+stopifnot(file.exists(cwtex_file))
+if (!"cwTeX Online" %in% systemfonts::registry_fonts()$family) {
+  systemfonts::register_font("cwTeX Online", cwtex_file)
+}
+plot_family <- "cwTeX Online"
 ```
 
 ## VAR 工具函數
@@ -516,32 +537,35 @@ irf_sensitivity[c(1, 2, 4, 7, 13), ]
 ```
 
 ``` r
-par(mfrow = c(2, 1), mar = c(4, 4, 2, 1))
+old_par <- par(
+  mfrow = c(2, 1), mar = c(4, 4.8, 2, 1),
+  family = plot_family
+)
 plot(irf_sensitivity$h, irf_sensitivity$yield_oil_first,
      type = "l", lwd = 2, col = "#173B57",
      ylim = range(irf_sensitivity[, c("yield_oil_first", "yield_oil_last")]),
-     xlab = "Horizon (months)", ylab = "Yield response (SD units)")
+     xlab = "期數（月）", ylab = "殖利率變動反應（樣本標準差）")
 lines(irf_sensitivity$h, irf_sensitivity$yield_oil_last,
       lwd = 2, lty = 2, col = "#A34045")
 abline(h = 0, lty = 3)
-legend("topright", c("Oil ordered first", "Oil ordered last"),
+legend("topright", c("油價排第一", "油價排最後"),
        col = c("#173B57", "#A34045"), lwd = 2, lty = c(1, 2), bty = "n")
 
 plot(irf_sensitivity$h, irf_sensitivity$stock_oil_first,
      type = "l", lwd = 2, col = "#173B57",
      ylim = range(irf_sensitivity[, c("stock_oil_first", "stock_oil_last")]),
-     xlab = "Horizon (months)", ylab = "Stock-return response (SD units)")
+     xlab = "期數（月）", ylab = "股價報酬反應（樣本標準差）")
 lines(irf_sensitivity$h, irf_sensitivity$stock_oil_last,
       lwd = 2, lty = 2, col = "#A34045")
 abline(h = 0, lty = 3)
-legend("topright", c("Oil ordered first", "Oil ordered last"),
+legend("topright", c("油價排第一", "油價排最後"),
        col = c("#173B57", "#A34045"), lwd = 2, lty = c(1, 2), bty = "n")
 ```
 
 ![plot of chunk ordering-sensitivity](../R16_var_irf_files/figure-gfm/ordering-sensitivity-1.png)
 
 ``` r
-par(mfrow = c(1, 1))
+par(old_par)
 ```
 
 兩組曲線只是不同零限制下的正交化創新項反應。油價可能同時反映全球需求、金融情勢與供給消息；沒有外部工具、敘事事件、制度限制或高頻識別時，這些結果不能稱為外生油價衝擊，更不能當作因果效果。排序明顯影響曲線時，正確結論是「結構解讀依賴未驗證限制」，不是挑選較符合故事的一條。
@@ -578,35 +602,11 @@ sessionInfo()
 ## attached base packages:
 ## [1] stats     graphics  grDevices utils     datasets  methods   base     
 ## 
-## other attached packages:
-## [1] tibble_3.3.0 dplyr_1.2.1 
-## 
 ## loaded via a namespace (and not attached):
-##  [1] shape_1.4.6.1       gtable_0.3.6        xfun_0.57          
-##  [4] ggplot2_4.0.3       collapse_2.1.7      lattice_0.22-7     
-##  [7] quadprog_1.5-8      vctrs_0.7.2         tools_4.5.2        
-## [10] Rdpack_2.6.6        generics_0.1.4      curl_7.0.0         
-## [13] parallel_4.5.2      sandwich_3.1-1      xts_0.14.2         
-## [16] pkgconfig_2.0.3     gbutils_0.5.1       Matrix_1.7-4       
-## [19] tidyverse_2.0.0     RColorBrewer_1.1-3  S7_0.2.1           
-## [22] lifecycle_1.0.5     compiler_4.5.2      farver_2.1.2       
-## [25] MatrixModels_0.5-4  maxLik_1.5-2.2      textshaping_1.0.5  
-## [28] codetools_0.2-20    SparseM_1.84-2      quantreg_6.1       
-## [31] htmltools_0.5.9     glmnet_4.1-10       Formula_1.2-5      
-## [34] pillar_1.11.1       MASS_7.3-65         plm_2.6-7          
-## [37] iterators_1.0.14    foreach_1.5.2       nlme_3.1-168       
-## [40] fracdiff_1.5-4      pls_2.9-0           fBasics_4052.98    
-## [43] tidyselect_1.2.1    bdsmatrix_1.3-7     digest_0.6.39      
-## [46] labeling_0.4.3      splines_4.5.2       tseries_0.10-62    
-## [49] miscTools_0.6-30    fastmap_1.2.0       grid_4.5.2         
-## [52] colorspace_2.1-2    cli_3.6.5           magrittr_2.0.4     
-## [55] utf8_1.2.6          survival_3.8-3      withr_3.0.2        
-## [58] scales_1.4.0        forecast_9.0.2      TTR_0.24.4         
-## [61] rmarkdown_2.31      quantmod_0.4.29     otel_0.2.0         
-## [64] timeDate_4052.112   ragg_1.5.2          zoo_1.8-15         
-## [67] timeSeries_4052.112 fGarch_4052.93      urca_1.3-4         
-## [70] evaluate_1.0.5      knitr_1.51          rbibutils_2.4.1    
-## [73] lmtest_0.9-40       rlang_1.1.7         spatial_7.3-18     
-## [76] Rcpp_1.1.0          glue_1.8.0          R6_2.6.1           
-## [79] cvar_0.6            systemfonts_1.3.2
+##  [1] codetools_0.2-20  shape_1.4.6.1     xfun_0.57         Matrix_1.7-4     
+##  [5] lattice_0.22-7    splines_4.5.2     iterators_1.0.14  knitr_1.51       
+##  [9] lifecycle_1.0.5   cli_3.6.5         foreach_1.5.2     grid_4.5.2       
+## [13] textshaping_1.0.5 systemfonts_1.3.2 compiler_4.5.2    tools_4.5.2      
+## [17] ragg_1.5.2        evaluate_1.0.5    survival_3.8-3    Rcpp_1.1.0       
+## [21] otel_0.2.0        rlang_1.1.7       glmnet_4.1-10
 ```

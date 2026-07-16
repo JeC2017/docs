@@ -32,7 +32,7 @@
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
-<li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與經驗特徵</a></li>
+<li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與實證特徵</a></li>
 <li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
 <li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
 <li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
@@ -59,7 +59,7 @@
         <p>本附錄對應第 17--18 章。目標是以 2007 年 10 月至 2018 年 10 月、共 133 個月的真實日本總體金融凍結快照，預測下一期日本股市報酬，並比較 OLS、Ridge、LASSO、Elastic Net 與 post-LASSO。資料來自原課程的 <code>data_t.csv</code> 與 <code>yield_10.csv</code>；原變數說明記載股價、匯率、工業生產、利率、美股、失業、CPI、M3、WTI、人口結構、外資、貿易與十年期殖利率的單位及季調狀態，但沒有保存原供應者、URL、下載日或 vintage。因此本附錄沿用來源欄位尺度，不把它改稱為可從公開來源完整重建的資料。這是固定時間切分下的預測比較，不識別任何預測變數的因果效果。</p>
 <h2 id="_1">執行環境與資料<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
 <ul>
-<li>R 4.1 以上；除 <code>knitr</code> 負責轉檔外，只使用 base R。</li>
+<li>R 4.1 以上；模型計算只使用 base R，<code>knitr</code> 負責轉檔，<code>ragg</code> 與 <code>systemfonts</code> 負責以 cwTeX 字型產生圖檔。</li>
 <li>資料：<code>data/processed/japan_monthly_2007_2018.csv</code>。</li>
 <li>建置紀錄與 MD5：<code>data/processed/manifest.csv</code>。</li>
 <li>可從教科書專案根目錄或 <code>online_appendix/</code> knit；資料位置由相對路徑搜尋函數判定。</li>
@@ -69,10 +69,31 @@
   echo = TRUE,
   message = FALSE,
   warning = FALSE,
-  fig.width = 7,
-  fig.height = 4.5
+  fig.width = 8,
+  fig.height = 5,
+  dev = &quot;ragg_png&quot;, dpi = 144,
+  dev.args = list(background = &quot;white&quot;)
 )
 set.seed(20260716)
+
+root_candidates &lt;- c(&quot;.&quot;, &quot;..&quot;)
+is_root &lt;- vapply(root_candidates, function(x) {
+  file.exists(file.path(x, &quot;main.tex&quot;))
+}, logical(1))
+stopifnot(any(is_root))
+project_root &lt;- root_candidates[which(is_root)[1]]
+project_path &lt;- function(...) file.path(project_root, ...)
+
+stopifnot(
+  requireNamespace(&quot;ragg&quot;, quietly = TRUE),
+  requireNamespace(&quot;systemfonts&quot;, quietly = TRUE)
+)
+cwtex_file &lt;- project_path(&quot;assets&quot;, &quot;fonts&quot;, &quot;cwTeXQKai-Medium.ttf&quot;)
+stopifnot(file.exists(cwtex_file))
+if (!&quot;cwTeX Online&quot; %in% systemfonts::registry_fonts()$family) {
+  systemfonts::register_font(&quot;cwTeX Online&quot;, cwtex_file)
+}
+plot_family &lt;- &quot;cwTeX Online&quot;
 </code></pre>
 <pre><code class="language-r">locate_project_file &lt;- function(relative_path) {
   candidates &lt;- c(
@@ -227,7 +248,7 @@ predict_scaled &lt;- function(X_train, y_train, X_new,
 }
 </code></pre>
 <h2 id="_4">依時間排序的驗證折<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
-<p>最末 25% 留作最終測試集。前 75% 內使用展開視窗；沒有任何月份被隨機洗牌。</p>
+<p>最末 25% 留作最終測試集。前 75% 內使用擴展視窗；沒有任何月份被隨機洗牌。</p>
 <pre><code class="language-r">n &lt;- length(y)
 test_start &lt;- floor(0.75 * n) + 1L
 idx_tv &lt;- seq_len(test_start - 1L)
@@ -326,14 +347,17 @@ data.frame(
 <code>zero-slope threshold</code>：這個上端點是依所有驗證折中最大的零係數門檻建立，
 再增大 \(\lambda\) 也只會維持全部斜率為零。因此這兩個邊界解表示驗證資料
 偏好只有截距的預測，不是網格仍未向上延伸的未解問題。</p>
-<pre><code class="language-r">plot(log(lambda_ridge), loss_ridge, type = &quot;l&quot;, lwd = 2,
-     xlab = &quot;log(lambda)&quot;, ylab = &quot;Validation MSE&quot;, col = &quot;#173B57&quot;)
+<pre><code class="language-r">old_par &lt;- par(family = plot_family)
+plot(log(lambda_ridge), loss_ridge, type = &quot;l&quot;, lwd = 2,
+     xlab = expression(log(lambda)), ylab = &quot;驗證期 MSE&quot;, col = &quot;#173B57&quot;)
 lines(log(lambda_lasso), loss_lasso, lwd = 2, col = &quot;#A34045&quot;)
 lines(log(lambda_elastic), loss_enet, lwd = 2, col = &quot;#1D6D73&quot;)
 legend(&quot;topleft&quot;, c(&quot;Ridge&quot;, &quot;LASSO&quot;, &quot;Elastic Net&quot;),
        col = c(&quot;#173B57&quot;, &quot;#A34045&quot;, &quot;#1D6D73&quot;), lwd = 2, bty = &quot;n&quot;)
 </code></pre>
-<p><img alt="Expanding-window validation MSE。" src="./R13_regularization_files/figure-gfm/validation-plot-1.png"></p>
+<p><img alt="擴展視窗驗證期的均方預測誤差。" src="./R13_regularization_files/figure-gfm/validation-plot-1.png"></p>
+<pre><code class="language-r">par(old_par)
+</code></pre>
 <h2 id="_5">在完全未見的測試期間比較模型<a class="headerlink" href="#_5" title="Permanent link">#</a></h2>
 <pre><code class="language-r">X_tv &lt;- X_raw[idx_tv, , drop = FALSE]
 y_tv &lt;- y[idx_tv]
@@ -464,20 +488,23 @@ head(coef_table, 12)
 </code></pre>
 <pre><code>## LASSO nonzero predictors: 0
 </code></pre>
-<pre><code class="language-r">matplot(
+<pre><code class="language-r">old_par &lt;- par(family = plot_family)
+matplot(
   pred$date,
   pred[, c(&quot;actual&quot;, &quot;Ridge&quot;, &quot;LASSO&quot;, &quot;ElasticNet&quot;)],
   type = &quot;l&quot;, lty = c(1, 2, 3, 4), lwd = c(2, 1.5, 1.5, 1.5),
   col = c(&quot;black&quot;, &quot;#173B57&quot;, &quot;#A34045&quot;, &quot;#1D6D73&quot;),
-  xlab = &quot;Predictor month&quot;, ylab = &quot;Next-month return&quot;
+  xlab = &quot;預測變數月份&quot;, ylab = &quot;次月報酬率&quot;
 )
 legend(
-  &quot;topleft&quot;, c(&quot;Actual&quot;, &quot;Ridge&quot;, &quot;LASSO&quot;, &quot;Elastic Net&quot;),
+  &quot;topleft&quot;, c(&quot;實現值&quot;, &quot;Ridge&quot;, &quot;LASSO&quot;, &quot;Elastic Net&quot;),
   lty = c(1, 2, 3, 4), lwd = c(2, 1.5, 1.5, 1.5),
   col = c(&quot;black&quot;, &quot;#173B57&quot;, &quot;#A34045&quot;, &quot;#1D6D73&quot;), bty = &quot;n&quot;
 )
 </code></pre>
 <p><img alt="最終 test period：實現值與正則化預測。" src="./R13_regularization_files/figure-gfm/test-plot-1.png"></p>
+<pre><code class="language-r">par(old_par)
+</code></pre>
 <h2 id="_6">解讀限制<a class="headerlink" href="#_6" title="Permanent link">#</a></h2>
 <ol>
 <li>這是小樣本預測示範，不是日本股市風險溢酬的結構估計。</li>
@@ -504,37 +531,10 @@ legend(
 ## attached base packages:
 ## [1] stats     graphics  grDevices utils     datasets  methods   base     
 ## 
-## other attached packages:
-## [1] tibble_3.3.0 dplyr_1.2.1 
-## 
 ## loaded via a namespace (and not attached):
-##  [1] shape_1.4.6.1       gtable_0.3.6        xfun_0.57          
-##  [4] ggplot2_4.0.3       collapse_2.1.7      lattice_0.22-7     
-##  [7] quadprog_1.5-8      vctrs_0.7.2         tools_4.5.2        
-## [10] Rdpack_2.6.6        generics_0.1.4      curl_7.0.0         
-## [13] parallel_4.5.2      sandwich_3.1-1      xts_0.14.2         
-## [16] pkgconfig_2.0.3     gbutils_0.5.1       Matrix_1.7-4       
-## [19] tidyverse_2.0.0     RColorBrewer_1.1-3  S7_0.2.1           
-## [22] lifecycle_1.0.5     compiler_4.5.2      farver_2.1.2       
-## [25] MatrixModels_0.5-4  maxLik_1.5-2.2      textshaping_1.0.5  
-## [28] codetools_0.2-20    SparseM_1.84-2      quantreg_6.1       
-## [31] htmltools_0.5.9     glmnet_4.1-10       Formula_1.2-5      
-## [34] pillar_1.11.1       MASS_7.3-65         plm_2.6-7          
-## [37] iterators_1.0.14    foreach_1.5.2       nlme_3.1-168       
-## [40] fracdiff_1.5-4      pls_2.9-0           fBasics_4052.98    
-## [43] tidyselect_1.2.1    bdsmatrix_1.3-7     digest_0.6.39      
-## [46] labeling_0.4.3      splines_4.5.2       tseries_0.10-62    
-## [49] miscTools_0.6-30    fastmap_1.2.0       grid_4.5.2         
-## [52] colorspace_2.1-2    cli_3.6.5           magrittr_2.0.4     
-## [55] utf8_1.2.6          survival_3.8-3      withr_3.0.2        
-## [58] scales_1.4.0        forecast_9.0.2      TTR_0.24.4         
-## [61] rmarkdown_2.31      quantmod_0.4.29     otel_0.2.0         
-## [64] timeDate_4052.112   ragg_1.5.2          zoo_1.8-15         
-## [67] timeSeries_4052.112 fGarch_4052.93      urca_1.3-4         
-## [70] evaluate_1.0.5      knitr_1.51          rbibutils_2.4.1    
-## [73] lmtest_0.9-40       rlang_1.1.7         spatial_7.3-18     
-## [76] Rcpp_1.1.0          glue_1.8.0          R6_2.6.1           
-## [79] cvar_0.6            systemfonts_1.3.2
+##  [1] compiler_4.5.2    cli_3.6.5         ragg_1.5.2        tools_4.5.2      
+##  [5] otel_0.2.0        knitr_1.51        xfun_0.57         textshaping_1.0.5
+##  [9] lifecycle_1.0.5   systemfonts_1.3.2 rlang_1.1.7       evaluate_1.0.5
 </code></pre>
       </article>
       <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R12_taiwan_dcc_icapm_case_study.html">← 臺灣 DCC／ICAPM 案例</a><a rel="next" href="R14_financial_factor_selection.html">金融因子選擇 →</a></nav>

@@ -10,16 +10,37 @@ output:
 
 ## 執行條件
 
-- base R 與 `knitr`；不安裝套件、不連線下載。
+- 模型計算使用 base R；`knitr` 負責轉檔，`ragg` 與 `systemfonts` 負責以 cwTeX 字型產生圖檔；不連線下載。
 - 固定實證資料：`data/processed/japan_monthly_2007_2018.csv`。
 - 模擬固定種子；所有矩陣與 IRF 函數明列如下。
 
 ```{r setup}
 knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
-  fig.width = 7, fig.height = 4.6
+  fig.width = 8, fig.height = 5,
+  dev = "ragg_png", dpi = 144,
+  dev.args = list(background = "white")
 )
 set.seed(20260716)
+
+root_candidates <- c(".", "..")
+is_root <- vapply(root_candidates, function(x) {
+  file.exists(file.path(x, "main.tex"))
+}, logical(1))
+stopifnot(any(is_root))
+project_root <- root_candidates[which(is_root)[1]]
+project_path <- function(...) file.path(project_root, ...)
+
+stopifnot(
+  requireNamespace("ragg", quietly = TRUE),
+  requireNamespace("systemfonts", quietly = TRUE)
+)
+cwtex_file <- project_path("assets", "fonts", "cwTeXQKai-Medium.ttf")
+stopifnot(file.exists(cwtex_file))
+if (!"cwTeX Online" %in% systemfonts::registry_fonts()$family) {
+  systemfonts::register_font("cwTeX Online", cwtex_file)
+}
+plot_family <- "cwTeX Online"
 ```
 
 ## VAR 工具函數
@@ -334,7 +355,7 @@ par(mfrow = c(1, 1))
 
 以下只改變 Cholesky 遞迴排序，VAR 的縮減式資訊集與所選 lag 不變。為了公平比較，每條曲線都除以油價變動本身的當期反應，使衝擊正規化為「標準化油價變動當期增加 1 單位」。
 
-```{r ordering-sensitivity}
+```{r ordering-sensitivity, fig.width=8.333, fig.height=5, dpi=180}
 ordered_irf <- function(Y, order_names, p, horizon = 12L) {
   fit <- fit_var(Y[, order_names, drop = FALSE], p)
   list(order = order_names, irf = recursive_irf(fit, horizon))
@@ -364,27 +385,30 @@ irf_sensitivity <- data.frame(
 )
 irf_sensitivity[c(1, 2, 4, 7, 13), ]
 
-par(mfrow = c(2, 1), mar = c(4, 4, 2, 1))
+old_par <- par(
+  mfrow = c(2, 1), mar = c(4, 4.8, 2, 1),
+  family = plot_family
+)
 plot(irf_sensitivity$h, irf_sensitivity$yield_oil_first,
      type = "l", lwd = 2, col = "#173B57",
      ylim = range(irf_sensitivity[, c("yield_oil_first", "yield_oil_last")]),
-     xlab = "Horizon (months)", ylab = "Yield response (SD units)")
+     xlab = "期數（月）", ylab = "殖利率變動反應（樣本標準差）")
 lines(irf_sensitivity$h, irf_sensitivity$yield_oil_last,
       lwd = 2, lty = 2, col = "#A34045")
 abline(h = 0, lty = 3)
-legend("topright", c("Oil ordered first", "Oil ordered last"),
+legend("topright", c("油價排第一", "油價排最後"),
        col = c("#173B57", "#A34045"), lwd = 2, lty = c(1, 2), bty = "n")
 
 plot(irf_sensitivity$h, irf_sensitivity$stock_oil_first,
      type = "l", lwd = 2, col = "#173B57",
      ylim = range(irf_sensitivity[, c("stock_oil_first", "stock_oil_last")]),
-     xlab = "Horizon (months)", ylab = "Stock-return response (SD units)")
+     xlab = "期數（月）", ylab = "股價報酬反應（樣本標準差）")
 lines(irf_sensitivity$h, irf_sensitivity$stock_oil_last,
       lwd = 2, lty = 2, col = "#A34045")
 abline(h = 0, lty = 3)
-legend("topright", c("Oil ordered first", "Oil ordered last"),
+legend("topright", c("油價排第一", "油價排最後"),
        col = c("#173B57", "#A34045"), lwd = 2, lty = c(1, 2), bty = "n")
-par(mfrow = c(1, 1))
+par(old_par)
 ```
 
 兩組曲線只是不同零限制下的正交化創新項反應。油價可能同時反映全球需求、金融情勢與供給消息；沒有外部工具、敘事事件、制度限制或高頻識別時，這些結果不能稱為外生油價衝擊，更不能當作因果效果。排序明顯影響曲線時，正確結論是「結構解讀依賴未驗證限制」，不是挑選較符合故事的一條。

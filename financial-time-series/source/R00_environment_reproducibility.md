@@ -334,12 +334,12 @@ package_record
 ## 3         ragg      TRUE   1.5.2
 ## 4  systemfonts      TRUE   1.3.2
 ## 5    tidyverse      TRUE   2.0.0
-## 6      fBasics      TRUE 4052.98
-## 7     forecast      TRUE   9.0.2
-## 8      tseries      TRUE 0.10.62
-## 9         urca      TRUE   1.3.4
-## 10      fGarch      TRUE 4052.93
-## 11         plm      TRUE   2.6.7
+## 6      fBasics     FALSE    <NA>
+## 7     forecast     FALSE    <NA>
+## 8      tseries     FALSE    <NA>
+## 9         urca     FALSE    <NA>
+## 10      fGarch     FALSE    <NA>
+## 11         plm     FALSE    <NA>
 ## 12      glmnet      TRUE  4.1.10
 ## 13         pls      TRUE   2.9.0
 ```
@@ -358,7 +358,7 @@ environment_record
 
 ```
 ## $generated_at
-## [1] "2026-07-16 11:24:02 UTC"
+## [1] "2026-07-16 13:47:51 UTC"
 ## 
 ## $R
 ## [1] "R version 4.5.2 (2025-10-31)"

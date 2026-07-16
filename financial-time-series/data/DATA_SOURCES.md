@@ -4,15 +4,15 @@
 
 ## 公開範圍
 
-作者已明確同意公開本課程用於教學與研究重現的資料檔，因此 GitHub Pages 版會提供十個實證 CSV、資料字典、來源說明、R Markdown、執行後結果與圖表。這項同意不包含學生名冊、學生作業、評分檔、合約、行政資料或任何個人資料；這些檔案不會進入專案或網站。
+作者已明確同意公開本課程用於教學與研究重跑、且在作者可處分範圍內的整理資料檔，因此 GitHub Pages 版會提供十個實證 CSV、資料字典、來源說明、R Markdown、執行後結果與圖表。這項同意不會取代第三方原始供應者的授權條款，也不包含學生名冊、學生作業、評分檔、合約、行政資料或任何個人資料；這些檔案不會進入專案或網站。
 
-部分資料源自 FRED、Kenneth French Data Library、global-q、Welch--Goyal、Ruey S. Tsay 教科書網站或課程整理檔。本站保留來源識別與轉換紀錄；下載者仍須遵守各原始供應者的條款。公開固定版本的目的，是讓讀者核對本書結果，不是替第三方授權作一般性保證。
+部分資料源自 FRED、Kenneth French Data Library、global-q、Welch--Goyal、Ruey S. Tsay 教科書網站或課程整理檔。本站保留來源識別與轉換紀錄；下載者仍須遵守各原始供應者的條款。公開固定版本的目的，是讓讀者核對本書結果，不是替第三方授權作一般性保證；來源或再散布依據仍有缺口的檔案，應在正式對外推廣前逐檔再查核，必要時改為只提供建檔程式與衍生統計結果。
 
 ## 原始來源鏈（查核日：2026-07-16）
 
 - **FRED 匯率：**Board of Governors of the Federal Reserve System (US), H.10 Foreign Exchange Rates；[DEXJPUS](https://fred.stlouisfed.org/series/DEXJPUS) 與 [DEXTAUS](https://fred.stlouisfed.org/series/DEXTAUS)。官方頁定義兩者分別為一美元兌日圓與新臺幣數、日資料、未季調，並標示「Public Domain: Citation Requested」。本書保存 2020-01-01 至 2022-12-16 的 FRED CSV 回傳值。
 - **Tsay 教科書資料：**Ruey S. Tsay, *Analysis of Financial Time Series*, 3rd ed. 的[官方 companion page](https://faculty.chicagobooth.edu/ruey-s-tsay/research/analysis-of-financial-time-series-3rd-edition)及原課程程式內的三個固定檔 URL：`d-msft8608.txt`、`m-5clog-9008.txt`、`m-barra-9003.txt`。
-- **Fama--French 與十產業：**Kenneth R. French [Data Library](https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html) 的 Fama/French 3 Factors 與 10 Industry Portfolios。現行網站說明 2025 年起 CRSP 來源格式由 FIZ 改為 CIZ，因此本書鎖定原課程截至 2021-11 的工作快照，不把今日重抓值當成同一版本。
+- **Fama--French 與十產業：**Kenneth R. French [Data Library](https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html) 的 Fama/French 3 Factors 與 10 Industry Portfolios。現行網站說明 2025 年起 CRSP 來源格式由 FIZ 改為 CIZ，因此本書鎖定原課程截至 2021-11 的工作快照，不把今日重抓值當成同一版本。快照未保存各月因子何時發布或可由當時成分與權重重建。
 - **global-q：**原課程 `fffqmacro.R` 指向 2021 版 q5 monthly CSV；因子定義與百分比單位可由 [global-q technical document](https://global-q.org/uploads/1/2/2/6/122679606/factorstd_2025feb.pdf) 查核。本書使用 ME、IA、ROE、EG 四欄，並於合併時由百分點除以 100。
 - **Welch--Goyal 總體預測變數：**原課程依 [Tidy Finance 建檔流程](https://github.com/ramnathv/tidy-finance-website/blob/main/accessing-and-managing-financial-data.qmd) 讀取 Amit Goyal 公開工作簿的 Monthly sheet，再自行建立 `dp`、`dy`、`ep`、`de`、`tms` 與 `dfy` 等欄。本書鎖定原課程 2021 工作版，不宣稱是 2026 最新 vintage。
 - **California schools：**原課程依 Stock and Watson, *Introduction to Econometrics*, 4th ed., Chapter 14 的學校／學區資料與變數表整理；原作者的[第四版資源頁](https://www.princeton.edu/~mwatson/Stock-Watson_4E/Stock-Watson-Resources-4e.html)提供課程資料下載。本書只用於 PCA 與高維控制示範，不把機構名稱或郵遞區號當成個人資料。
@@ -49,3 +49,4 @@ Rscript code/build_empirical_data.R
 - 臺灣 ICAPM 檔只有第二階段共變數與報酬；正文與 R appendix 均須明寫「部分重現」。
 - FRED 交叉匯率以報價單位命名，避免把 `TWD per JPY` 誤寫成反方向。
 - 資產報酬、總體變數與學校資料的迴歸，除非另有可信識別設計，不作因果宣稱。
+- R14 的因子欄只能驗證月份標籤與事後凍結值，不能驗證歷史發布／可重建時點；其結果是指定可得性假設下的擬樣本外評估，不是已驗證的即時可交易回測。

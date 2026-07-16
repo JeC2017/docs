@@ -10,16 +10,37 @@ output:
 
 ## 執行條件
 
-- base R 與 `knitr`；不安裝套件、不下載資料。
+- 模型計算使用 base R；`knitr` 負責轉檔，`ragg` 與 `systemfonts` 負責以 cwTeX 字型產生圖檔；不下載資料。
 - 模擬使用固定種子；實證使用 `data/processed/japan_monthly_2007_2018.csv`。
 - 模擬衝擊的識別由資料生成過程明示；日本資料只有落後資訊條件下的油價變動創新，沒有外生結構衝擊的識別。
 
 ```{r setup}
 knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
-  fig.width = 7, fig.height = 4.6
+  fig.width = 8, fig.height = 5,
+  dev = "ragg_png", dpi = 144,
+  dev.args = list(background = "white")
 )
 set.seed(20260716)
+
+root_candidates <- c(".", "..")
+is_root <- vapply(root_candidates, function(x) {
+  file.exists(file.path(x, "main.tex"))
+}, logical(1))
+stopifnot(any(is_root))
+project_root <- root_candidates[which(is_root)[1]]
+project_path <- function(...) file.path(project_root, ...)
+
+stopifnot(
+  requireNamespace("ragg", quietly = TRUE),
+  requireNamespace("systemfonts", quietly = TRUE)
+)
+cwtex_file <- project_path("assets", "fonts", "cwTeXQKai-Medium.ttf")
+stopifnot(file.exists(cwtex_file))
+if (!"cwTeX Online" %in% systemfonts::registry_fonts()$family) {
+  systemfonts::register_font("cwTeX Online", cwtex_file)
+}
+plot_family <- "cwTeX Online"
 ```
 
 ## 模擬結構 VAR 與可觀察衝擊
@@ -376,16 +397,19 @@ c(p_lags = p_emp, innovation_R2 = innovation_r2,
 ```
 
 ```{r empirical-lp-plot, fig.height=6.2, fig.cap="日本月資料：一個樣本標準差油價變動創新的縮減式 LP 條件反應；陰影為逐點 HAC 95% 區間。"}
-par(mfrow = c(2, 1), mar = c(4, 4.5, 2, 1))
+old_par <- par(
+  mfrow = c(2, 1), mar = c(4, 5.2, 2, 1),
+  family = plot_family
+)
 for (object in list(lp_stock, lp_yield)) {
   response_label <- if (object$response[1] == "StockReturn") {
-    "Stock return response (SD)"
+    "股價報酬反應（樣本標準差）"
   } else {
-    "Yield-change response (SD)"
+    "殖利率變動反應（樣本標準差）"
   }
   plot(object$h, object$theta, type = "n",
        ylim = range(object$lower, object$upper),
-       xlab = "Horizon (months)",
+       xlab = "期數（月）",
        ylab = response_label)
   polygon(c(object$h, rev(object$h)),
           c(object$lower, rev(object$upper)),
@@ -394,7 +418,7 @@ for (object in list(lp_stock, lp_yield)) {
   points(object$h, object$theta, pch = 16, cex = 0.6, col = "#173B57")
   abline(h = 0, lty = 3, col = "grey40")
 }
-par(mfrow = c(1, 1))
+par(old_par)
 ```
 
 基準規格中，未經多重比較校正而逐點未涵蓋零的只有股價報酬的第 0 與第 2 個月。當期係數為 `r sprintf("%.3f", lp_stock$theta[lp_stock$h == 0])`，逐點 95% 區間為 [`r sprintf("%.3f", lp_stock$lower[lp_stock$h == 0])`, `r sprintf("%.3f", lp_stock$upper[lp_stock$h == 0])`]；第 2 個月係數為 `r sprintf("%.3f", lp_stock$theta[lp_stock$h == 2])`，區間下界僅為 `r sprintf("%.3f", lp_stock$lower[lp_stock$h == 2])`。這些仍只是條件關聯，不是油價的因果效果，也不是整條反應曲線的聯合顯著性。

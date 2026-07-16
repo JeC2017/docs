@@ -32,7 +32,7 @@
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
-<li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與經驗特徵</a></li>
+<li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與實證特徵</a></li>
 <li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
 <li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
 <li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
@@ -59,15 +59,36 @@
         <p>本附錄對應選讀第 23 章。前半以<strong>已知且可觀察的外生衝擊</strong>建立教學模擬，比較 VAR 與局部投影（LP）IRF，並示範 HAC 標準誤。接著使用固定日本月資料，估計油價變動創新與股價報酬、十年期殖利率變動的縮減式條件反應。最後提供 DML/AIPW 評分函數與狀態相依性的小型核對例；不宣稱重現專案中三篇 2024--2026 年論文。</p>
 <h2 id="_1">執行條件<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
 <ul>
-<li>base R 與 <code>knitr</code>；不安裝套件、不下載資料。</li>
+<li>模型計算使用 base R；<code>knitr</code> 負責轉檔，<code>ragg</code> 與 <code>systemfonts</code> 負責以 cwTeX 字型產生圖檔；不下載資料。</li>
 <li>模擬使用固定種子；實證使用 <code>data/processed/japan_monthly_2007_2018.csv</code>。</li>
 <li>模擬衝擊的識別由資料生成過程明示；日本資料只有落後資訊條件下的油價變動創新，沒有外生結構衝擊的識別。</li>
 </ul>
 <pre><code class="language-r">knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
-  fig.width = 7, fig.height = 4.6
+  fig.width = 8, fig.height = 5,
+  dev = &quot;ragg_png&quot;, dpi = 144,
+  dev.args = list(background = &quot;white&quot;)
 )
 set.seed(20260716)
+
+root_candidates &lt;- c(&quot;.&quot;, &quot;..&quot;)
+is_root &lt;- vapply(root_candidates, function(x) {
+  file.exists(file.path(x, &quot;main.tex&quot;))
+}, logical(1))
+stopifnot(any(is_root))
+project_root &lt;- root_candidates[which(is_root)[1]]
+project_path &lt;- function(...) file.path(project_root, ...)
+
+stopifnot(
+  requireNamespace(&quot;ragg&quot;, quietly = TRUE),
+  requireNamespace(&quot;systemfonts&quot;, quietly = TRUE)
+)
+cwtex_file &lt;- project_path(&quot;assets&quot;, &quot;fonts&quot;, &quot;cwTeXQKai-Medium.ttf&quot;)
+stopifnot(file.exists(cwtex_file))
+if (!&quot;cwTeX Online&quot; %in% systemfonts::registry_fonts()$family) {
+  systemfonts::register_font(&quot;cwTeX Online&quot;, cwtex_file)
+}
+plot_family &lt;- &quot;cwTeX Online&quot;
 </code></pre>
 <h2 id="var">模擬結構 VAR 與可觀察衝擊<a class="headerlink" href="#var" title="Permanent link">#</a></h2>
 <pre><code class="language-r">simulate_svarma &lt;- function(Tn, A, B, C = matrix(0, nrow(B), ncol(B)),
@@ -475,16 +496,19 @@ c(p_lags = p_emp, innovation_R2 = innovation_r2,
 <pre><code>##                 p_lags          innovation_R2 innovation_residual_sd 
 ##              2.0000000              0.1408325              0.9295058
 </code></pre>
-<pre><code class="language-r">par(mfrow = c(2, 1), mar = c(4, 4.5, 2, 1))
+<pre><code class="language-r">old_par &lt;- par(
+  mfrow = c(2, 1), mar = c(4, 5.2, 2, 1),
+  family = plot_family
+)
 for (object in list(lp_stock, lp_yield)) {
   response_label &lt;- if (object$response[1] == &quot;StockReturn&quot;) {
-    &quot;Stock return response (SD)&quot;
+    &quot;股價報酬反應（樣本標準差）&quot;
   } else {
-    &quot;Yield-change response (SD)&quot;
+    &quot;殖利率變動反應（樣本標準差）&quot;
   }
   plot(object$h, object$theta, type = &quot;n&quot;,
        ylim = range(object$lower, object$upper),
-       xlab = &quot;Horizon (months)&quot;,
+       xlab = &quot;期數（月）&quot;,
        ylab = response_label)
   polygon(c(object$h, rev(object$h)),
           c(object$lower, rev(object$upper)),
@@ -495,7 +519,7 @@ for (object in list(lp_stock, lp_yield)) {
 }
 </code></pre>
 <p><img alt="日本月資料：一個樣本標準差油價變動創新的縮減式 LP 條件反應；陰影為逐點 HAC 95% 區間。" src="./R18_local_projection_irf_files/figure-gfm/empirical-lp-plot-1.png"></p>
-<pre><code class="language-r">par(mfrow = c(1, 1))
+<pre><code class="language-r">par(old_par)
 </code></pre>
 <p>基準規格中，未經多重比較校正而逐點未涵蓋零的只有股價報酬的第 0 與第 2 個月。當期係數為 0.296，逐點 95% 區間為 [0.090, 0.501]；第 2 個月係數為 0.193，區間下界僅為 0.003。這些仍只是條件關聯，不是油價的因果效果，也不是整條反應曲線的聯合顯著性。</p>
 <h2 id="lag-hac">實證 lag 與 HAC 頻寬敏感度<a class="headerlink" href="#lag-hac" title="Permanent link">#</a></h2>
@@ -659,37 +683,13 @@ legend(&quot;topleft&quot;, c(&quot;Truth&quot;, &quot;Linear interaction&quot;,
 ## attached base packages:
 ## [1] stats     graphics  grDevices utils     datasets  methods   base     
 ## 
-## other attached packages:
-## [1] tibble_3.3.0 dplyr_1.2.1 
-## 
 ## loaded via a namespace (and not attached):
-##  [1] shape_1.4.6.1       gtable_0.3.6        xfun_0.57          
-##  [4] ggplot2_4.0.3       collapse_2.1.7      lattice_0.22-7     
-##  [7] quadprog_1.5-8      vctrs_0.7.2         tools_4.5.2        
-## [10] Rdpack_2.6.6        generics_0.1.4      curl_7.0.0         
-## [13] parallel_4.5.2      sandwich_3.1-1      xts_0.14.2         
-## [16] pkgconfig_2.0.3     gbutils_0.5.1       Matrix_1.7-4       
-## [19] tidyverse_2.0.0     RColorBrewer_1.1-3  S7_0.2.1           
-## [22] lifecycle_1.0.5     compiler_4.5.2      farver_2.1.2       
-## [25] MatrixModels_0.5-4  maxLik_1.5-2.2      textshaping_1.0.5  
-## [28] codetools_0.2-20    SparseM_1.84-2      quantreg_6.1       
-## [31] htmltools_0.5.9     glmnet_4.1-10       Formula_1.2-5      
-## [34] pillar_1.11.1       MASS_7.3-65         plm_2.6-7          
-## [37] iterators_1.0.14    foreach_1.5.2       nlme_3.1-168       
-## [40] fracdiff_1.5-4      pls_2.9-0           fBasics_4052.98    
-## [43] tidyselect_1.2.1    bdsmatrix_1.3-7     digest_0.6.39      
-## [46] labeling_0.4.3      splines_4.5.2       tseries_0.10-62    
-## [49] miscTools_0.6-30    fastmap_1.2.0       grid_4.5.2         
-## [52] colorspace_2.1-2    cli_3.6.5           magrittr_2.0.4     
-## [55] utf8_1.2.6          survival_3.8-3      withr_3.0.2        
-## [58] scales_1.4.0        forecast_9.0.2      TTR_0.24.4         
-## [61] rmarkdown_2.31      quantmod_0.4.29     otel_0.2.0         
-## [64] timeDate_4052.112   ragg_1.5.2          zoo_1.8-15         
-## [67] timeSeries_4052.112 fGarch_4052.93      urca_1.3-4         
-## [70] evaluate_1.0.5      knitr_1.51          rbibutils_2.4.1    
-## [73] lmtest_0.9-40       rlang_1.1.7         spatial_7.3-18     
-## [76] Rcpp_1.1.0          glue_1.8.0          R6_2.6.1           
-## [79] cvar_0.6            systemfonts_1.3.2
+##  [1] codetools_0.2-20  shape_1.4.6.1     xfun_0.57         Matrix_1.7-4     
+##  [5] lattice_0.22-7    splines_4.5.2     iterators_1.0.14  knitr_1.51       
+##  [9] lifecycle_1.0.5   cli_3.6.5         foreach_1.5.2     grid_4.5.2       
+## [13] textshaping_1.0.5 systemfonts_1.3.2 compiler_4.5.2    tools_4.5.2      
+## [17] ragg_1.5.2        evaluate_1.0.5    survival_3.8-3    Rcpp_1.1.0       
+## [21] otel_0.2.0        rlang_1.1.7       glmnet_4.1-10
 </code></pre>
       </article>
       <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R17_cointegration_vecm.html">← 共整合、Johansen 檢定與 VECM</a><span></span></nav>

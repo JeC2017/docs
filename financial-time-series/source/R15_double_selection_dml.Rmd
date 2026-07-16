@@ -13,13 +13,34 @@ output:
 ```{r setup}
 knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
-  fig.width = 7, fig.height = 4.5
+  fig.width = 8, fig.height = 5,
+  dev = "ragg_png", dpi = 144,
+  dev.args = list(background = "white")
 )
 stopifnot(getRversion() >= "4.3.0")
 if (!requireNamespace("glmnet", quietly = TRUE)) {
   stop("本附錄需要 glmnet；請先在合法可重現環境中安裝。")
 }
 set.seed(1515)
+
+root_candidates <- c(".", "..")
+is_root <- vapply(root_candidates, function(x) {
+  file.exists(file.path(x, "main.tex"))
+}, logical(1))
+stopifnot(any(is_root))
+project_root <- root_candidates[which(is_root)[1]]
+project_path <- function(...) file.path(project_root, ...)
+
+stopifnot(
+  requireNamespace("ragg", quietly = TRUE),
+  requireNamespace("systemfonts", quietly = TRUE)
+)
+cwtex_file <- project_path("assets", "fonts", "cwTeXQKai-Medium.ttf")
+stopifnot(file.exists(cwtex_file))
+if (!"cwTeX Online" %in% systemfonts::registry_fonts()$family) {
+  systemfonts::register_font("cwTeX Online", cwtex_file)
+}
+plot_family <- "cwTeX Online"
 ```
 
 ## 1. 資料、樣本與識別界線
@@ -306,14 +327,16 @@ data.frame(
 `var(v_hat)` 是剩餘暴露變異的診斷：若它接近零，partialling 係數會缺乏可識別的剩餘比較。本例的正值只表示演算法仍有橫斷面變異，並不驗證條件重疊或因果可比性。
 
 ```{r orthogonality-check, fig.cap="交叉配適後的真實結果殘差與師生比殘差；直線只呈現 partialling 斜率。"}
+old_par <- par(family = plot_family)
 plot(
   v_hat, u_hat,
   pch = 16, cex = 0.45, col = grDevices::adjustcolor("#173B57", 0.25),
-  xlab = "Out-of-fold str_s residual",
-  ylab = "Out-of-fold testscore residual",
-  main = "California schools: DML-style residual-on-residual"
+  xlab = "交叉配適後的師生比殘差",
+  ylab = "交叉配適後的測驗分數殘差",
+  main = "加州學校：DML 式殘差對殘差迴歸"
 )
 abline(a = 0, b = theta_dml, col = "#A34045", lwd = 2)
+par(old_par)
 ```
 
 ## 6. 小型真值單元測試

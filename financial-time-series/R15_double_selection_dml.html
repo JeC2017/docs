@@ -32,7 +32,7 @@
 <li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
 <li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
 <li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
-<li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與經驗特徵</a></li>
+<li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與實證特徵</a></li>
 <li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA：理論與真實報酬</a></li>
 <li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
 <li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
@@ -60,13 +60,34 @@
 <p>所有主要結果都是真實資料的<strong>條件關聯</strong>，不是因果效果。要把係數解讀為班級規模或師生比的因果效果，至少還要有可信的處置時點、無未觀察混淆、適當且非處置後的控制集合、重疊、穩定單位處置值，以及對學區內相依的有效推論；本資料與本附錄沒有驗證這些條件。</p>
 <pre><code class="language-r">knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
-  fig.width = 7, fig.height = 4.5
+  fig.width = 8, fig.height = 5,
+  dev = &quot;ragg_png&quot;, dpi = 144,
+  dev.args = list(background = &quot;white&quot;)
 )
 stopifnot(getRversion() &gt;= &quot;4.3.0&quot;)
 if (!requireNamespace(&quot;glmnet&quot;, quietly = TRUE)) {
   stop(&quot;本附錄需要 glmnet；請先在合法可重現環境中安裝。&quot;)
 }
 set.seed(1515)
+
+root_candidates &lt;- c(&quot;.&quot;, &quot;..&quot;)
+is_root &lt;- vapply(root_candidates, function(x) {
+  file.exists(file.path(x, &quot;main.tex&quot;))
+}, logical(1))
+stopifnot(any(is_root))
+project_root &lt;- root_candidates[which(is_root)[1]]
+project_path &lt;- function(...) file.path(project_root, ...)
+
+stopifnot(
+  requireNamespace(&quot;ragg&quot;, quietly = TRUE),
+  requireNamespace(&quot;systemfonts&quot;, quietly = TRUE)
+)
+cwtex_file &lt;- project_path(&quot;assets&quot;, &quot;fonts&quot;, &quot;cwTeXQKai-Medium.ttf&quot;)
+stopifnot(file.exists(cwtex_file))
+if (!&quot;cwTeX Online&quot; %in% systemfonts::registry_fonts()$family) {
+  systemfonts::register_font(&quot;cwTeX Online&quot;, cwtex_file)
+}
+plot_family &lt;- &quot;cwTeX Online&quot;
 </code></pre>
 <h2 id="1">1. 資料、樣本與識別界線<a class="headerlink" href="#1" title="Permanent link">#</a></h2>
 <p>資料來源是原課程的 Stock and Watson《Introduction to Econometrics》第四版 California school test-score 資料與變數表。每列是一所學校，<code>schoolcode</code> 在檔內唯一；樣本有 3,932 所學校。凍結檔沒有可供本附錄核實的觀察年度欄位，因此不自行推定年份，也不把橫斷面差異寫成時間變化。</p>
@@ -366,16 +387,19 @@ data.frame(
 ## 1                   8.273584        0.5848237        0.3514682
 </code></pre>
 <p><code>var(v_hat)</code> 是剩餘暴露變異的診斷：若它接近零，partialling 係數會缺乏可識別的剩餘比較。本例的正值只表示演算法仍有橫斷面變異，並不驗證條件重疊或因果可比性。</p>
-<pre><code class="language-r">plot(
+<pre><code class="language-r">old_par &lt;- par(family = plot_family)
+plot(
   v_hat, u_hat,
   pch = 16, cex = 0.45, col = grDevices::adjustcolor(&quot;#173B57&quot;, 0.25),
-  xlab = &quot;Out-of-fold str_s residual&quot;,
-  ylab = &quot;Out-of-fold testscore residual&quot;,
-  main = &quot;California schools: DML-style residual-on-residual&quot;
+  xlab = &quot;交叉配適後的師生比殘差&quot;,
+  ylab = &quot;交叉配適後的測驗分數殘差&quot;,
+  main = &quot;加州學校：DML 式殘差對殘差迴歸&quot;
 )
 abline(a = 0, b = theta_dml, col = &quot;#A34045&quot;, lwd = 2)
 </code></pre>
 <p><img alt="交叉配適後的真實結果殘差與師生比殘差；直線只呈現 partialling 斜率。" src="./R15_double_selection_dml_files/figure-gfm/orthogonality-check-1.png"></p>
+<pre><code class="language-r">par(old_par)
+</code></pre>
 <h2 id="6">6. 小型真值單元測試<a class="headerlink" href="#6" title="Permanent link">#</a></h2>
 <p>下列合成資料只核對 Frisch--Waugh partialling 公式；不進入加州學校主結果。</p>
 <pre><code class="language-r">set.seed(1516)
@@ -437,37 +461,13 @@ hist(
 ## attached base packages:
 ## [1] stats     graphics  grDevices utils     datasets  methods   base     
 ## 
-## other attached packages:
-## [1] tibble_3.3.0 dplyr_1.2.1 
-## 
 ## loaded via a namespace (and not attached):
-##  [1] shape_1.4.6.1       gtable_0.3.6        xfun_0.57          
-##  [4] ggplot2_4.0.3       collapse_2.1.7      lattice_0.22-7     
-##  [7] quadprog_1.5-8      vctrs_0.7.2         tools_4.5.2        
-## [10] Rdpack_2.6.6        generics_0.1.4      curl_7.0.0         
-## [13] parallel_4.5.2      sandwich_3.1-1      xts_0.14.2         
-## [16] pkgconfig_2.0.3     gbutils_0.5.1       Matrix_1.7-4       
-## [19] tidyverse_2.0.0     RColorBrewer_1.1-3  S7_0.2.1           
-## [22] lifecycle_1.0.5     compiler_4.5.2      farver_2.1.2       
-## [25] MatrixModels_0.5-4  maxLik_1.5-2.2      textshaping_1.0.5  
-## [28] codetools_0.2-20    SparseM_1.84-2      quantreg_6.1       
-## [31] htmltools_0.5.9     glmnet_4.1-10       Formula_1.2-5      
-## [34] pillar_1.11.1       MASS_7.3-65         plm_2.6-7          
-## [37] iterators_1.0.14    foreach_1.5.2       nlme_3.1-168       
-## [40] fracdiff_1.5-4      pls_2.9-0           fBasics_4052.98    
-## [43] tidyselect_1.2.1    bdsmatrix_1.3-7     digest_0.6.39      
-## [46] labeling_0.4.3      splines_4.5.2       tseries_0.10-62    
-## [49] miscTools_0.6-30    fastmap_1.2.0       grid_4.5.2         
-## [52] colorspace_2.1-2    cli_3.6.5           magrittr_2.0.4     
-## [55] utf8_1.2.6          survival_3.8-3      withr_3.0.2        
-## [58] scales_1.4.0        forecast_9.0.2      TTR_0.24.4         
-## [61] rmarkdown_2.31      quantmod_0.4.29     otel_0.2.0         
-## [64] timeDate_4052.112   ragg_1.5.2          zoo_1.8-15         
-## [67] timeSeries_4052.112 fGarch_4052.93      urca_1.3-4         
-## [70] evaluate_1.0.5      knitr_1.51          rbibutils_2.4.1    
-## [73] lmtest_0.9-40       rlang_1.1.7         spatial_7.3-18     
-## [76] Rcpp_1.1.0          glue_1.8.0          R6_2.6.1           
-## [79] cvar_0.6            systemfonts_1.3.2
+##  [1] codetools_0.2-20  shape_1.4.6.1     xfun_0.57         Matrix_1.7-4     
+##  [5] lattice_0.22-7    splines_4.5.2     iterators_1.0.14  knitr_1.51       
+##  [9] lifecycle_1.0.5   cli_3.6.5         foreach_1.5.2     grid_4.5.2       
+## [13] textshaping_1.0.5 systemfonts_1.3.2 compiler_4.5.2    tools_4.5.2      
+## [17] ragg_1.5.2        evaluate_1.0.5    survival_3.8-3    Rcpp_1.1.0       
+## [21] otel_0.2.0        rlang_1.1.7       glmnet_4.1-10
 </code></pre>
       </article>
       <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R14_financial_factor_selection.html">← 金融因子選擇</a><a rel="next" href="R16_var_irf.html">VAR、識別與衝擊反應函數 →</a></nav>
