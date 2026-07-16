@@ -319,7 +319,7 @@ data.frame(
 ## 17 16 4.244003e-02 4.264808e-02 4.244836e-02
 ```
 
-HAC 頻寬是推論設定的一部分。重疊累積應變數至少要正視 \(h-1\) 階機械相依；本例應變數是未來水準，仍可能因動態控制變數與預測誤差而相關。
+HAC 頻寬是推論設定的一部分。若累積應變數寫成 \(y_{t+h}-y_{t-1}\)，相鄰觀察的重疊窗會使機械相依延伸至落後第 \(h\) 階；若寫成 \(y_{t+h}-y_t\)，才延伸至第 \(h-1\) 階。本例的應變數是未來水準 \(y_{t+h}\)，不是這兩種累積量，但仍可能因動態控制變數與預測誤差而有序列相關。
 
 ## 日本月資料：縮減式 LP 的資料界線
 
@@ -734,17 +734,7 @@ sessionInfo()
 ## attached base packages:
 ## [1] stats     graphics  grDevices utils     datasets  methods   base     
 ## 
-## other attached packages:
-## [1] tibble_3.3.0 dplyr_1.2.1 
-## 
 ## loaded via a namespace (and not attached):
-##  [1] vctrs_0.7.2        cli_3.6.5          knitr_1.51         rlang_1.1.7       
-##  [5] xfun_0.57          otel_0.2.0         MatrixModels_0.5-4 generics_0.1.4    
-##  [9] textshaping_1.0.5  glue_1.8.0         ragg_1.5.2         glmnet_4.1-10     
-## [13] grid_4.5.2         evaluate_1.0.5     SparseM_1.84-2     MASS_7.3-65       
-## [17] foreach_1.5.2      lifecycle_1.0.5    compiler_4.5.2     codetools_0.2-20  
-## [21] Rcpp_1.1.0         pkgconfig_2.0.3    quantreg_6.1       systemfonts_1.3.2 
-## [25] lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1   utf8_1.2.6        
-## [29] shape_1.4.6.1      splines_4.5.2      pillar_1.11.1      magrittr_2.0.4    
-## [33] Matrix_1.7-4       tools_4.5.2        iterators_1.0.14   survival_3.8-3
+## [1] compiler_4.5.2 cli_3.6.5      tools_4.5.2    otel_0.2.0     knitr_1.51    
+## [6] xfun_0.57      rlang_1.1.7    evaluate_1.0.5
 ```

@@ -316,7 +316,7 @@ data.frame(
 ## 16 15 3.976508e-02 4.144410e-02 4.049851e-02
 ## 17 16 4.244003e-02 4.264808e-02 4.244836e-02
 </code></pre>
-<p>HAC 頻寬是推論設定的一部分。重疊累積應變數至少要正視 \(h-1\) 階機械相依；本例應變數是未來水準，仍可能因動態控制變數與預測誤差而相關。</p>
+<p>HAC 頻寬是推論設定的一部分。若累積應變數寫成 \(y_{t+h}-y_{t-1}\)，相鄰觀察的重疊窗會使機械相依延伸至落後第 \(h\) 階；若寫成 \(y_{t+h}-y_t\)，才延伸至第 \(h-1\) 階。本例的應變數是未來水準 \(y_{t+h}\)，不是這兩種累積量，但仍可能因動態控制變數與預測誤差而有序列相關。</p>
 <h2 id="lp">日本月資料：縮減式 LP 的資料界線<a class="headerlink" href="#lp" title="Permanent link">#</a></h2>
 <p>凍結檔由原課程的 <code>data_t.csv</code> 與 <code>yield_10.csv</code> 依月份鍵結後整理。原始說明把 <code>opi</code> 定義為 WTI 現貨價，<code>opi_change</code> 是相對前月的百分比變動；<code>yield_10_change</code> 是十年期殖利率相對前月的百分比變動，殖利率接近零時會出現極端比率；<code>return_j</code> 是資料內預先計算的日本股價報酬，但原始說明沒有保留它的精確公式與明確單位。資料夾也沒有完整記錄所有供應者。因此，本節只分析固定課程快照，不把數值與其他資料庫直接拼接。</p>
 <p>來源檔有 133 個月（2007 年 10 月至 2018 年 10 月）。三個變動欄位的第一個月皆缺值；先按日期排序，再對三欄共同刪除不完整列，得到 132 個月（2007 年 11 月至 2018 年 10 月）。為避免未記錄的原始尺度主導迴歸，三欄都以這 132 月的平均數與標準差標準化。因此實證反應的單位是「應變數的樣本標準差」，油價創新正規化為油價月變動的 1 個樣本標準差。</p>
@@ -659,19 +659,9 @@ legend(&quot;topleft&quot;, c(&quot;Truth&quot;, &quot;Linear interaction&quot;,
 ## attached base packages:
 ## [1] stats     graphics  grDevices utils     datasets  methods   base     
 ## 
-## other attached packages:
-## [1] tibble_3.3.0 dplyr_1.2.1 
-## 
 ## loaded via a namespace (and not attached):
-##  [1] vctrs_0.7.2        cli_3.6.5          knitr_1.51         rlang_1.1.7       
-##  [5] xfun_0.57          otel_0.2.0         MatrixModels_0.5-4 generics_0.1.4    
-##  [9] textshaping_1.0.5  glue_1.8.0         ragg_1.5.2         glmnet_4.1-10     
-## [13] grid_4.5.2         evaluate_1.0.5     SparseM_1.84-2     MASS_7.3-65       
-## [17] foreach_1.5.2      lifecycle_1.0.5    compiler_4.5.2     codetools_0.2-20  
-## [21] Rcpp_1.1.0         pkgconfig_2.0.3    quantreg_6.1       systemfonts_1.3.2 
-## [25] lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1   utf8_1.2.6        
-## [29] shape_1.4.6.1      splines_4.5.2      pillar_1.11.1      magrittr_2.0.4    
-## [33] Matrix_1.7-4       tools_4.5.2        iterators_1.0.14   survival_3.8-3
+## [1] compiler_4.5.2 cli_3.6.5      tools_4.5.2    otel_0.2.0     knitr_1.51    
+## [6] xfun_0.57      rlang_1.1.7    evaluate_1.0.5
 </code></pre>
       </article>
       <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R17_cointegration_vecm.html">← 共整合、Johansen 檢定與 VECM</a><span></span></nav>
