@@ -10,6 +10,13 @@ output:
 
 原課程檔含價格、公司、權重與市場識別欄位，但原始供應商、成分股形成日與資料 vintage 尚未保存完整。公開 repo 隨附作者授權的 `sp500_returns_balanced_2013_2022.csv` 凍結衍生面板，因此本 Rmd 可直接、自含重跑；若要從原始市場資料重新建置，仍須補齊上游來源與形成日，再依「先按股票分組、組內排序、組內落後」的資料契約重建。這項來源缺口限制的是從原始資料重建與經濟外推，不限制公開 processed 快照的執行。
 
+原課程的對應程式是
+`slides/L09_Statistical_factor_models/W2L4_hands-on_R_factors/sp500/pca_sp500.R`：
+第 38--48 行直接用 `stats::prcomp()` 做 PCA，第 50--66 行再用
+`stats::factanal(..., factors = 3, rotation = "varimax", lower = 0.01)` 做三因子分析。
+因此本附錄保留「先看清資料契約與時間切分，再呼叫成熟套件函數」的兩層教法；
+這就是本頁的「原課程套件捷徑」，學生不必把 PCA 或最大概似因子分析的最佳化器從頭寫起。
+
 
 ``` r
 knitr::opts_chunk$set(
@@ -241,6 +248,9 @@ split_table
 
 個股波動尺度不同，因此本例先用**估計期**平均數與標準差把各欄標準化，再做 PCA。驗證期與測試期不得各自重新標準化。
 
+下列 `prcomp()` 就是原課程的套件捷徑；本附錄增加的限制只有「函數只能看到
+估計期」。其後用 `eigen()` 核對所有特徵值，而不是另造一個 PCA 估計器。
+
 
 ``` r
 pca_train <- prcomp(
@@ -299,8 +309,8 @@ plot(
   explained$component[1:30],
   explained$eigenvalue[1:30],
   type = "b", pch = 19, col = "#173B57",
-  xlab = "主成分", ylab = "特徵值",
-  main = "估計期相關矩陣的前 30 個特徵值"
+  xlab = "Principal component", ylab = "Eigenvalue",
+  main = "First 30 Eigenvalues of the Training-Sample Correlation Matrix"
 )
 abline(h = 1, lty = 2, col = "#A34045")
 ```
@@ -375,6 +385,119 @@ data.frame(
 ##   correlation absolute_correlation
 ## 1   0.9945361            0.9945361
 ```
+
+### 4.2 原課程的 `factanal()` 三因子捷徑
+
+原課程也提供一個更短的統計因子模型選項。以下完全沿用原程式的
+`factanal()`、三因子、varimax 與 `lower = 0.01` 設定，但只把估計期送入函數。
+它和 PCA 的目標不同：PCA 排序總變異的正交方向；最大概似因子分析則以
+「共同因子加個別變異」近似相關矩陣。因此應比較共同性、個別變異與重建相關
+矩陣的誤差，不要求兩者負荷量逐格相同。
+
+
+``` r
+fa_train <- stats::factanal(
+  R_all[train_id, , drop = FALSE],
+  factors = 3,
+  method = "mle",
+  rotation = "varimax",
+  lower = 0.01
+)
+fa_loadings <- unclass(fa_train$loadings)
+fa_model_correlation <- tcrossprod(fa_loadings)
+diag(fa_model_correlation) <-
+  diag(fa_model_correlation) + fa_train$uniquenesses
+fa_empirical_correlation <- cor(R_all[train_id, , drop = FALSE])
+
+fa_top_loadings <- do.call(rbind, lapply(seq_len(ncol(fa_loadings)), function(j) {
+  keep <- order(abs(fa_loadings[, j]), decreasing = TRUE)[1:10]
+  data.frame(
+    factor = paste0("Factor", j),
+    symbol = rownames(fa_loadings)[keep],
+    loading = fa_loadings[keep, j],
+    absolute_loading = abs(fa_loadings[keep, j]),
+    row.names = NULL
+  )
+}))
+
+data.frame(
+  estimator = c("stats::prcomp", "stats::factanal"),
+  fitted_on = "training period only",
+  main_output = c(
+    "ordered principal-component directions and scores",
+    "rotated common-factor loadings and uniquenesses"
+  )
+)
+```
+
+```
+##         estimator            fitted_on
+## 1   stats::prcomp training period only
+## 2 stats::factanal training period only
+##                                         main_output
+## 1 ordered principal-component directions and scores
+## 2   rotated common-factor loadings and uniquenesses
+```
+
+``` r
+data.frame(
+  factors = fa_train$factors,
+  correlation_reconstruction_RMSE = sqrt(mean(
+    (fa_empirical_correlation - fa_model_correlation)^2
+  )),
+  minimum_uniqueness = min(fa_train$uniquenesses),
+  maximum_uniqueness = max(fa_train$uniquenesses),
+  likelihood_ratio_p_value = unname(fa_train$PVAL)
+)
+```
+
+```
+##   factors correlation_reconstruction_RMSE minimum_uniqueness maximum_uniqueness
+## 1       3                      0.04543616               0.01          0.9718212
+##   likelihood_ratio_p_value
+## 1                        0
+```
+
+``` r
+fa_top_loadings
+```
+
+```
+##     factor symbol   loading absolute_loading
+## 1  Factor1    JPM 0.7479158        0.7479158
+## 2  Factor1    BAC 0.7216907        0.7216907
+## 3  Factor1    WFC 0.6879486        0.6879486
+## 4  Factor1    HON 0.6858981        0.6858981
+## 5  Factor1    ETN 0.6799282        0.6799282
+## 6  Factor1    EMR 0.6732746        0.6732746
+## 7  Factor1     MA 0.6407425        0.6407425
+## 8  Factor1    TXN 0.6332394        0.6332394
+## 9  Factor1    MMC 0.6243780        0.6243780
+## 10 Factor1    ADI 0.6226653        0.6226653
+## 11 Factor2    DUK 0.8362718        0.8362718
+## 12 Factor2    NEE 0.8118155        0.8118155
+## 13 Factor2      D 0.7995546        0.7995546
+## 14 Factor2    SRE 0.7042550        0.7042550
+## 15 Factor2    PEP 0.6505500        0.6505500
+## 16 Factor2     KO 0.6056677        0.6056677
+## 17 Factor2     PG 0.5631149        0.5631149
+## 18 Factor2    AMT 0.5242250        0.5242250
+## 19 Factor2     VZ 0.4919582        0.4919582
+## 20 Factor2     PM 0.4914175        0.4914175
+## 21 Factor3  GOOGL 0.9234105        0.9234105
+## 22 Factor3   GOOG 0.9232837        0.9232837
+## 23 Factor3   AMZN 0.4782895        0.4782895
+## 24 Factor3   META 0.3947261        0.3947261
+## 25 Factor3   MSFT 0.3930120        0.3930120
+## 26 Factor3     MA 0.3371884        0.3371884
+## 27 Factor3   ADBE 0.3357633        0.3357633
+## 28 Factor3   BKNG 0.3241127        0.3241127
+## 29 Factor3      V 0.3140103        0.3140103
+## 30 Factor3    CRM 0.3040167        0.3040167
+```
+
+旋轉後的因子可交換次序或整欄反號；前十大負荷量是描述性標籤線索，不是產業
+分類真值，也不能把統計共同因子自動命名為可交易風險因子。
 
 ## 5. 事先鎖定維度規則
 
@@ -508,8 +631,8 @@ test_scores <- Z_test %*% pca_development$rotation[, 1:2, drop = FALSE]
 matplot(
   dates[test_id], test_scores,
   type = "l", lty = 1, col = c("#173B57", "#A34045"),
-  xlab = "日期", ylab = "主成分分數",
-  main = "以發展期負荷量計算的測試期分數"
+  xlab = "Date", ylab = "Principal component score",
+  main = "Test-Sample Scores Using Development-Sample Loadings"
 )
 legend(
   "topright", legend = c("PC1", "PC2"),
@@ -558,10 +681,30 @@ sessionInfo()
 ## [1] tibble_3.3.0 dplyr_1.2.1 
 ## 
 ## loaded via a namespace (and not attached):
-##  [1] utf8_1.2.6        R6_2.6.1          tidyselect_1.2.1  xfun_0.57        
-##  [5] magrittr_2.0.4    glue_1.8.0        knitr_1.51        pkgconfig_2.0.3  
-##  [9] generics_0.1.4    lifecycle_1.0.5   cli_3.6.5         vctrs_0.7.2      
-## [13] textshaping_1.0.5 systemfonts_1.3.2 compiler_4.5.2    tools_4.5.2      
-## [17] ragg_1.5.2        evaluate_1.0.5    pillar_1.11.1     otel_0.2.0       
-## [21] rlang_1.1.7
+##  [1] shape_1.4.6.1       gtable_0.3.6        xfun_0.57          
+##  [4] ggplot2_4.0.3       collapse_2.1.7      lattice_0.22-7     
+##  [7] quadprog_1.5-8      vctrs_0.7.2         tools_4.5.2        
+## [10] Rdpack_2.6.6        generics_0.1.4      curl_7.0.0         
+## [13] parallel_4.5.2      sandwich_3.1-1      xts_0.14.2         
+## [16] pkgconfig_2.0.3     gbutils_0.5.1       Matrix_1.7-4       
+## [19] tidyverse_2.0.0     RColorBrewer_1.1-3  S7_0.2.1           
+## [22] lifecycle_1.0.5     compiler_4.5.2      farver_2.1.2       
+## [25] maxLik_1.5-2.2      textshaping_1.0.5   codetools_0.2-20   
+## [28] htmltools_0.5.9     glmnet_4.1-10       Formula_1.2-5      
+## [31] pillar_1.11.1       MASS_7.3-65         plm_2.6-7          
+## [34] iterators_1.0.14    foreach_1.5.2       nlme_3.1-168       
+## [37] fracdiff_1.5-4      pls_2.9-0           fBasics_4052.98    
+## [40] tidyselect_1.2.1    bdsmatrix_1.3-7     digest_0.6.39      
+## [43] labeling_0.4.3      splines_4.5.2       tseries_0.10-62    
+## [46] miscTools_0.6-30    fastmap_1.2.0       grid_4.5.2         
+## [49] colorspace_2.1-2    cli_3.6.5           magrittr_2.0.4     
+## [52] utf8_1.2.6          survival_3.8-3      withr_3.0.2        
+## [55] scales_1.4.0        forecast_9.0.2      TTR_0.24.4         
+## [58] rmarkdown_2.31      quantmod_0.4.29     otel_0.2.0         
+## [61] timeDate_4052.112   ragg_1.5.2          zoo_1.8-15         
+## [64] timeSeries_4052.112 fGarch_4052.93      urca_1.3-4         
+## [67] evaluate_1.0.5      knitr_1.51          rbibutils_2.4.1    
+## [70] lmtest_0.9-40       rlang_1.1.7         spatial_7.3-18     
+## [73] Rcpp_1.1.0          glue_1.8.0          R6_2.6.1           
+## [76] cvar_0.6            systemfonts_1.3.2
 ```

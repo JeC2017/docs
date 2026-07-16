@@ -181,6 +181,96 @@ MSFT 的樣本峰度約為 12.92，等權教學組合約為 22.94，均遠高於
 
 Jarque--Bera 的卡方近似依賴獨立同分配與有限高階動差。金融報酬常有條件異質變異，因此極小的漸近 $p$ 值可作常態模型的警訊，卻不能取代完整的時間序列診斷。
 
+## 原課程套件捷徑：`fBasics`
+
+原課程的實作程式在
+`slides/L02_Return_properties/W1L2_R_scripts_Descriptive_stat_returns.R`
+以 `fBasics::basicStats()` 整理描述統計，並以
+`normalTest(..., method = "jb")` 執行 Jarque--Bera 檢定。下列程式保留這個捷徑，但改讀本書的固定公開資料，不在執行期連線下載。
+
+```{r course-fbasics-comparison}
+stopifnot(requireNamespace("fBasics", quietly = TRUE))
+
+empirical_series <- list(
+  MSFT = msft$simple_return,
+  `S&P 等權教學組合` = sp_equal
+)
+
+basic_row <- function(out, row_name) {
+  out <- as.matrix(out)
+  location <- match(tolower(row_name), tolower(row.names(out)))
+  stopifnot(!is.na(location))
+  as.numeric(out[location, 1])
+}
+
+fbasics_summary <- lapply(empirical_series, fBasics::basicStats)
+manual_summary <- lapply(empirical_series, sample_moments)
+
+moment_comparison <- do.call(rbind, lapply(names(empirical_series), function(nm) {
+  package_result <- as.matrix(fbasics_summary[[nm]])
+  manual_result <- manual_summary[[nm]]
+  manual_values <- c(
+    manual_result["mean"],
+    manual_result["sd"],
+    manual_result["skewness"],
+    manual_result["excess_kurtosis"]
+  )
+  package_values <- c(
+    basic_row(package_result, "Mean"),
+    basic_row(package_result, "Stdev"),
+    basic_row(package_result, "Skewness"),
+    basic_row(package_result, "Kurtosis")
+  )
+  data.frame(
+    序列 = nm,
+    統計量 = c("平均數", "標準差", "偏態", "超額峰度"),
+    手動版 = unname(manual_values),
+    fBasics = package_values,
+    套件減手動 = package_values - unname(manual_values),
+    check.names = FALSE
+  )
+}))
+row.names(moment_comparison) <- NULL
+knitr::kable(moment_comparison, digits = 7)
+
+fbasics_jb <- lapply(empirical_series, function(x) {
+  fBasics::normalTest(x, method = "jb")
+})
+
+# 保留原套件的完整列印結果，方便學生認識 fHTEST 輸出。
+for (nm in names(fbasics_jb)) {
+  cat("\n", nm, "\n", sep = "")
+  print(fbasics_jb[[nm]])
+}
+
+extract_fhtest <- function(x) {
+  test_result <- methods::slot(x, "test")
+  c(
+    statistic = unname(test_result$statistic),
+    p_value = unname(test_result$p.value)
+  )
+}
+
+jb_comparison <- do.call(rbind, lapply(names(empirical_series), function(nm) {
+  manual_result <- jarque_bera(empirical_series[[nm]])
+  package_result <- extract_fhtest(fbasics_jb[[nm]])
+  data.frame(
+    序列 = nm,
+    手動JB = manual_result["statistic"],
+    fBasics_JB = package_result["statistic"],
+    手動p值 = manual_result["p_value_iid_asymptotic"],
+    fBasics_p值 = package_result["p_value"],
+    check.names = FALSE
+  )
+}))
+row.names(jb_comparison) <- NULL
+knitr::kable(jb_comparison, digits = 7)
+```
+
+平均數與標準差可用來核對資料與單位；偏態、峰度與 Jarque--Bera
+數值則可能因有限樣本修正與動差定義不同而略有差異。特別是
+`basicStats()` 的 `Kurtosis` 應與上文「常態等於 0」的超額峰度比較，不是直接與「常態等於 3」的峰度比較。兩種做法對這份固定資料的實質結論應一致：兩組報酬都對常態模型提出強烈警訊。
+
 ```{r empirical-plots, fig.cap="MSFT 與等權教學投資組合的時間圖、經驗分配與常態 Q--Q 圖。", fig.width=10, fig.height=7.5}
 series_list <- list(
   MSFT = list(date = msft$date, return = msft$simple_return),

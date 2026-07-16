@@ -66,7 +66,7 @@
 
 `california_schools.csv` 有 110 欄。主要應變數與處置／解釋變數為：
 
-- `testscore`：英文與數學平均測驗成績。
+- `testscore`：五年級數學與英語／語文測驗分數之和。
 - `elarts_score`、`math_score`：英文與數學成績。
 - `str_s`、`str_d`：學校與學區師生比。
 - `ell_frac_s`、`frpm_frac_s`、`freem_frac_s`：英語學習者、免費或減價午餐等學生背景比例。

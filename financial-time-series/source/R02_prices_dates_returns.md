@@ -173,6 +173,72 @@ knitr::kable(
 |2019-01-08 | 36.48602|          0.019063|       0.018884|
 |2019-01-09 | 37.10561|          0.016982|       0.016839|
 
+## 原課程套件捷徑（與手動版並列）
+
+原課程的 AAPL scripts 先以 `tidyquant::tq_get()` 取得 Yahoo 資料，再用 `dplyr::arrange()`、`mutate()` 與 `lag()` 建立報酬。本書保留資料整理流程，但改讀上面的固定 CSV，避免供應者日後修訂資料。對應來源是 `slides/L04_ARMA/W1L4_R_template_for_estimating_ARMA.R` 與 `slides/L07_ARCH_GARCH/W2L2_R_template_GARCH.R`；以下不是另一組模擬資料。
+
+
+``` r
+stopifnot(requireNamespace("dplyr", quietly = TRUE))
+
+returns_package <- aapl |>
+  dplyr::arrange(date) |>
+  dplyr::mutate(
+    simple_return_package =
+      adjusted / dplyr::lag(adjusted) - 1,
+    log_return_package =
+      log(adjusted) - log(dplyr::lag(adjusted))
+  )
+
+package_return_check <- data.frame(
+  核對項目 = c(
+    "簡單報酬：套件版與手動版",
+    "對數報酬：套件版與手動版",
+    "簡單報酬：套件版與固定資料",
+    "對數報酬：套件版與固定資料"
+  ),
+  最大絕對差 = c(
+    max(abs(
+      returns_package$simple_return_package -
+        aapl$calculated_simple
+    ), na.rm = TRUE),
+    max(abs(
+      returns_package$log_return_package -
+        aapl$calculated_log
+    ), na.rm = TRUE),
+    max(abs(
+      returns_package$simple_return_package -
+        aapl$simple_return
+    ), na.rm = TRUE),
+    max(abs(
+      returns_package$log_return_package -
+        aapl$log_return
+    ), na.rm = TRUE)
+  ),
+  check.names = FALSE
+)
+knitr::kable(package_return_check, digits = 14)
+```
+
+
+
+|核對項目                   | 最大絕對差|
+|:--------------------------|----------:|
+|簡單報酬：套件版與手動版   |          0|
+|對數報酬：套件版與手動版   |          0|
+|簡單報酬：套件版與固定資料 |          0|
+|對數報酬：套件版與固定資料 |          0|
+
+``` r
+stopifnot(
+  is.na(returns_package$simple_return_package[1]),
+  is.na(returns_package$log_return_package[1]),
+  max(package_return_check$最大絕對差) < 1e-12
+)
+```
+
+這裡兩版應在浮點誤差內完全一致，因為它們只是用不同語法計算同一定義。套件縮短了資料操作程式，卻沒有消除「先排序、第一筆為缺值、必須使用同一調整價格尺度」等資料責任。
+
 ## 價格與報酬的時間圖
 
 

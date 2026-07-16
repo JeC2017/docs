@@ -63,6 +63,22 @@
 <li>從教科書專案根目錄或 online_appendix 目錄執行皆可。</li>
 <li>十個公開實證資料位於 data/processed，建置紀錄位於 manifest.csv；網站的「實證資料下載」頁提供相同版本。</li>
 </ul>
+<h2 id="r">兩條 R 學習路線<a class="headerlink" href="#r" title="Permanent link">#</a></h2>
+<p>每份相關附錄保留兩種互補做法：</p>
+<ol>
+<li><strong>手動建構版</strong>把估計式、遞迴、損失函數與資訊邊界寫出來，適合用來理解方法與除錯；</li>
+<li><strong>原課程套件捷徑</strong>移植作者以前授課 R scripts 中實際使用的高階函數，例如 <code>forecast::auto.arima()</code>、<code>forecast::tsCV()</code>、<code>tseries::adf.test()</code>、<code>fGarch::garchFit()</code>、<code>stats::prcomp()</code> 與 <code>glmnet::glmnet()</code>。</li>
+</ol>
+<p>套件版不重新從 Yahoo、FRED 或其他網站下載資料，而是讀取本書公開的固定 CSV。這項調整保留原課程的估計工作流，同時避免資料供應者日後修訂、交易日不同或網路中斷造成答案漂移。兩版結果若不同，附錄會交代模型集合、估計法、初始化或有限樣本修正的差異，不把「套件輸出」當作無條件正解。</p>
+<h3 id="_2">一次安裝必要套件<a class="headerlink" href="#_2" title="Permanent link">#</a></h3>
+<p>安裝只在環境設定階段執行一次，不應放進正式分析 chunk。以下程式因此不會在製作網站時自動執行；學生可在 R console 執行。</p>
+<pre><code class="language-r">install.packages(c(
+  &quot;knitr&quot;, &quot;rmarkdown&quot;, &quot;ragg&quot;, &quot;systemfonts&quot;,
+  &quot;tidyverse&quot;, &quot;fBasics&quot;, &quot;forecast&quot;, &quot;tseries&quot;,
+  &quot;urca&quot;, &quot;fGarch&quot;, &quot;plm&quot;, &quot;glmnet&quot;, &quot;pls&quot;
+))
+</code></pre>
+<p><code>phtt</code> 與完整 <code>tidymodels</code> 工作流只在相應進階段落使用；若該段明列需要，再依附錄指示另行安裝。正式 Rmd 只檢查套件是否存在，不在執行中偷偷改變環境。</p>
 <pre><code class="language-r">knitr::opts_chunk$set(
   echo = TRUE,
   message = FALSE,
@@ -82,7 +98,7 @@ stopifnot(any(is_root))
 project_root &lt;- root_candidates[which(is_root)[1]]
 project_path &lt;- function(...) file.path(project_root, ...)
 </code></pre>
-<h2 id="_2">專案結構是一項研究設計<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
+<h2 id="_3">專案結構是一項研究設計<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
 <p>建議把外部輸入、清理後資料、分析程式、圖表與正文分開。程式只讀固定輸入，產出寫到指定資料夾；不要讓手動修改的試算表成為無法追蹤的中間步驟。</p>
 <pre><code class="language-r">required_paths &lt;- c(
   &quot;data/processed/manifest.csv&quot;,
@@ -218,7 +234,7 @@ dimensions[, c(&quot;file&quot;, &quot;rows&quot;, &quot;columns&quot;, &quot;ro
 </code></pre>
 <pre><code class="language-r">stopifnot(all(dimensions$row_match), all(dimensions$column_match))
 </code></pre>
-<h2 id="_3">亂數種子與可重現模擬<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<h2 id="_4">亂數種子與可重現模擬<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
 <p>同一個亂數種子、R 版本與亂數產生器設定會重現同一串模擬值。種子不是讓答案顯著的旋鈕；應在分析前固定，敏感度分析則另列多個事前指定種子或增加模擬次數。</p>
 <pre><code class="language-r">set.seed(20260716)
 draw_a &lt;- rnorm(5)
@@ -237,7 +253,7 @@ data.frame(draw_a, draw_b, exactly_equal = draw_a == draw_b)
 </code></pre>
 <pre><code class="language-r">stopifnot(identical(draw_a, draw_b))
 </code></pre>
-<h2 id="_4">讓錯誤提早發生<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
+<h2 id="_5">讓錯誤提早發生<a class="headerlink" href="#_5" title="Permanent link">#</a></h2>
 <p>以下函數示範金融時間序列的最小資料契約：日期可轉換、嚴格遞增、沒有重複，價格為正且有限。</p>
 <pre><code class="language-r">validate_price_data &lt;- function(x) {
   needed &lt;- c(&quot;date&quot;, &quot;asset&quot;, &quot;price&quot;)
@@ -274,8 +290,45 @@ inherits(bad_result, &quot;try-error&quot;)
 </code></pre>
 <pre><code>## [1] TRUE
 </code></pre>
-<h2 id="_5">記錄環境<a class="headerlink" href="#_5" title="Permanent link">#</a></h2>
+<h2 id="_6">記錄環境<a class="headerlink" href="#_6" title="Permanent link">#</a></h2>
 <p>網站版輸出應保留 R 版本、作業系統與主要套件版本。若結果日後不同，這些資訊是追查起點。</p>
+<pre><code class="language-r">teaching_packages &lt;- c(
+  &quot;knitr&quot;, &quot;rmarkdown&quot;, &quot;ragg&quot;, &quot;systemfonts&quot;,
+  &quot;tidyverse&quot;, &quot;fBasics&quot;, &quot;forecast&quot;, &quot;tseries&quot;,
+  &quot;urca&quot;, &quot;fGarch&quot;, &quot;plm&quot;, &quot;glmnet&quot;, &quot;pls&quot;
+)
+package_record &lt;- data.frame(
+  package = teaching_packages,
+  installed = vapply(
+    teaching_packages, requireNamespace,
+    logical(1), quietly = TRUE
+  ),
+  version = vapply(teaching_packages, function(package) {
+    if (requireNamespace(package, quietly = TRUE)) {
+      as.character(utils::packageVersion(package))
+    } else {
+      NA_character_
+    }
+  }, character(1)),
+  row.names = NULL
+)
+package_record
+</code></pre>
+<pre><code>##        package installed version
+## 1        knitr      TRUE    1.51
+## 2    rmarkdown      TRUE    2.31
+## 3         ragg      TRUE   1.5.2
+## 4  systemfonts      TRUE   1.3.2
+## 5    tidyverse      TRUE   2.0.0
+## 6      fBasics      TRUE 4052.98
+## 7     forecast      TRUE   9.0.2
+## 8      tseries      TRUE 0.10.62
+## 9         urca      TRUE   1.3.4
+## 10      fGarch      TRUE 4052.93
+## 11         plm      TRUE   2.6.7
+## 12      glmnet      TRUE  4.1.10
+## 13         pls      TRUE   2.9.0
+</code></pre>
 <pre><code class="language-r">environment_record &lt;- list(
   generated_at = format(Sys.time(), tz = &quot;UTC&quot;, usetz = TRUE),
   R = R.version.string,
@@ -287,7 +340,7 @@ inherits(bad_result, &quot;try-error&quot;)
 environment_record
 </code></pre>
 <pre><code>## $generated_at
-## [1] &quot;2026-07-16 10:33:45 UTC&quot;
+## [1] &quot;2026-07-16 11:24:02 UTC&quot;
 ## 
 ## $R
 ## [1] &quot;R version 4.5.2 (2025-10-31)&quot;
@@ -304,7 +357,7 @@ environment_record
 ## $rng_kind
 ## [1] &quot;Mersenne-Twister&quot; &quot;Inversion&quot;        &quot;Rejection&quot;
 </code></pre>
-<h2 id="_6">可重現研究檢核表<a class="headerlink" href="#_6" title="Permanent link">#</a></h2>
+<h2 id="_7">可重現研究檢核表<a class="headerlink" href="#_7" title="Permanent link">#</a></h2>
 <ol>
 <li>原始或固定資料的來源、公開範圍與建立方式有書面說明。</li>
 <li>分析只讀固定檔，路徑由專案結構推導。</li>
@@ -322,12 +375,16 @@ environment_record
     <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
 <ul>
 <li><a href="#_1">執行前提</a></li>
-<li><a href="#_2">專案結構是一項研究設計</a></li>
+<li><a href="#r">兩條 R 學習路線</a><ul>
+<li><a href="#_2">一次安裝必要套件</a></li>
+</ul>
+</li>
+<li><a href="#_3">專案結構是一項研究設計</a></li>
 <li><a href="#manifest">用 manifest 核對固定資料</a></li>
-<li><a href="#_3">亂數種子與可重現模擬</a></li>
-<li><a href="#_4">讓錯誤提早發生</a></li>
-<li><a href="#_5">記錄環境</a></li>
-<li><a href="#_6">可重現研究檢核表</a></li>
+<li><a href="#_4">亂數種子與可重現模擬</a></li>
+<li><a href="#_5">讓錯誤提早發生</a></li>
+<li><a href="#_6">記錄環境</a></li>
+<li><a href="#_7">可重現研究檢核表</a></li>
 </ul>
 </div>
 </aside>

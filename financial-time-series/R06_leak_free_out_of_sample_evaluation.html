@@ -556,6 +556,150 @@ knitr::kable(score_table, digits = 7)
 </table>
 <p>在 142 筆測試預測中，250 期滾動 AR(1) 的 RMSE 為 0.0081441，低於零報酬基準的 0.0083126；差距不大，且不能由單一測試路徑推論長期可交易性。</p>
 <p>分數是 2022-05-13 至 2022-12-16 這一段固定測試期的描述；測試期碰到較高波動，排序不保證在其他時期維持。</p>
+<h2 id="forecast-ar1-tscv">原課程套件捷徑：<code>forecast</code> 的 AR(1) 與 <code>tsCV</code><a class="headerlink" href="#forecast-ar1-tscv" title="Permanent link">#</a></h2>
+<p>原課程教師程式 <code>slides/L05_Forecasting_and_CV/W1L5_R_prediction_cv.R</code>
+使用 <code>forecast::Arima()</code>、<code>forecast::forecast()</code> 與 <code>forecast::tsCV()</code> 處理
+估計、預測與時間序列交叉驗證。下列程式保留這條套件捷徑，但繼續使用本書的固定
+CSV 與同一組測試起點，不重新下載 FRED 資料，也不讓測試期真值進入估計。</p>
+<p>這裡有一個值得特別注意的規格差異：前面的手動版在每個 250 期視窗使用 OLS 估計
+AR(1)；<code>forecast::Arima(..., method = "ML")</code> 則以高斯最大概似估計同一個
+AR(1) 規格。兩者的預測應當接近，但不必逐期完全相同。</p>
+<pre><code class="language-r">stopifnot(requireNamespace(&quot;forecast&quot;, quietly = TRUE))
+
+comparison_window &lt;- 250L
+stopifnot(
+  selected_model == &quot;rolling_ar1&quot;,
+  selected_window == comparison_window
+)
+
+package_ar1_forecast &lt;- function(z, h) {
+  fit &lt;- forecast::Arima(
+    z,
+    order = c(1L, 0L, 0L),
+    include.mean = TRUE,
+    method = &quot;ML&quot;
+  )
+  forecast::forecast(fit, h = h)
+}
+
+package_forecast_at_origin &lt;- function(y, origin, window) {
+  training_start &lt;- origin - window + 1L
+  z &lt;- y[training_start:origin]
+  fc &lt;- package_ar1_forecast(z, h = 1L)
+  data.frame(
+    origin = origin,
+    target_index = origin + 1L,
+    training_start = training_start,
+    training_end = origin,
+    forecast = as.numeric(fc$mean[1]),
+    actual = y[origin + 1L]
+  )
+}
+
+package_test &lt;- do.call(rbind, lapply(test_origins, function(origin) {
+  package_forecast_at_origin(y, origin, comparison_window)
+}))
+package_test$error &lt;- package_test$actual - package_test$forecast
+
+# tsCV 的第 t 列是以第 t 期為預測起點的誤差。
+# window = 250 確保每次只傳入最近 250 筆可見報酬。
+package_cv_errors &lt;- forecast::tsCV(
+  stats::ts(y),
+  forecastfunction = package_ar1_forecast,
+  h = 1L,
+  window = comparison_window,
+  initial = comparison_window
+)
+package_cv_test &lt;- as.numeric(package_cv_errors)[test_origins]
+
+stopifnot(
+  all(is.finite(package_cv_test)),
+  max(abs(package_cv_test - package_test$error)) &lt; 1e-10,
+  all(package_test$training_end &lt; package_test$target_index)
+)
+
+manual_ar1_test &lt;- test_results[
+  test_results$model == &quot;rolling_ar1&quot; &amp;
+    test_results$window == comparison_window,
+]
+stopifnot(identical(manual_ar1_test$origin, package_test$origin))
+
+package_comparison &lt;- data.frame(
+  方法 = c(
+    &quot;手動 OLS：250 期滾動 AR(1)&quot;,
+    &quot;forecast：250 期滾動 AR(1) ML&quot;
+  ),
+  RMSE = c(
+    sqrt(mean(manual_ar1_test$error^2)),
+    sqrt(mean(package_test$error^2))
+  ),
+  MAE = c(
+    mean(abs(manual_ar1_test$error)),
+    mean(abs(package_test$error))
+  ),
+  平均誤差 = c(
+    mean(manual_ar1_test$error),
+    mean(package_test$error)
+  ),
+  check.names = FALSE
+)
+knitr::kable(package_comparison, digits = 7)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">方法</th>
+<th style="text-align: right;">RMSE</th>
+<th style="text-align: right;">MAE</th>
+<th style="text-align: right;">平均誤差</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">手動 OLS：250 期滾動 AR(1)</td>
+<td style="text-align: right;">0.0081441</td>
+<td style="text-align: right;">0.0060522</td>
+<td style="text-align: right;">0.0005755</td>
+</tr>
+<tr>
+<td style="text-align: left;">forecast：250 期滾動 AR(1) ML</td>
+<td style="text-align: right;">0.0081438</td>
+<td style="text-align: right;">0.0060516</td>
+<td style="text-align: right;">0.0005755</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-r">forecast_difference &lt;- data.frame(
+  逐期預測差異指標 = c(&quot;平均絕對差&quot;, &quot;最大絕對差&quot;),
+  數值 = c(
+    mean(abs(manual_ar1_test$forecast - package_test$forecast)),
+    max(abs(manual_ar1_test$forecast - package_test$forecast))
+  ),
+  check.names = FALSE
+)
+knitr::kable(forecast_difference, digits = 9)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">逐期預測差異指標</th>
+<th style="text-align: right;">數值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">平均絕對差</td>
+<td style="text-align: right;">1.0473e-05</td>
+</tr>
+<tr>
+<td style="text-align: left;">最大絕對差</td>
+<td style="text-align: right;">3.8143e-05</td>
+</tr>
+</tbody>
+</table>
+<p><code>tsCV()</code> 在這裡不負責選模；250 期視窗已經由前面的驗證期凍結。它的作用是以套件
+重做同一組滾動起點，並與逐起點迴圈的誤差完全核對。若先用全樣本
+<code>auto.arima()</code> 選好模型，再對早期起點做 <code>tsCV()</code>，仍然會把未來的選模資訊帶回過去。</p>
 <h2 id="_6">預測路徑與累積損失<a class="headerlink" href="#_6" title="Permanent link">#</a></h2>
 <pre><code class="language-r">model_labels &lt;- unique(test_results$model_label)
 colors &lt;- c(&quot;#173B57&quot;, &quot;#A34045&quot;, &quot;#1D6D73&quot;, &quot;#8A6D3B&quot;)
@@ -658,6 +802,7 @@ knitr::kable(as.data.frame(table(leakage_audit$valid_timing)))
 <li><a href="#_3">單一起點的預測函數</a></li>
 <li><a href="#_4">驗證期選擇滾動規格</a></li>
 <li><a href="#_5">凍結規格後的一次性測試</a></li>
+<li><a href="#forecast-ar1-tscv">原課程套件捷徑：forecast 的 AR(1) 與 tsCV</a></li>
 <li><a href="#_6">預測路徑與累積損失</a></li>
 <li><a href="#_7">程式防漏檢查</a></li>
 <li><a href="#_8">可重現報告至少保留</a></li>

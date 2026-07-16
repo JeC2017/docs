@@ -10,6 +10,12 @@ output:
 
 五公司檔涵蓋 1990 年 1 月至 2008 年 12 月，共 228 月；十公司檔涵蓋 1990 年 1 月至 2003 年 12 月，共 168 月。數值沿用原課程檔，以**月報酬百分點**表示，例如 4.5 代表約 4.5%；五公司檔為月對數報酬。資料來自原課程指向的 Ruey S. Tsay／Chicago Booth 教材檔案；公開版隨附作者授權的兩份 processed CSV，故本附錄可離線自含重跑。若另由上游教材檔重建，仍須保存教材版本與下載日。PCA 與因子分析在此只描述共同變動與低秩重建，不識別因果衝擊，也不直接證明未來報酬可預測。
 
+本附錄並不是把每一個估計器都從頭重寫。原課程程式
+`slides/L09_Statistical_factor_models/W2L4_hands-on_R_factors/R_script_for_factor_analysis.R`
+已直接使用 `stats::prcomp()`（原檔第 38--54 行）與 `stats::factanal()`（第 62--78 行）；
+以下保留相同的高階函數作為學生可先採用的「原課程套件捷徑」，再用矩陣特徵分解、
+共同性與個別變異等輸出說明函數究竟算了什麼。
+
 
 ``` r
 knitr::opts_chunk$set(
@@ -123,6 +129,10 @@ data.frame(
 
 五家公司為 IBM、HPQ、INTC、JPM 與 BAC。先依時間固定分成 60% 估計期、20% 驗證期、20% 測試期；標準化中心、尺度與負荷量只能由估計期得到。
 
+原課程的簡短作法就是一行 `prcomp(..., center = TRUE, scale. = TRUE)`。
+本節沿用這個 `stats` 套件捷徑；緊接著的特徵分解核對則比較特徵值與前兩個
+主成分所張成的投影空間。主成分可整欄反號，所以不逐格硬比負荷量正負號。
+
 
 ``` r
 X_five <- as.matrix(five[, -1, drop = FALSE])
@@ -181,8 +191,8 @@ explained
 plot(
   explained$component, explained$eigenvalue,
   type = "b", pch = 19, col = "#173B57",
-  xlab = "主成分", ylab = "特徵值",
-  main = "Tsay 五公司真實月報酬 PCA"
+  xlab = "Principal component", ylab = "Eigenvalue",
+  main = "PCA of Five Real Monthly Stock Returns"
 )
 abline(h = 1, lty = 2, col = "#A34045")
 ```
@@ -308,6 +318,11 @@ data.frame(
 
 `factanal()` 的最大概似因子分析把各股票變異拆成共同性與個別變異。以下使用完整的 1990--2003 描述樣本估計三因子並作 varimax 旋轉；沒有保留期績效或因果解讀。
 
+這也是原課程已採用的高階函數版本，不是本附錄另寫最大概似最佳化器。
+`fa_three$loadings` 對應原程式畫圖用的旋轉負荷量，`fa_three$uniquenesses`
+給個別變異，兩者合起來提供下表的共同性核對；`fa_three$PVAL` 則是模型配適
+輸出，不應被誤讀為某一個因子的經濟顯著性。
+
 
 ``` r
 X_barra <- as.matrix(barra[, -1, drop = FALSE])
@@ -371,12 +386,60 @@ fa_three$PVAL
 
 
 ``` r
+decomposition_gap <- max(abs(
+  factor_summary$communality + factor_summary$uniqueness - 1
+))
+
+stopifnot(
+  inherits(pca_estimate, "prcomp"),
+  inherits(fa_three, "factanal"),
+  decomposition_gap < 5e-4
+)
+
+data.frame(
+  task = c("PCA", "maximum-likelihood factor analysis"),
+  original_course_shortcut = c(
+    "stats::prcomp(center = TRUE, scale. = TRUE)",
+    "stats::factanal(factors = 3, rotation = 'varimax')"
+  ),
+  object_used_here = c("pca_estimate", "fa_three"),
+  comparison_output = c(
+    "eigenvalues and two-PC projection versus direct eigen()",
+    "rotated loadings, communalities, uniquenesses, and fit statistic"
+  ),
+  numerical_check = c(
+    sprintf(
+      "maximum eigenvalue gap = %.3e",
+      max(abs(eigenvalues - eigen_direct$values))
+    ),
+    sprintf("max |communality + uniqueness - 1| = %.3e", decomposition_gap)
+  )
+)
+```
+
+```
+##                                 task
+## 1                                PCA
+## 2 maximum-likelihood factor analysis
+##                             original_course_shortcut object_used_here
+## 1        stats::prcomp(center = TRUE, scale. = TRUE)     pca_estimate
+## 2 stats::factanal(factors = 3, rotation = 'varimax')         fa_three
+##                                                  comparison_output
+## 1          eigenvalues and two-PC projection versus direct eigen()
+## 2 rotated loadings, communalities, uniquenesses, and fit statistic
+##                                  numerical_check
+## 1             maximum eigenvalue gap = 2.220e-15
+## 2 max |communality + uniqueness - 1| = 1.565e-05
+```
+
+
+``` r
 barplot(
   t(abs(loadings_matrix)), beside = TRUE,
   col = c("#173B57", "#A34045", "#1D6D73"),
   names.arg = rownames(loadings_matrix),
   las = 2, ylab = "|factor loading|",
-  main = "真實十公司月報酬的旋轉負荷量"
+  main = "Rotated Loadings: Ten Real Monthly Stock Returns"
 )
 legend(
   "topright", paste0("Factor", 1:3),
@@ -458,10 +521,30 @@ sessionInfo()
 ## [1] tibble_3.3.0 dplyr_1.2.1 
 ## 
 ## loaded via a namespace (and not attached):
-##  [1] utf8_1.2.6        R6_2.6.1          tidyselect_1.2.1  xfun_0.57        
-##  [5] magrittr_2.0.4    glue_1.8.0        knitr_1.51        pkgconfig_2.0.3  
-##  [9] generics_0.1.4    lifecycle_1.0.5   cli_3.6.5         vctrs_0.7.2      
-## [13] textshaping_1.0.5 systemfonts_1.3.2 compiler_4.5.2    tools_4.5.2      
-## [17] ragg_1.5.2        evaluate_1.0.5    pillar_1.11.1     otel_0.2.0       
-## [21] rlang_1.1.7
+##  [1] shape_1.4.6.1       gtable_0.3.6        xfun_0.57          
+##  [4] ggplot2_4.0.3       collapse_2.1.7      lattice_0.22-7     
+##  [7] quadprog_1.5-8      vctrs_0.7.2         tools_4.5.2        
+## [10] Rdpack_2.6.6        generics_0.1.4      curl_7.0.0         
+## [13] parallel_4.5.2      sandwich_3.1-1      xts_0.14.2         
+## [16] pkgconfig_2.0.3     gbutils_0.5.1       Matrix_1.7-4       
+## [19] tidyverse_2.0.0     RColorBrewer_1.1-3  S7_0.2.1           
+## [22] lifecycle_1.0.5     compiler_4.5.2      farver_2.1.2       
+## [25] maxLik_1.5-2.2      textshaping_1.0.5   codetools_0.2-20   
+## [28] htmltools_0.5.9     glmnet_4.1-10       Formula_1.2-5      
+## [31] pillar_1.11.1       MASS_7.3-65         plm_2.6-7          
+## [34] iterators_1.0.14    foreach_1.5.2       nlme_3.1-168       
+## [37] fracdiff_1.5-4      pls_2.9-0           fBasics_4052.98    
+## [40] tidyselect_1.2.1    bdsmatrix_1.3-7     digest_0.6.39      
+## [43] labeling_0.4.3      splines_4.5.2       tseries_0.10-62    
+## [46] miscTools_0.6-30    fastmap_1.2.0       grid_4.5.2         
+## [49] colorspace_2.1-2    cli_3.6.5           magrittr_2.0.4     
+## [52] utf8_1.2.6          survival_3.8-3      withr_3.0.2        
+## [55] scales_1.4.0        forecast_9.0.2      TTR_0.24.4         
+## [58] rmarkdown_2.31      quantmod_0.4.29     otel_0.2.0         
+## [61] timeDate_4052.112   ragg_1.5.2          zoo_1.8-15         
+## [64] timeSeries_4052.112 fGarch_4052.93      urca_1.3-4         
+## [67] evaluate_1.0.5      knitr_1.51          rbibutils_2.4.1    
+## [70] lmtest_0.9-40       rlang_1.1.7         spatial_7.3-18     
+## [73] Rcpp_1.1.0          glue_1.8.0          R6_2.6.1           
+## [76] cvar_0.6            systemfonts_1.3.2
 ```

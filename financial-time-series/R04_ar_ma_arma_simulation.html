@@ -204,6 +204,207 @@ for (nm in names(series_sim)) {
 <pre><code class="language-r">par(old_par)
 </code></pre>
 <p>MA(1) 的母體 ACF 在一階之後為零，但有限樣本柱線仍會因抽樣誤差偏離零。AR 與 ARMA 的 ACF 通常拖尾。</p>
+<h2 id="forecast">原課程套件捷徑：<code>forecast</code><a class="headerlink" href="#forecast" title="Permanent link">#</a></h2>
+<p>原課程的
+<code>slides/L05_Forecasting_and_CV/W1L5_R_simulated_AR_ARMA_and_then_autoARMA.R</code>
+在模擬 AR 與 ARMA 後，以 <code>forecast::auto.arima()</code> 自動選階、
+<code>checkresiduals()</code> 檢查殘差，再以 <code>forecast()</code> 形成預測。下列程式對相同的固定種子模擬樣本重現這條套件工作流。原程式寫成 <code>seasonal = "FALSE"</code>；這裡改用意義明確的邏輯值 <code>seasonal = FALSE</code>。</p>
+<pre><code class="language-r">stopifnot(requireNamespace(&quot;forecast&quot;, quietly = TRUE))
+
+true_orders &lt;- list(
+  AR1 = c(p = 1, d = 0, q = 0),
+  MA1 = c(p = 0, d = 0, q = 1),
+  ARMA11 = c(p = 1, d = 0, q = 1)
+)
+true_coefficients &lt;- list(
+  AR1 = c(ar1 = phi_ar, ma1 = NA_real_),
+  MA1 = c(ar1 = NA_real_, ma1 = theta_ma),
+  ARMA11 = c(ar1 = phi_arma, ma1 = theta_arma)
+)
+
+auto_models &lt;- lapply(series_sim, function(z) {
+  forecast::auto.arima(ts(z), seasonal = FALSE)
+})
+
+auto_selection &lt;- do.call(rbind, lapply(names(auto_models), function(nm) {
+  fit &lt;- auto_models[[nm]]
+  selected &lt;- forecast::arimaorder(fit)[c(&quot;p&quot;, &quot;d&quot;, &quot;q&quot;)]
+  b &lt;- coef(fit)
+  selected_coefficients &lt;- c(
+    ar1 = if (&quot;ar1&quot; %in% names(b)) unname(b[&quot;ar1&quot;]) else NA_real_,
+    ma1 = if (&quot;ma1&quot; %in% names(b)) unname(b[&quot;ma1&quot;]) else NA_real_
+  )
+  data.frame(
+    模擬真值 = nm,
+    真p = true_orders[[nm]][&quot;p&quot;],
+    真d = true_orders[[nm]][&quot;d&quot;],
+    真q = true_orders[[nm]][&quot;q&quot;],
+    自動p = selected[&quot;p&quot;],
+    自動d = selected[&quot;d&quot;],
+    自動q = selected[&quot;q&quot;],
+    真ar1 = true_coefficients[[nm]][&quot;ar1&quot;],
+    估計ar1 = selected_coefficients[&quot;ar1&quot;],
+    真ma1 = true_coefficients[[nm]][&quot;ma1&quot;],
+    估計ma1 = selected_coefficients[&quot;ma1&quot;],
+    AICc = fit$aicc,
+    check.names = FALSE
+  )
+}))
+row.names(auto_selection) &lt;- NULL
+knitr::kable(auto_selection, digits = 4)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">模擬真值</th>
+<th style="text-align: right;">真p</th>
+<th style="text-align: right;">真d</th>
+<th style="text-align: right;">真q</th>
+<th style="text-align: right;">自動p</th>
+<th style="text-align: right;">自動d</th>
+<th style="text-align: right;">自動q</th>
+<th style="text-align: right;">真ar1</th>
+<th style="text-align: right;">估計ar1</th>
+<th style="text-align: right;">真ma1</th>
+<th style="text-align: right;">估計ma1</th>
+<th style="text-align: right;">AICc</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">AR1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.7</td>
+<td style="text-align: right;">0.7080</td>
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">1765.287</td>
+</tr>
+<tr>
+<td style="text-align: left;">MA1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">0.6</td>
+<td style="text-align: right;">0.5866</td>
+<td style="text-align: right;">1702.242</td>
+</tr>
+<tr>
+<td style="text-align: left;">ARMA11</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0.5</td>
+<td style="text-align: right;">0.5441</td>
+<td style="text-align: right;">0.4</td>
+<td style="text-align: right;">0.3538</td>
+<td style="text-align: right;">1742.725</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-r">forecast::checkresiduals(auto_models$ARMA11, lag = 20)
+</code></pre>
+<p><img alt="原課程 forecast 套件工作流對 ARMA(1,1) 模擬樣本所作的殘差診斷。" src="./R04_ar_ma_arma_simulation_files/figure-gfm/course-auto-arima-diagnostics-1.png"></p>
+<pre><code>## 
+##  Ljung-Box test
+## 
+## data:  Residuals from ARIMA(2,0,1) with non-zero mean
+## Q* = 8.5675, df = 17, p-value = 0.9529
+## 
+## Model df: 3.   Total lags used: 20
+</code></pre>
+<pre><code class="language-r">course_forecast &lt;- forecast::forecast(
+  auto_models$ARMA11,
+  h = 30,
+  level = c(80, 95)
+)
+forecast_preview &lt;- data.frame(
+  期距 = seq_len(6),
+  點預測 = as.numeric(head(course_forecast$mean, 6)),
+  下界80 = as.numeric(head(course_forecast$lower[, &quot;80%&quot;], 6)),
+  上界80 = as.numeric(head(course_forecast$upper[, &quot;80%&quot;], 6)),
+  下界95 = as.numeric(head(course_forecast$lower[, &quot;95%&quot;], 6)),
+  上界95 = as.numeric(head(course_forecast$upper[, &quot;95%&quot;], 6)),
+  check.names = FALSE
+)
+knitr::kable(forecast_preview, digits = 4)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">期距</th>
+<th style="text-align: right;">點預測</th>
+<th style="text-align: right;">下界80</th>
+<th style="text-align: right;">上界80</th>
+<th style="text-align: right;">下界95</th>
+<th style="text-align: right;">上界95</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">-0.9432</td>
+<td style="text-align: right;">-2.2606</td>
+<td style="text-align: right;">0.3742</td>
+<td style="text-align: right;">-2.9579</td>
+<td style="text-align: right;">1.0715</td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">-0.4310</td>
+<td style="text-align: right;">-2.2015</td>
+<td style="text-align: right;">1.3395</td>
+<td style="text-align: right;">-3.1387</td>
+<td style="text-align: right;">2.2767</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">-0.1528</td>
+<td style="text-align: right;">-2.0377</td>
+<td style="text-align: right;">1.7321</td>
+<td style="text-align: right;">-3.0355</td>
+<td style="text-align: right;">2.7299</td>
+</tr>
+<tr>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">-0.0002</td>
+<td style="text-align: right;">-1.9182</td>
+<td style="text-align: right;">1.9177</td>
+<td style="text-align: right;">-2.9335</td>
+<td style="text-align: right;">2.9331</td>
+</tr>
+<tr>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">0.0834</td>
+<td style="text-align: right;">-1.8444</td>
+<td style="text-align: right;">2.0113</td>
+<td style="text-align: right;">-2.8649</td>
+<td style="text-align: right;">3.0318</td>
+</tr>
+<tr>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">0.1293</td>
+<td style="text-align: right;">-1.8014</td>
+<td style="text-align: right;">2.0601</td>
+<td style="text-align: right;">-2.8235</td>
+<td style="text-align: right;">3.0822</td>
+</tr>
+</tbody>
+</table>
+<p>套件版節省了逐一估計候選模型與整理診斷的程式，但不會讓階數「必然」回到資料生成真值。<code>auto.arima()</code> 是依有限樣本的資訊準則選擇模型；上表與已知真值的差異，正好顯示模型選擇也有抽樣不確定性。<code>checkresiduals()</code> 只檢查特定殘差特徵；預測區間還依賴已選模型與創新分配的假設。</p>
 <h2 id="_2">根與衝擊反應的程式核對<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
 <pre><code class="language-r">root_table &lt;- data.frame(
   部分 = c(&quot;AR(1) 的 AR 根&quot;, &quot;MA(1) 的 MA 根&quot;, &quot;ARMA 的 AR 根&quot;, &quot;ARMA 的 MA 根&quot;),
@@ -469,6 +670,7 @@ knitr::kable(lb_table, digits = 6)
 <ul>
 <li><a href="#_1">小型真值模擬</a></li>
 <li><a href="#acf-acf">理論 ACF 與樣本 ACF</a></li>
+<li><a href="#forecast">原課程套件捷徑：forecast</a></li>
 <li><a href="#_2">根與衝擊反應的程式核對</a></li>
 <li><a href="#msft-aapl">真實 MSFT 與 AAPL 報酬</a></li>
 <li><a href="#ljung-box">Ljung--Box 聯合檢查</a></li>

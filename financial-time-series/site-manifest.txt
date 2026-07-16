@@ -11,9 +11,11 @@ R03_distributions_heavy_tails_files/figure-gfm/empirical-plots-1.png
 R03_distributions_heavy_tails_files/figure-gfm/simulation-plots-1.png
 R04_ar_ma_arma_simulation.html
 R04_ar_ma_arma_simulation_files/figure-gfm/acf-comparison-1.png
+R04_ar_ma_arma_simulation_files/figure-gfm/course-auto-arima-diagnostics-1.png
 R04_ar_ma_arma_simulation_files/figure-gfm/real-acf-1.png
 R04_ar_ma_arma_simulation_files/figure-gfm/series-plots-1.png
 R05_arma_estimation_diagnostics_forecasting.html
+R05_arma_estimation_diagnostics_forecasting_files/figure-gfm/course-auto-arima-diagnostics-1.png
 R05_arma_estimation_diagnostics_forecasting_files/figure-gfm/diagnostics-plots-1.png
 R05_arma_estimation_diagnostics_forecasting_files/figure-gfm/forecast-plot-1.png
 R06_leak_free_out_of_sample_evaluation.html

@@ -12,8 +12,8 @@ output:
 
 ## 執行條件
 
-- 只使用 base R 與 `knitr`。
-- 不安裝套件、不呼叫網路、不使用 `setwd()`。
+- 主線手算版使用 base R 與 `knitr`；原課程捷徑另使用 `glmnet`。
+- 執行時不安裝套件、不呼叫網路、不使用 `setwd()`。
 - 固定資料：`data/processed/ff_qf_macro_industries_1967_2021.csv`。
 - 資料建置與再散布注意事項：`data/DATA_SOURCES.md`。
 - 公開界線：repo 隨附作者授權的 processed 合併 CSV、程式與執行結果，可離線自含重跑；若另由上游來源重建，必須固定各供應者版本與轉換規則。
@@ -24,6 +24,9 @@ knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
   fig.width = 7, fig.height = 4.5
 )
+if (!requireNamespace("glmnet", quietly = TRUE)) {
+  stop("本附錄的原課程套件捷徑需要 glmnet；請先在合法可重現環境中安裝。")
+}
 ```
 
 
@@ -277,12 +280,79 @@ data.frame(best_lambda = best_lambda, validation_mse = min(mean_loss))
 ## 1 0.003798291    0.002486418
 ```
 
+## 原課程套件捷徑：以 `glmnet` 跑相同的時序折
+
+原課程 `slides/L11_Factor selection_via_ML/fffqmacro.R` 第 381--397 行直接以
+`glmnet()` 估 LASSO／Ridge 路徑，第 428--497 行再以時間序列折調校；精簡版
+`lasso_ff_fq_macro.R` 第 85--116 行則示範以統一工作流程呼叫同一個 `glmnet`
+引擎。本節採最少依賴的第一種作法：保留上面完全相同的 expanding-window
+`folds`、`lambda_grid`、預測期距與最終測試集，只把手寫標準化與座標下降換成
+`glmnet::glmnet()`。不能直接使用隨機 K-fold 的 `cv.glmnet()`，因為那會讓較晚
+月份進入較早月份的訓練資料。
+
+
+``` r
+glmnet_fold_loss <- matrix(
+  NA_real_, nrow = length(folds), ncol = length(lambda_grid)
+)
+for (v in seq_along(folds)) {
+  tr <- folds[[v]]$train
+  va <- folds[[v]]$validation
+  glmnet_fold_fit <- glmnet::glmnet(
+    x = X[tr, , drop = FALSE],
+    y = y[tr],
+    alpha = 1,
+    lambda = lambda_grid,
+    standardize = TRUE,
+    intercept = TRUE,
+    thresh = 1e-10
+  )
+  glmnet_fold_prediction <- predict(
+    glmnet_fold_fit,
+    newx = X[va, , drop = FALSE],
+    s = lambda_grid
+  )
+  glmnet_fold_loss[v, ] <- colMeans(
+    (matrix(y[va], nrow = length(va), ncol = length(lambda_grid)) -
+       glmnet_fold_prediction)^2
+  )
+}
+
+glmnet_mean_loss <- colMeans(glmnet_fold_loss)
+glmnet_best_lambda <- lambda_grid[which.min(glmnet_mean_loss)]
+
+data.frame(
+  implementation = c("manual coordinate descent", "glmnet package"),
+  best_lambda = c(best_lambda, glmnet_best_lambda),
+  validation_MSE = c(min(mean_loss), min(glmnet_mean_loss)),
+  same_time_folds = TRUE
+)
+```
+
+```
+##              implementation best_lambda validation_MSE same_time_folds
+## 1 manual coordinate descent 0.003798291    0.002486418            TRUE
+## 2            glmnet package 0.003798291    0.002486430            TRUE
+```
+
+兩個版本使用相同目標函數族與資料切分，但停止準則、標準化細節及路徑計算的
+數值實作不必逐位元相同。公平的對照是驗證／測試預測與非零集合；手算版係數
+位於標準化尺度，`coef.glmnet()` 則已轉回原始變數尺度，不能直接逐格相減。
+
 
 ``` r
 plot(log(lambda_grid), mean_loss, type = "l", lwd = 2,
      xlab = "log(lambda)", ylab = "Mean validation MSE",
      col = "#173B57")
+lines(log(lambda_grid), glmnet_mean_loss, lwd = 1.5,
+      lty = 3, col = "#1D6D73")
 abline(v = log(best_lambda), lty = 2, col = "#A34045")
+abline(v = log(glmnet_best_lambda), lty = 3, col = "#1D6D73")
+legend(
+  "topleft", c("Manual coordinate descent", "glmnet"),
+  col = c("#173B57", "#1D6D73"), lty = c(1, 3),
+  lwd = c(2, 1.5), bty = "n"
+)
 ```
 
 ![製造業 expanding-window validation loss。](../R14_financial_factor_selection_files/figure-gfm/cv-plot-1.png)
@@ -295,6 +365,28 @@ final <- fit_predict_lasso(
   X[tv, , drop = FALSE], y[tv],
   X[test, , drop = FALSE], best_lambda
 )
+
+glmnet_final_fit <- glmnet::glmnet(
+  x = X[tv, , drop = FALSE],
+  y = y[tv],
+  alpha = 1,
+  lambda = lambda_grid,
+  standardize = TRUE,
+  intercept = TRUE,
+  thresh = 1e-10
+)
+glmnet_prediction <- as.numeric(predict(
+  glmnet_final_fit,
+  newx = X[test, , drop = FALSE],
+  s = glmnet_best_lambda
+))
+
+# 固定在「手算版選到的同一 lambda」再比一次，隔離調校差異與估計器差異。
+glmnet_prediction_at_manual_lambda <- as.numeric(predict(
+  glmnet_final_fit,
+  newx = X[test, , drop = FALSE],
+  s = best_lambda
+))
 
 # 固定 forecast origin 可實現的歷史平均基準。
 baseline <- rep(mean(y[tv]), length(test))
@@ -311,27 +403,87 @@ score <- function(actual, forecast, baseline) {
 
 rbind(
   HistoricalMean = score(actual, baseline, baseline),
-  LASSO = score(actual, final$pred, baseline)
+  LASSO_manual = score(actual, final$pred, baseline),
+  LASSO_glmnet = score(actual, glmnet_prediction, baseline)
 )
 ```
 
 ```
 ##                        MSE        MAE      OOS_R2
 ## HistoricalMean 0.002112639 0.03413601  0.00000000
-## LASSO          0.002136697 0.03393833 -0.01138775
+## LASSO_manual   0.002136697 0.03393833 -0.01138775
+## LASSO_glmnet   0.002136831 0.03393859 -0.01145105
 ```
 
-歷史平均相對自己的 `OOS_R2` 分母與分子相同，故為 0。負的 LASSO `OOS_R2` 必須原樣報告，不可因結果不理想而移動測試起點或重新選字典。
+
+``` r
+glmnet_coef <- as.matrix(stats::coef(
+  glmnet_final_fit, s = glmnet_best_lambda
+))[, 1]
+glmnet_selected <- setdiff(
+  names(glmnet_coef)[abs(glmnet_coef) > 1e-8], "(Intercept)"
+)
+manual_selected <- final$names[abs(final$beta) > 1e-8]
+
+data.frame(
+  comparison = c(
+    "chosen-lambda test prediction",
+    "same-manual-lambda test prediction",
+    "selected-variable overlap"
+  ),
+  value = c(
+    max(abs(final$pred - glmnet_prediction)),
+    max(abs(final$pred - glmnet_prediction_at_manual_lambda)),
+    length(intersect(manual_selected, glmnet_selected)) /
+      max(1L, length(union(manual_selected, glmnet_selected)))
+  ),
+  interpretation = c(
+    "includes any difference in selected lambda",
+    "isolates numerical implementation at a fixed lambda",
+    "Jaccard share of the two nonzero sets"
+  )
+)
+```
+
+```
+##                           comparison       value
+## 1      chosen-lambda test prediction 4.77403e-05
+## 2 same-manual-lambda test prediction 4.77403e-05
+## 3          selected-variable overlap 1.00000e+00
+##                                        interpretation
+## 1          includes any difference in selected lambda
+## 2 isolates numerical implementation at a fixed lambda
+## 3               Jaccard share of the two nonzero sets
+```
+
+``` r
+data.frame(
+  implementation = c("manual", "glmnet"),
+  nonzero_predictors = c(length(manual_selected), length(glmnet_selected)),
+  best_lambda = c(best_lambda, glmnet_best_lambda)
+)
+```
+
+```
+##   implementation nonzero_predictors best_lambda
+## 1         manual                  7 0.003798291
+## 2         glmnet                  7 0.003798291
+```
+
+歷史平均相對自己的 `OOS_R2` 分母與分子相同，故為 0。兩個 LASSO 版本的負
+`OOS_R2` 都必須原樣報告，不可因結果不理想而移動測試起點或重新選字典。
 
 
 ``` r
 plot(dates[test], actual, type = "l", lwd = 1.8, col = "black",
      xlab = "Predictor month", ylab = "Next-month excess return")
 lines(dates[test], final$pred, col = "#A34045", lwd = 1.5)
+lines(dates[test], glmnet_prediction, col = "#1D6D73", lwd = 1.3, lty = 3)
 lines(dates[test], baseline, col = "#62717E", lty = 2)
-legend("topleft", c("Actual", "LASSO", "Historical mean"),
-       col = c("black", "#A34045", "#62717E"),
-       lty = c(1, 1, 2), lwd = c(1.8, 1.5, 1), bty = "n")
+legend("topleft", c("Actual", "LASSO (manual)", "LASSO (glmnet)",
+                     "Historical mean"),
+       col = c("black", "#A34045", "#1D6D73", "#62717E"),
+       lty = c(1, 1, 3, 2), lwd = c(1.8, 1.5, 1.3, 1), bty = "n")
 ```
 
 ![固定 test period 的製造業下一期報酬預測。](../R14_financial_factor_selection_files/figure-gfm/prediction-plot-1.png)
@@ -446,12 +598,31 @@ sessionInfo()
 ## [1] tibble_3.3.0 dplyr_1.2.1 
 ## 
 ## loaded via a namespace (and not attached):
-##  [1] vctrs_0.7.2        cli_3.6.5          knitr_1.51         rlang_1.1.7       
-##  [5] xfun_0.57          otel_0.2.0         MatrixModels_0.5-4 generics_0.1.4    
-##  [9] textshaping_1.0.5  glue_1.8.0         ragg_1.5.2         grid_4.5.2        
-## [13] evaluate_1.0.5     SparseM_1.84-2     MASS_7.3-65        lifecycle_1.0.5   
-## [17] compiler_4.5.2     pkgconfig_2.0.3    quantreg_6.1       systemfonts_1.3.2 
-## [21] lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1   utf8_1.2.6        
-## [25] splines_4.5.2      pillar_1.11.1      magrittr_2.0.4     Matrix_1.7-4      
-## [29] tools_4.5.2        survival_3.8-3
+##  [1] shape_1.4.6.1       gtable_0.3.6        xfun_0.57          
+##  [4] ggplot2_4.0.3       collapse_2.1.7      lattice_0.22-7     
+##  [7] quadprog_1.5-8      vctrs_0.7.2         tools_4.5.2        
+## [10] Rdpack_2.6.6        generics_0.1.4      curl_7.0.0         
+## [13] parallel_4.5.2      sandwich_3.1-1      xts_0.14.2         
+## [16] pkgconfig_2.0.3     gbutils_0.5.1       Matrix_1.7-4       
+## [19] tidyverse_2.0.0     RColorBrewer_1.1-3  S7_0.2.1           
+## [22] lifecycle_1.0.5     compiler_4.5.2      farver_2.1.2       
+## [25] MatrixModels_0.5-4  maxLik_1.5-2.2      textshaping_1.0.5  
+## [28] codetools_0.2-20    SparseM_1.84-2      quantreg_6.1       
+## [31] htmltools_0.5.9     glmnet_4.1-10       Formula_1.2-5      
+## [34] pillar_1.11.1       MASS_7.3-65         plm_2.6-7          
+## [37] iterators_1.0.14    foreach_1.5.2       nlme_3.1-168       
+## [40] fracdiff_1.5-4      pls_2.9-0           fBasics_4052.98    
+## [43] tidyselect_1.2.1    bdsmatrix_1.3-7     digest_0.6.39      
+## [46] labeling_0.4.3      splines_4.5.2       tseries_0.10-62    
+## [49] miscTools_0.6-30    fastmap_1.2.0       grid_4.5.2         
+## [52] colorspace_2.1-2    cli_3.6.5           magrittr_2.0.4     
+## [55] utf8_1.2.6          survival_3.8-3      withr_3.0.2        
+## [58] scales_1.4.0        forecast_9.0.2      TTR_0.24.4         
+## [61] rmarkdown_2.31      quantmod_0.4.29     otel_0.2.0         
+## [64] timeDate_4052.112   ragg_1.5.2          zoo_1.8-15         
+## [67] timeSeries_4052.112 fGarch_4052.93      urca_1.3-4         
+## [70] evaluate_1.0.5      knitr_1.51          rbibutils_2.4.1    
+## [73] lmtest_0.9-40       rlang_1.1.7         spatial_7.3-18     
+## [76] Rcpp_1.1.0          glue_1.8.0          R6_2.6.1           
+## [79] cvar_0.6            systemfonts_1.3.2
 ```

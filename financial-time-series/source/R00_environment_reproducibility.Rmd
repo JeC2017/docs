@@ -14,6 +14,29 @@ output:
 - 從教科書專案根目錄或 online_appendix 目錄執行皆可。
 - 十個公開實證資料位於 data/processed，建置紀錄位於 manifest.csv；網站的「實證資料下載」頁提供相同版本。
 
+## 兩條 R 學習路線
+
+每份相關附錄保留兩種互補做法：
+
+1. **手動建構版**把估計式、遞迴、損失函數與資訊邊界寫出來，適合用來理解方法與除錯；
+2. **原課程套件捷徑**移植作者以前授課 R scripts 中實際使用的高階函數，例如 `forecast::auto.arima()`、`forecast::tsCV()`、`tseries::adf.test()`、`fGarch::garchFit()`、`stats::prcomp()` 與 `glmnet::glmnet()`。
+
+套件版不重新從 Yahoo、FRED 或其他網站下載資料，而是讀取本書公開的固定 CSV。這項調整保留原課程的估計工作流，同時避免資料供應者日後修訂、交易日不同或網路中斷造成答案漂移。兩版結果若不同，附錄會交代模型集合、估計法、初始化或有限樣本修正的差異，不把「套件輸出」當作無條件正解。
+
+### 一次安裝必要套件
+
+安裝只在環境設定階段執行一次，不應放進正式分析 chunk。以下程式因此不會在製作網站時自動執行；學生可在 R console 執行。
+
+```{r install-packages, eval=FALSE}
+install.packages(c(
+  "knitr", "rmarkdown", "ragg", "systemfonts",
+  "tidyverse", "fBasics", "forecast", "tseries",
+  "urca", "fGarch", "plm", "glmnet", "pls"
+))
+```
+
+`phtt` 與完整 `tidymodels` 工作流只在相應進階段落使用；若該段明列需要，再依附錄指示另行安裝。正式 Rmd 只檢查套件是否存在，不在執行中偷偷改變環境。
+
 ```{r setup}
 knitr::opts_chunk$set(
   echo = TRUE,
@@ -155,6 +178,28 @@ inherits(bad_result, "try-error")
 網站版輸出應保留 R 版本、作業系統與主要套件版本。若結果日後不同，這些資訊是追查起點。
 
 ```{r session-record}
+teaching_packages <- c(
+  "knitr", "rmarkdown", "ragg", "systemfonts",
+  "tidyverse", "fBasics", "forecast", "tseries",
+  "urca", "fGarch", "plm", "glmnet", "pls"
+)
+package_record <- data.frame(
+  package = teaching_packages,
+  installed = vapply(
+    teaching_packages, requireNamespace,
+    logical(1), quietly = TRUE
+  ),
+  version = vapply(teaching_packages, function(package) {
+    if (requireNamespace(package, quietly = TRUE)) {
+      as.character(utils::packageVersion(package))
+    } else {
+      NA_character_
+    }
+  }, character(1)),
+  row.names = NULL
+)
+package_record
+
 environment_record <- list(
   generated_at = format(Sys.time(), tz = "UTC", usetz = TRUE),
   R = R.version.string,

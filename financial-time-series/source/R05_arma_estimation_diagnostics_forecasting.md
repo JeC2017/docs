@@ -154,6 +154,88 @@ selected_name
 
 BIC 是訓練期內的相對比較，不是測試期成績，也不保證候選集合包含正確模型。
 
+## 原課程套件捷徑：`auto.arima()`
+
+原課程的
+`slides/L04_ARMA/W1L4_R_template_for_estimating_ARMA.R`
+以 `forecast::auto.arima()` 選階、`checkresiduals()` 診斷，再以
+`forecast()` 形成預測。
+`slides/L05_Forecasting_and_CV/W1L5_R_prediction_cv.R`
+另示範了不使用逐步搜尋的 AIC 選階。下列兩個套件版本都只讀訓練期：第一個把階數範圍與資訊準則限制成上一節的手動候選集合，方便核對；第二個保留原課程的較自動 AIC 搜尋。
+
+
+``` r
+stopifnot(requireNamespace("forecast", quietly = TRUE))
+
+# p <= 2、q <= 2 且 p + q <= 3，正好對應上文八個候選模型。
+fit_auto_matched <- forecast::auto.arima(
+  y_train,
+  d = 0,
+  stationary = TRUE,
+  seasonal = FALSE,
+  max.p = 2,
+  max.q = 2,
+  max.order = 3,
+  ic = "bic",
+  stepwise = FALSE,
+  approximation = FALSE,
+  allowmean = TRUE
+)
+
+# 原課程 AIC 工作流；不用測試期決定階數。
+fit_auto_course <- forecast::auto.arima(
+  y_train,
+  seasonal = FALSE,
+  ic = "aic",
+  stepwise = FALSE,
+  approximation = FALSE
+)
+
+order_text <- function(fit) {
+  order <- forecast::arimaorder(fit)[c("p", "d", "q")]
+  sprintf("ARIMA(%d,%d,%d)", order["p"], order["d"], order["q"])
+}
+
+selection_comparison <- data.frame(
+  方法 = c(
+    "手動候選集／BIC",
+    "forecast 受限搜尋／BIC",
+    "forecast 原課程搜尋／AIC"
+  ),
+  選定模型 = c(
+    sprintf(
+      "ARIMA(%d,%d,%d)",
+      selected_order[1], selected_order[2], selected_order[3]
+    ),
+    order_text(fit_auto_matched),
+    order_text(fit_auto_course)
+  ),
+  對數概似 = c(
+    as.numeric(logLik(selected_fit)),
+    as.numeric(logLik(fit_auto_matched)),
+    as.numeric(logLik(fit_auto_course))
+  ),
+  AIC = c(
+    AIC(selected_fit), AIC(fit_auto_matched), AIC(fit_auto_course)
+  ),
+  BIC = c(
+    BIC(selected_fit), BIC(fit_auto_matched), BIC(fit_auto_course)
+  ),
+  check.names = FALSE
+)
+knitr::kable(selection_comparison, digits = 3)
+```
+
+
+
+|方法                     |選定模型     | 對數概似|       AIC|       BIC|
+|:------------------------|:------------|--------:|---------:|---------:|
+|手動候選集／BIC          |ARIMA(1,0,0) | 1692.238| -3378.477| -3364.828|
+|forecast 受限搜尋／BIC   |ARIMA(1,0,0) | 1692.238| -3378.477| -3364.828|
+|forecast 原課程搜尋／AIC |ARIMA(2,0,3) | 1708.172| -3402.344| -3370.497|
+
+受限套件搜尋是對手動表的程式核對；若估計方法與參數化相同，應選到相同的相對勝者。AIC 版本的候選範圍與懲罰不同，即使選到不同階數也不是程式錯誤。這個對照也說明「自動選階」仍需把資訊準則、搜尋範圍與訓練期寫清楚。
+
 ## 係數、定態根與可逆根
 
 
@@ -246,6 +328,70 @@ knitr::kable(diagnostic_table, digits = 6)
 |平方殘差 | 355.02037|     20| 0.0e+00|
 
 本次 AR(1) 殘差的 Ljung--Box $p$ 值約為 $3.1\times10^{-5}$，平方殘差的數值更接近零。也就是說，BIC 所選模型只是候選集合內的相對勝者，並未清除全部平均與波動相依。
+
+
+``` r
+matched_order <- forecast::arimaorder(fit_auto_matched)[c("p", "d", "q")]
+matched_residual <- as.numeric(residuals(fit_auto_matched))
+matched_residual <- matched_residual[is.finite(matched_residual)]
+matched_df <- matched_order["p"] + matched_order["q"]
+
+matched_q_mean <- Box.test(
+  matched_residual,
+  lag = 20,
+  type = "Ljung-Box",
+  fitdf = matched_df
+)
+matched_q_square <- Box.test(
+  matched_residual^2,
+  lag = 20,
+  type = "Ljung-Box"
+)
+
+diagnostic_comparison <- data.frame(
+  方法 = rep(c("手動候選集", "forecast 受限搜尋"), each = 2),
+  檢查對象 = rep(c("殘差", "平方殘差"), 2),
+  Q20 = c(
+    unname(q_mean$statistic), unname(q_square$statistic),
+    unname(matched_q_mean$statistic),
+    unname(matched_q_square$statistic)
+  ),
+  p值 = c(
+    q_mean$p.value, q_square$p.value,
+    matched_q_mean$p.value, matched_q_square$p.value
+  ),
+  check.names = FALSE
+)
+knitr::kable(diagnostic_comparison, digits = 7)
+```
+
+
+
+|方法              |檢查對象 |       Q20|      p值|
+|:-----------------|:--------|---------:|--------:|
+|手動候選集        |殘差     |  54.18846| 3.09e-05|
+|手動候選集        |平方殘差 | 355.02037| 0.00e+00|
+|forecast 受限搜尋 |殘差     |  54.19123| 3.09e-05|
+|forecast 受限搜尋 |平方殘差 | 355.02619| 0.00e+00|
+
+``` r
+# 原課程使用的一行診斷：同時列出殘差圖、ACF 與 Ljung--Box 檢定。
+forecast::checkresiduals(fit_auto_matched, lag = 20)
+```
+
+![forecast::checkresiduals() 對受限 BIC 自動選階模型的殘差診斷。](../R05_arma_estimation_diagnostics_forecasting_files/figure-gfm/course-auto-arima-diagnostics-1.png)
+
+```
+## 
+## 	Ljung-Box test
+## 
+## data:  Residuals from ARIMA(1,0,0) with non-zero mean
+## Q* = 54.191, df = 19, p-value = 3.089e-05
+## 
+## Model df: 1.   Total lags used: 20
+```
+
+若受限搜尋與手動程式選到相同模型，上表應幾乎重合。小數點差異可來自套件的初始化與數值容差；若模型或自由度不同，則必須先統一階數、估計法與 `fitdf`，才能比較 Ljung--Box 數值。
 
 
 ``` r
@@ -344,6 +490,82 @@ knitr::kable(score_table, digits = 6)
 |訓練期平均數 | 0.020805| 0.016031| -0.002162|             NA|
 
 在這 175 筆固定測試資料中，零報酬基準的 RMSE 與 MAE 都略低於訓練期 BIC 所選的 AR(1)。這個負結果很重要：樣本內模型選擇準則較佳，不保證樣本外預測勝過簡單基準。
+
+## 原課程套件捷徑：`forecast()` 與 `accuracy()`
+
+下列程式對前面兩個 `auto.arima()` 模型執行原課程的
+`forecast()` 與 `accuracy()` 工作流。兩個階數都在訓練期鎖定；測試期只用來計分。
+
+
+``` r
+course_forecast_matched <- forecast::forecast(
+  fit_auto_matched,
+  h = h,
+  level = 95
+)
+course_forecast_aic <- forecast::forecast(
+  fit_auto_course,
+  h = h,
+  level = 95
+)
+
+accuracy_row <- function(object, actual, label) {
+  package_accuracy <- forecast::accuracy(object, actual)
+  test_accuracy <- package_accuracy[nrow(package_accuracy), , drop = FALSE]
+  data.frame(
+    模型 = label,
+    RMSE = unname(test_accuracy[1, "RMSE"]),
+    MAE = unname(test_accuracy[1, "MAE"]),
+    平均誤差 = unname(test_accuracy[1, "ME"]),
+    常態區間涵蓋率 = mean(
+      actual >= as.numeric(object$lower[, 1]) &
+        actual <= as.numeric(object$upper[, 1])
+    ),
+    check.names = FALSE
+  )
+}
+
+manual_accuracy <- score_row(
+  y_test,
+  forecast_table$ARMA預測,
+  paste0("手動候選：", selected_name)
+)
+manual_accuracy$常態區間涵蓋率 <- mean(
+  y_test >= forecast_table$下界95 &
+    y_test <= forecast_table$上界95
+)
+
+zero_accuracy <- score_row(y_test, rep(0, h), "零報酬")
+zero_accuracy$常態區間涵蓋率 <- NA_real_
+
+package_forecast_comparison <- rbind(
+  manual_accuracy,
+  accuracy_row(
+    course_forecast_matched,
+    y_test,
+    paste0("forecast 受限BIC：", order_text(fit_auto_matched))
+  ),
+  accuracy_row(
+    course_forecast_aic,
+    y_test,
+    paste0("forecast 原課程AIC：", order_text(fit_auto_course))
+  ),
+  zero_accuracy
+)
+row.names(package_forecast_comparison) <- NULL
+knitr::kable(package_forecast_comparison, digits = 7)
+```
+
+
+
+|模型                             |      RMSE|       MAE|   平均誤差| 常態區間涵蓋率|
+|:--------------------------------|---------:|---------:|----------:|--------------:|
+|手動候選：AR10                   | 0.0208091| 0.0160361| -0.0021910|      0.9771429|
+|forecast 受限BIC：ARIMA(1,0,0)   | 0.0208091| 0.0160361| -0.0021907|      0.9771429|
+|forecast 原課程AIC：ARIMA(2,0,3) | 0.0208093| 0.0160548| -0.0022301|      0.9771429|
+|零報酬                           | 0.0206943| 0.0159514| -0.0002826|             NA|
+
+若手動 BIC 與受限 `auto.arima()` 選到同一階數，兩者點預測與評分應幾乎相同；這是程式實作的交叉核對。原課程 AIC 版本可能選到不同階數，因而產生不同預測。`accuracy()` 讓計分更簡短，卻不會改變樣本外紀律：模型、資訊準則與預測起點仍必須在讀取測試答案以前固定。
 
 
 ``` r

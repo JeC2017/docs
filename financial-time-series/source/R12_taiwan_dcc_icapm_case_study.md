@@ -224,12 +224,12 @@ rho_12 <- dcc_result$R[1, 2, ]
 plot(
   seq_len(T_dcc), rho_12,
   type = "l", col = "#173B57",
-  xlab = "期數", ylab = expression(rho[12 * ",t"]),
-  main = "合成資料的 DCC 條件相關"
+  xlab = "Period", ylab = expression(rho[12 * ",t"]),
+  main = "DCC Conditional Correlation in the Synthetic Example"
 )
 abline(v = max(dcc_train_id), lty = 2, col = "#A34045")
 legend(
-  "bottomright", legend = "估計期／保留期分界",
+  "bottomright", legend = "Training/holdout boundary",
   lty = 2, col = "#A34045", bty = "n"
 )
 ```
@@ -431,7 +431,56 @@ data.frame(
 
 這些係數只是在現有生成共變異數上的描述性第二階段估計。未處理第一階段估計誤差，因此不能把一般 OLS 標準誤當成完整推論。
 
-### 5.1 保留期與簡單基準比較
+### 5.1 原課程套件路線與目前可重現捷徑
+
+原課程 `slides/L09_Statistical_factor_models/W2L4_hands-on_R_factors/icapm/InteractivePDM3.R` 載入 `plm`，並以 `phtt::Eup()` 估計交互固定效果。`Eup()` 不是上面的單向公司固定效果；而且本書建置所用的 R 4.5 環境無法直接由目前 CRAN 安裝 `phtt`，舊課程檔也記錄了版本相容問題。因此我們不把另一個模型硬說成 `Eup()` 的複製。
+
+下列學生友善捷徑使用原課程已載入的 `plm`，精確重估上面的**單向公司 within 模型**。它的目的，是證明套件與手動去平均在相同模型下得到相同斜率；完整交互固定效果仍須另行固定相容的 `phtt` 環境後才可重現。
+
+
+``` r
+stopifnot(requireNamespace("plm", quietly = TRUE))
+
+panel_train_plm <- plm::pdata.frame(
+  panel_train,
+  index = c("firm", "day"),
+  drop.index = FALSE,
+  row.names = TRUE
+)
+plm_within_fit <- plm::plm(
+  return ~ cov_X + cov_vix + cov_liq,
+  data = panel_train_plm,
+  model = "within",
+  effect = "individual"
+)
+
+plm_comparison <- data.frame(
+  predictor = predictors,
+  manual_within = unname(within_fit$beta[predictors]),
+  plm_within = unname(stats::coef(plm_within_fit)[predictors]),
+  check.names = FALSE
+)
+plm_comparison$absolute_difference <- abs(
+  plm_comparison$manual_within - plm_comparison$plm_within
+)
+knitr::kable(plm_comparison, digits = 10)
+```
+
+
+
+|predictor | manual_within|  plm_within| absolute_difference|
+|:---------|-------------:|-----------:|-------------------:|
+|cov_X     |    -0.1342485|  -0.1342485|                   0|
+|cov_vix   |    -0.1580951|  -0.1580951|                   0|
+|cov_liq   |   -19.0472011| -19.0472011|                   0|
+
+``` r
+stopifnot(max(plm_comparison$absolute_difference) < 1e-8)
+```
+
+這個核對只涵蓋點估計。標準誤仍須依日期共同衝擊、公司內序列相依與第一階段生成變數調整，不能因為 `plm()` 一行跑完就忽略推論設計。
+
+### 5.2 保留期與簡單基準比較
 
 基準模型只使用每家公司訓練期平均報酬。兩個模型都不能看測試期報酬來調參。
 
@@ -608,12 +657,31 @@ sessionInfo()
 ## [1] tibble_3.3.0 dplyr_1.2.1 
 ## 
 ## loaded via a namespace (and not attached):
-##  [1] vctrs_0.7.2        cli_3.6.5          knitr_1.51         rlang_1.1.7       
-##  [5] xfun_0.57          otel_0.2.0         MatrixModels_0.5-4 generics_0.1.4    
-##  [9] textshaping_1.0.5  glue_1.8.0         ragg_1.5.2         grid_4.5.2        
-## [13] evaluate_1.0.5     SparseM_1.84-2     MASS_7.3-65        lifecycle_1.0.5   
-## [17] compiler_4.5.2     pkgconfig_2.0.3    quantreg_6.1       systemfonts_1.3.2 
-## [21] lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1   utf8_1.2.6        
-## [25] splines_4.5.2      pillar_1.11.1      magrittr_2.0.4     Matrix_1.7-4      
-## [29] tools_4.5.2        survival_3.8-3
+##  [1] shape_1.4.6.1       gtable_0.3.6        xfun_0.57          
+##  [4] ggplot2_4.0.3       collapse_2.1.7      lattice_0.22-7     
+##  [7] quadprog_1.5-8      vctrs_0.7.2         tools_4.5.2        
+## [10] Rdpack_2.6.6        generics_0.1.4      curl_7.0.0         
+## [13] parallel_4.5.2      sandwich_3.1-1      xts_0.14.2         
+## [16] pkgconfig_2.0.3     gbutils_0.5.1       Matrix_1.7-4       
+## [19] tidyverse_2.0.0     RColorBrewer_1.1-3  S7_0.2.1           
+## [22] lifecycle_1.0.5     compiler_4.5.2      farver_2.1.2       
+## [25] MatrixModels_0.5-4  maxLik_1.5-2.2      textshaping_1.0.5  
+## [28] codetools_0.2-20    SparseM_1.84-2      quantreg_6.1       
+## [31] htmltools_0.5.9     glmnet_4.1-10       Formula_1.2-5      
+## [34] pillar_1.11.1       MASS_7.3-65         plm_2.6-7          
+## [37] iterators_1.0.14    foreach_1.5.2       nlme_3.1-168       
+## [40] fracdiff_1.5-4      pls_2.9-0           fBasics_4052.98    
+## [43] tidyselect_1.2.1    bdsmatrix_1.3-7     digest_0.6.39      
+## [46] labeling_0.4.3      splines_4.5.2       tseries_0.10-62    
+## [49] miscTools_0.6-30    fastmap_1.2.0       grid_4.5.2         
+## [52] colorspace_2.1-2    cli_3.6.5           magrittr_2.0.4     
+## [55] utf8_1.2.6          survival_3.8-3      withr_3.0.2        
+## [58] scales_1.4.0        forecast_9.0.2      TTR_0.24.4         
+## [61] rmarkdown_2.31      quantmod_0.4.29     otel_0.2.0         
+## [64] timeDate_4052.112   ragg_1.5.2          zoo_1.8-15         
+## [67] timeSeries_4052.112 fGarch_4052.93      urca_1.3-4         
+## [70] evaluate_1.0.5      knitr_1.51          rbibutils_2.4.1    
+## [73] lmtest_0.9-40       rlang_1.1.7         spatial_7.3-18     
+## [76] Rcpp_1.1.0          glue_1.8.0          R6_2.6.1           
+## [79] cvar_0.6            systemfonts_1.3.2
 ```

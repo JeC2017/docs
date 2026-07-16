@@ -227,6 +227,109 @@ knitr::kable(adf_table, digits = 5)
 
 在這個指定設計下，對數水準的結果與拒絕單根不相容，而差分的統計量落在左尾。這不是「水準一定有單根」或「差分一定符合某個完整模型」的證明；誤差相依、異質變異、缺值日與結構變動都可能改變參考分配。
 
+## 原課程套件捷徑：ADF 與 DF--GLS
+
+原課程教師程式
+`slides/L06_Nonstationarity/W2L1_adf_test_tseries_package.R`
+使用 `tseries::adf.test()`；教師程式
+`slides/L04_ARMA/W1L4_R_template_for_estimating_ARMA.R`
+則示範 `urca::ur.ers()` 的 DF--GLS 檢定。以下直接在同一份固定
+TWD/JPY CSV 上執行兩種套件檢定，不改用即時下載資料。
+
+三個結果不能只按函數名稱排在同一欄比較：
+
+1. 前面的手動 ADF-like 迴歸含常數、不含趨勢，並使用本附錄模擬的特定虛無臨界值。
+2. `tseries::adf.test()` 的檢定迴歸同時含常數與線性趨勢；其套件
+   $p$ 值對應這個規格，不是前面常數項規格的 $p$ 值。
+3. ERS 的 DF--GLS 先以廣義最小平方法去平均或去趨勢，再檢定轉換後序列。
+   `model = "constant"` 與 `model = "trend"` 因此代表不同的確定項假設。
+
+```{r package-unit-root-tests}
+stopifnot(
+  requireNamespace("tseries", quietly = TRUE),
+  requireNamespace("urca", quietly = TRUE)
+)
+
+tseries_level <- tseries::adf.test(
+  log_level, alternative = "stationary", k = lags
+)
+tseries_difference <- tseries::adf.test(
+  log_difference, alternative = "stationary", k = lags
+)
+
+tseries_table <- data.frame(
+  序列 = c("log(TWD per JPY)", "一階對數差分"),
+  確定項規格 = "常數與線性趨勢",
+  差分落後階數 = lags,
+  ADF統計量 = c(
+    unname(tseries_level$statistic),
+    unname(tseries_difference$statistic)
+  ),
+  套件p值 = c(tseries_level$p.value, tseries_difference$p.value),
+  check.names = FALSE
+)
+knitr::kable(tseries_table, digits = 5)
+
+dfgls_fits <- list(
+  level_constant = urca::ur.ers(
+    log_level,
+    type = "DF-GLS", model = "constant", lag.max = lags
+  ),
+  level_trend = urca::ur.ers(
+    log_level,
+    type = "DF-GLS", model = "trend", lag.max = lags
+  ),
+  difference_constant = urca::ur.ers(
+    log_difference,
+    type = "DF-GLS", model = "constant", lag.max = lags
+  ),
+  difference_trend = urca::ur.ers(
+    log_difference,
+    type = "DF-GLS", model = "trend", lag.max = lags
+  )
+)
+
+extract_dfgls_5pct <- function(fit) {
+  critical <- fit@cval
+  labels <- if (is.null(dim(critical))) {
+    names(critical)
+  } else {
+    colnames(critical)
+  }
+  index <- grep("5", labels, fixed = TRUE)[1]
+  stopifnot(length(index) == 1L, is.finite(index))
+  if (is.null(dim(critical))) {
+    unname(critical[index])
+  } else {
+    unname(critical[1, index])
+  }
+}
+
+dfgls_table <- data.frame(
+  序列 = rep(c("log(TWD per JPY)", "一階對數差分"), each = 2L),
+  GLS確定項轉換 = rep(c("去平均", "去常數與線性趨勢"), 2L),
+  差分落後上限 = lags,
+  DF_GLS統計量 = vapply(
+    dfgls_fits,
+    function(fit) as.numeric(fit@teststat)[1],
+    numeric(1)
+  ),
+  套件5pct臨界值 = vapply(
+    dfgls_fits, extract_dfgls_5pct, numeric(1)
+  ),
+  check.names = FALSE
+)
+dfgls_table$按套件5pct臨界值拒絕 <-
+  dfgls_table$DF_GLS統計量 < dfgls_table$套件5pct臨界值
+knitr::kable(dfgls_table, digits = 5)
+```
+
+`tseries::adf.test()` 表中的 `0.01` 是套件回報的下界，表示實際插值 $p$ 值小於 0.01，不應誤讀成恰好等於 1%。該函數的趨勢規格、DF--GLS 的 GLS 確定項轉換，以及手動
+ADF-like 的常數項規格回答的問題略有不同。尤其當序列在短樣本中同時呈現高度持續與
+緩慢漂移時，是否納入趨勢可能改變結論；這應記錄為規格敏感度，而不是挑選最容易拒絕
+單根的函數。對差分序列拒絕單根，也只支持該檢定規格下的定態對立假設，並不保證沒有
+條件異質變異或結構變動。
+
 ## 真實 FX 報酬的回顧性結構變動搜尋
 
 以兩段常數平均數模型計算每個候選日期的平方和 $F$ 型統計量，每一側至少保留 15% 樣本。分別搜尋：

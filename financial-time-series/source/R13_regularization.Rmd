@@ -200,15 +200,28 @@ data.frame(
 
 ## 調校 \(\lambda\) 與 \(\alpha\)
 
-LASSO/Elastic Net 的網格以第一個訓練折的 `lambda_max` 為尺度；Ridge 使用較寬的正值網格。每一折都重新估計中心與尺度。
+LASSO 與 Elastic Net 的網格分別從「所有斜率恰為零」的門檻
+`lambda_max / alpha` 向下延伸三個數量級；Ridge 的網格則涵蓋八個數量級。
+每一折都重新估計中心與尺度。把零係數門檻明列為端點，可分辨資料真的偏好
+只有截距的預測，或只是調校網格沒有包住最小值。
 
 ```{r tune}
-pp0 <- prep_x(X_raw[folds[[1]]$train, , drop = FALSE])
-y0 <- y[folds[[1]]$train]
-lambda_max <- max(abs(crossprod(pp0$train, y0 - mean(y0)))) /
-  length(y0)
-lambda_enet <- exp(seq(log(lambda_max), log(lambda_max * 0.01), length.out = 24))
-lambda_ridge <- exp(seq(log(1e-4), log(10), length.out = 24))
+lambda_max_by_fold <- vapply(folds, function(fold) {
+  pp <- prep_x(X_raw[fold$train, , drop = FALSE])
+  yy <- y[fold$train]
+  max(abs(crossprod(pp$train, yy - mean(yy)))) / length(yy)
+}, numeric(1))
+lambda_max <- max(lambda_max_by_fold)
+lambda_lasso <- exp(seq(
+  log(lambda_max), log(lambda_max * 0.001), length.out = 40
+))
+elastic_alpha <- 0.5
+lambda_elastic <- exp(seq(
+  log(lambda_max / elastic_alpha),
+  log(lambda_max / elastic_alpha * 0.001),
+  length.out = 40
+))
+lambda_ridge <- exp(seq(log(1e-4), log(1e4), length.out = 49))
 
 cv_loss <- function(lambda_grid, method, alpha = 1) {
   out <- matrix(NA_real_, nrow = length(folds), ncol = length(lambda_grid))
@@ -228,25 +241,36 @@ cv_loss <- function(lambda_grid, method, alpha = 1) {
 }
 
 loss_ridge <- cv_loss(lambda_ridge, "ridge")
-loss_lasso <- cv_loss(lambda_enet, "enet", alpha = 1)
-loss_enet <- cv_loss(lambda_enet, "enet", alpha = 0.5)
+loss_lasso <- cv_loss(lambda_lasso, "enet", alpha = 1)
+loss_enet <- cv_loss(lambda_elastic, "enet", alpha = elastic_alpha)
 
 best_ridge <- lambda_ridge[which.min(loss_ridge)]
-best_lasso <- lambda_enet[which.min(loss_lasso)]
-best_enet <- lambda_enet[which.min(loss_enet)]
+best_lasso <- lambda_lasso[which.min(loss_lasso)]
+best_enet <- lambda_elastic[which.min(loss_enet)]
 
 data.frame(
   model = c("Ridge", "LASSO", "Elastic Net"),
   lambda = c(best_ridge, best_lasso, best_enet),
-  validation_mse = c(min(loss_ridge), min(loss_lasso), min(loss_enet))
+  validation_mse = c(min(loss_ridge), min(loss_lasso), min(loss_enet)),
+  grid_location = c(
+    "interior",
+    if (which.min(loss_lasso) == 1L) "zero-slope threshold" else "interior",
+    if (which.min(loss_enet) == 1L) "zero-slope threshold" else "interior"
+  )
 )
+stopifnot(which.min(loss_ridge) %in% 2:(length(lambda_ridge) - 1L))
 ```
+
+Ridge 的最小值落在擴大網格內部。LASSO 與 Elastic Net 則選到各自的
+`zero-slope threshold`：這個上端點是依所有驗證折中最大的零係數門檻建立，
+再增大 \(\lambda\) 也只會維持全部斜率為零。因此這兩個邊界解表示驗證資料
+偏好只有截距的預測，不是網格仍未向上延伸的未解問題。
 
 ```{r validation-plot, fig.cap="Expanding-window validation MSE。"}
 plot(log(lambda_ridge), loss_ridge, type = "l", lwd = 2,
      xlab = "log(lambda)", ylab = "Validation MSE", col = "#173B57")
-lines(log(lambda_enet), loss_lasso, lwd = 2, col = "#A34045")
-lines(log(lambda_enet), loss_enet, lwd = 2, col = "#1D6D73")
+lines(log(lambda_lasso), loss_lasso, lwd = 2, col = "#A34045")
+lines(log(lambda_elastic), loss_enet, lwd = 2, col = "#1D6D73")
 legend("topleft", c("Ridge", "LASSO", "Elastic Net"),
        col = c("#173B57", "#A34045", "#1D6D73"), lwd = 2, bty = "n")
 ```
@@ -261,7 +285,9 @@ y_test <- y[idx_test]
 
 ridge <- predict_scaled(X_tv, y_tv, X_test, best_ridge, "ridge")
 lasso <- predict_scaled(X_tv, y_tv, X_test, best_lasso, "enet", alpha = 1)
-enet <- predict_scaled(X_tv, y_tv, X_test, best_enet, "enet", alpha = 0.5)
+enet <- predict_scaled(
+  X_tv, y_tv, X_test, best_enet, "enet", alpha = elastic_alpha
+)
 
 # 以 QR pivot 選出線性獨立欄，再估計一個明確、可重現的降秩 OLS。
 # 在秩虧設計下，完整係數向量不唯一；此基準不作結構性係數解讀。

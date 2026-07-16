@@ -57,7 +57,7 @@
       <article>
         <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R08：ARCH、GARCH、非對稱波動與預測</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R08_arch_garch_asymmetry_forecasting.Rmd">R Markdown 原始檔</a><a href="source/R08_arch_garch_asymmetry_forecasting.md">執行後 Markdown</a></div></header>
         <p>本附錄對應第 11--12 章，使用真實 AAPL 日對數報酬估計 GARCH(1,1) 與 GJR--GARCH(1,1)。資料源自原課程 S&amp;P 500 價格檔；有效樣本為 2019-01-03 至 2022-06-22，共 874 筆，單位是小數日對數報酬。固定版本與建置方式見 <code>data/DATA_SOURCES.md</code>。</p>
-<p>最後 20% 樣本保留作一次性測試。平均數、變異數參數與初始尺度都只由前 80% 訓練期估計；測試期每一期先形成波動預測，才讀入當期實現報酬更新下一期狀態。本文只用 R 內建的 <code>optim()</code>，不依賴另行安裝的 GARCH 套件。</p>
+<p>最後 20% 樣本保留作一次性測試。平均數、變異數參數與初始尺度都只由前 80% 訓練期估計；測試期每一期先形成波動預測，才讀入當期實現報酬更新下一期狀態。主線先用 R 內建的 <code>optim()</code> 透明重建遞迴與目標函數，再加入原課程教師講義使用的 <code>fGarch::garchFit()</code> 捷徑；兩條路徑都只使用固定資料與相同訓練期。</p>
 <p>條件波動模型描述歷史上的條件變異動態；正負報酬的不對稱關聯不能自動解讀成「壞消息造成波動」的因果效果，也不構成投資建議。</p>
 <pre><code class="language-r">knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
@@ -410,6 +410,219 @@ knitr::kable(parameter_table, digits = 7)
 </code></pre>
 <p>GJR 的不對稱係數估計值約為 0.1614，訓練期高斯 QML 目標函數也較低；這是條件關聯與配適結果，沒有穩健標準誤時不作顯著性宣稱，更不能作因果解讀。</p>
 <p>兩個模型的目標函數可以在同一訓練資料上比較，但多一個參數會提高彈性；不能只看訓練期目標函數就宣告 GJR 必然有較佳預測。</p>
+<h2 id="fgarchgarchfit">原課程套件捷徑：<code>fGarch::garchFit()</code><a class="headerlink" href="#fgarchgarchfit" title="Permanent link">#</a></h2>
+<p>本節取自原課程教師程式
+<code>slides/L07_ARCH_GARCH/W2L2_R_template_GARCH.R</code>。該程式以
+<code>garchFit(~ arma(1,0) + garch(1,1), cond.dist = "QMLE")</code> 聯合估計
+AR(1) 平均數與 GARCH(1,1)，並以
+<code>garchFit(~ arma(1,0) + aparch(1,1), delta = 2)</code> 示範非對稱規格。
+以下保留兩個公式，但把即時下載的 AAPL 換成同一份固定 CSV，且一律只用訓練期。</p>
+<p>為了與前面的手動 GARCH 作公平核對，另外配適一個「對齊規格」：先扣除已凍結的
+$\widehat{\mu}_{\mathrm{train}}$，再設定 <code>include.mean = FALSE</code>。這個版本與手動
+GARCH 使用相同的固定平均數與變異數方程；兩者仍可能因初始變異數與概似實作細節而有
+小幅差異。APARCH 的 <code>gamma1</code> 則屬於套件的符號與冪次參數化，不能直接當成前面
+GJR 指標函數中的 $\gamma$ 比較。</p>
+<pre><code class="language-r">stopifnot(requireNamespace(&quot;fGarch&quot;, quietly = TRUE))
+
+raw_train &lt;- aapl$log_return[seq_len(train_end)]
+
+fgarch_lecture_garch &lt;- fGarch::garchFit(
+  ~ arma(1, 0) + garch(1, 1),
+  data = raw_train,
+  cond.dist = &quot;QMLE&quot;,
+  trace = FALSE
+)
+
+fgarch_lecture_aparch &lt;- fGarch::garchFit(
+  ~ arma(1, 0) + aparch(1, 1),
+  data = raw_train,
+  delta = 2,
+  include.delta = FALSE,
+  cond.dist = &quot;norm&quot;,
+  trace = FALSE
+)
+
+fgarch_aligned &lt;- fGarch::garchFit(
+  ~ garch(1, 1),
+  data = train,
+  include.mean = FALSE,
+  cond.dist = &quot;QMLE&quot;,
+  trace = FALSE
+)
+
+coefficient_or_na &lt;- function(coefficient, term) {
+  if (term %in% names(coefficient)) {
+    unname(coefficient[term])
+  } else {
+    NA_real_
+  }
+}
+
+coef_lecture_garch &lt;- fgarch_lecture_garch@fit$coef
+coef_lecture_aparch &lt;- fgarch_lecture_aparch@fit$coef
+coef_aligned &lt;- fgarch_aligned@fit$coef
+
+fgarch_specification_table &lt;- data.frame(
+  規格 = c(
+    &quot;原課程 AR(1)-GARCH；QMLE&quot;,
+    &quot;原課程 AR(1)-APARCH；delta=2&quot;,
+    &quot;對齊手動版：固定平均 GARCH；QMLE&quot;
+  ),
+  平均數處理 = c(
+    &quot;聯合估計 AR(1)&quot;,
+    &quot;聯合估計 AR(1)&quot;,
+    &quot;固定訓練期平均數&quot;
+  ),
+  mu = c(
+    coefficient_or_na(coef_lecture_garch, &quot;mu&quot;),
+    coefficient_or_na(coef_lecture_aparch, &quot;mu&quot;),
+    mu_train
+  ),
+  ar1 = c(
+    coefficient_or_na(coef_lecture_garch, &quot;ar1&quot;),
+    coefficient_or_na(coef_lecture_aparch, &quot;ar1&quot;),
+    NA_real_
+  ),
+  omega = c(
+    coefficient_or_na(coef_lecture_garch, &quot;omega&quot;),
+    coefficient_or_na(coef_lecture_aparch, &quot;omega&quot;),
+    coefficient_or_na(coef_aligned, &quot;omega&quot;)
+  ),
+  alpha1 = c(
+    coefficient_or_na(coef_lecture_garch, &quot;alpha1&quot;),
+    coefficient_or_na(coef_lecture_aparch, &quot;alpha1&quot;),
+    coefficient_or_na(coef_aligned, &quot;alpha1&quot;)
+  ),
+  beta1 = c(
+    coefficient_or_na(coef_lecture_garch, &quot;beta1&quot;),
+    coefficient_or_na(coef_lecture_aparch, &quot;beta1&quot;),
+    coefficient_or_na(coef_aligned, &quot;beta1&quot;)
+  ),
+  gamma1_APARCH = c(
+    NA_real_,
+    coefficient_or_na(coef_lecture_aparch, &quot;gamma1&quot;),
+    NA_real_
+  ),
+  check.names = FALSE
+)
+knitr::kable(fgarch_specification_table, digits = 7)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">規格</th>
+<th style="text-align: left;">平均數處理</th>
+<th style="text-align: right;">mu</th>
+<th style="text-align: right;">ar1</th>
+<th style="text-align: right;">omega</th>
+<th style="text-align: right;">alpha1</th>
+<th style="text-align: right;">beta1</th>
+<th style="text-align: right;">gamma1_APARCH</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">原課程 AR(1)-GARCH；QMLE</td>
+<td style="text-align: left;">聯合估計 AR(1)</td>
+<td style="text-align: right;">0.0031347</td>
+<td style="text-align: right;">-0.0816236</td>
+<td style="text-align: right;">1.87e-05</td>
+<td style="text-align: right;">0.1546890</td>
+<td style="text-align: right;">0.8057698</td>
+<td style="text-align: right;">NA</td>
+</tr>
+<tr>
+<td style="text-align: left;">原課程 AR(1)-APARCH；delta=2</td>
+<td style="text-align: left;">聯合估計 AR(1)</td>
+<td style="text-align: right;">0.0026045</td>
+<td style="text-align: right;">-0.0662198</td>
+<td style="text-align: right;">2.13e-05</td>
+<td style="text-align: right;">0.1484408</td>
+<td style="text-align: right;">0.7940558</td>
+<td style="text-align: right;">0.2645228</td>
+</tr>
+<tr>
+<td style="text-align: left;">對齊手動版：固定平均 GARCH；QMLE</td>
+<td style="text-align: left;">固定訓練期平均數</td>
+<td style="text-align: right;">0.0018797</td>
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">1.96e-05</td>
+<td style="text-align: right;">0.1485739</td>
+<td style="text-align: right;">0.8064884</td>
+<td style="text-align: right;">NA</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-r">par_fgarch_aligned &lt;- c(
+  omega = coefficient_or_na(coef_aligned, &quot;omega&quot;),
+  alpha = coefficient_or_na(coef_aligned, &quot;alpha1&quot;),
+  beta = coefficient_or_na(coef_aligned, &quot;beta1&quot;),
+  gamma = 0
+)
+stopifnot(
+  all(is.finite(par_fgarch_aligned)),
+  par_fgarch_aligned[&quot;omega&quot;] &gt; 0,
+  par_fgarch_aligned[&quot;alpha&quot;] &gt;= 0,
+  par_fgarch_aligned[&quot;beta&quot;] &gt;= 0,
+  par_fgarch_aligned[&quot;alpha&quot;] + par_fgarch_aligned[&quot;beta&quot;] &lt; 1
+)
+
+common_gaussian_objective &lt;- function(a, par) {
+  h &lt;- filter_variance(a, par)
+  0.5 * sum(
+    log(2 * pi) + log(h[-1]) + a[-1]^2 / h[-1]
+  )
+}
+
+aligned_comparison &lt;- rbind(
+  手動_optim固定平均 = c(
+    par_garch[c(&quot;omega&quot;, &quot;alpha&quot;, &quot;beta&quot;)],
+    persistence = unname(par_garch[&quot;alpha&quot;] + par_garch[&quot;beta&quot;]),
+    共同目標函數 = common_gaussian_objective(train, par_garch)
+  ),
+  fGarch固定平均 = c(
+    par_fgarch_aligned[c(&quot;omega&quot;, &quot;alpha&quot;, &quot;beta&quot;)],
+    persistence = unname(
+      par_fgarch_aligned[&quot;alpha&quot;] + par_fgarch_aligned[&quot;beta&quot;]
+    ),
+    共同目標函數 = common_gaussian_objective(
+      train, par_fgarch_aligned
+    )
+  )
+)
+knitr::kable(aligned_comparison, digits = 7)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"></th>
+<th style="text-align: right;">omega</th>
+<th style="text-align: right;">alpha</th>
+<th style="text-align: right;">beta</th>
+<th style="text-align: right;">persistence</th>
+<th style="text-align: right;">共同目標函數</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">手動_optim固定平均</td>
+<td style="text-align: right;">1.98e-05</td>
+<td style="text-align: right;">0.1460643</td>
+<td style="text-align: right;">0.8067101</td>
+<td style="text-align: right;">0.9527744</td>
+<td style="text-align: right;">-1794.201</td>
+</tr>
+<tr>
+<td style="text-align: left;">fGarch固定平均</td>
+<td style="text-align: right;">1.96e-05</td>
+<td style="text-align: right;">0.1485739</td>
+<td style="text-align: right;">0.8064884</td>
+<td style="text-align: right;">0.9550623</td>
+<td style="text-align: right;">-1794.191</td>
+</tr>
+</tbody>
+</table>
+<p>前一張規格表的第一、二列回答原課程的聯合平均數—波動問題；第三列才是用來核對本附錄手動固定平均版本的橋梁。緊接著的兩列對照表只比較後者與手動 <code>optim()</code>。若兩個對齊版本的參數不完全相同，應先查看初始化與概似定義，而不是把差異誤認為資料或公式錯誤。</p>
 <h2 id="_4">標準化殘差診斷<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
 <pre><code class="language-r">diagnose_variance &lt;- function(a, par, label) {
   h &lt;- filter_variance(a, par)
@@ -428,7 +641,10 @@ knitr::kable(parameter_table, digits = 7)
 
 diagnostic_table &lt;- rbind(
   diagnose_variance(train, par_garch, &quot;GARCH&quot;),
-  diagnose_variance(train, par_gjr, &quot;GJR&quot;)
+  diagnose_variance(train, par_gjr, &quot;GJR&quot;),
+  diagnose_variance(
+    train, par_fgarch_aligned, &quot;fGarch 固定平均 GARCH&quot;
+  )
 )
 knitr::kable(diagnostic_table, digits = 6)
 </code></pre>
@@ -456,6 +672,13 @@ knitr::kable(diagnostic_table, digits = 6)
 <td style="text-align: right;">0.286146</td>
 <td style="text-align: right;">18.75490</td>
 <td style="text-align: right;">0.537805</td>
+</tr>
+<tr>
+<td style="text-align: left;">fGarch 固定平均 GARCH</td>
+<td style="text-align: right;">24.40605</td>
+<td style="text-align: right;">0.225105</td>
+<td style="text-align: right;">19.26644</td>
+<td style="text-align: right;">0.504573</td>
 </tr>
 </tbody>
 </table>
@@ -485,6 +708,7 @@ forecast_locked &lt;- function(train, test, par) {
 
 hhat_garch &lt;- forecast_locked(train, test, par_garch)
 hhat_gjr &lt;- forecast_locked(train, test, par_gjr)
+hhat_fgarch &lt;- forecast_locked(train, test, par_fgarch_aligned)
 
 # 60 期歷史變異數基準：每一期只用目標日以前的觀察。
 all_centered &lt;- c(train, test)
@@ -498,6 +722,7 @@ for (j in seq_along(test)) {
 stopifnot(
   all(hhat_garch &gt; 0),
   all(hhat_gjr &gt; 0),
+  all(hhat_fgarch &gt; 0),
   all(hhat_hist60 &gt; 0)
 )
 </code></pre>
@@ -519,7 +744,8 @@ loss_row &lt;- function(h, label) {
 loss_table &lt;- rbind(
   loss_row(hhat_hist60, &quot;歷史 60 期&quot;),
   loss_row(hhat_garch, &quot;GARCH&quot;),
-  loss_row(hhat_gjr, &quot;GJR&quot;)
+  loss_row(hhat_gjr, &quot;GJR&quot;),
+  loss_row(hhat_fgarch, &quot;fGarch 固定平均 GARCH&quot;)
 )
 knitr::kable(loss_table, digits = 8)
 </code></pre>
@@ -551,9 +777,15 @@ knitr::kable(loss_table, digits = 8)
 <td style="text-align: right;">43.85074</td>
 <td style="text-align: right;">2.041123</td>
 </tr>
+<tr>
+<td style="text-align: left;">fGarch 固定平均 GARCH</td>
+<td style="text-align: right;">-6.794924</td>
+<td style="text-align: right;">42.33644</td>
+<td style="text-align: right;">1.988171</td>
+</tr>
 </tbody>
 </table>
-<p>測試期 QLIKE 以 GJR 最低，放大 $10^8$ 倍後的平方損失則以 GARCH 最低；歷史 60 期基準介於兩者之間。損失函數不同，排名確實可能改變。</p>
+<p>上表分別以 QLIKE 與放大 $10^8$ 倍後的平方損失排序；兩個指標的最小值直接由表中的數字判讀。套件對齊版也使用相同的固定平均數、逐期資訊集合與損失函數，因此這一列比較的是估計實作差異，不是額外看過測試期後才選出的新模型。</p>
 <p><code>test^2</code> 是不可觀察條件變異數的高雜訊代理，因此 QLIKE 與平方損失可能給不同排序。這正是同時報告多種損失函數、避免只挑有利指標的理由。</p>
 <pre><code class="language-r">old_par &lt;- par(family = plot_family)
 plot(
@@ -563,12 +795,19 @@ plot(
 )
 lines(test_dates, 100 * sqrt(hhat_garch), col = &quot;#173B57&quot;, lwd = 1.5)
 lines(test_dates, 100 * sqrt(hhat_gjr), col = &quot;#A34045&quot;, lwd = 1.5)
+lines(test_dates, 100 * sqrt(hhat_fgarch), col = &quot;#7A5C99&quot;, lwd = 1.3)
 lines(test_dates, 100 * sqrt(hhat_hist60), col = &quot;#3F7158&quot;, lwd = 1.3)
 legend(
   &quot;topright&quot;,
-  c(&quot;|中心化報酬|&quot;, &quot;GARCH&quot;, &quot;GJR&quot;, &quot;歷史 60 期&quot;),
-  col = c(&quot;gray70&quot;, &quot;#173B57&quot;, &quot;#A34045&quot;, &quot;#3F7158&quot;),
-  lty = 1, lwd = c(1, 1.5, 1.5, 1.3), bty = &quot;n&quot;
+  c(
+    &quot;|中心化報酬|&quot;, &quot;GARCH&quot;, &quot;GJR&quot;,
+    &quot;fGarch 固定平均 GARCH&quot;, &quot;歷史 60 期&quot;
+  ),
+  col = c(
+    &quot;gray70&quot;, &quot;#173B57&quot;, &quot;#A34045&quot;, &quot;#7A5C99&quot;, &quot;#3F7158&quot;
+  ),
+  lty = 1, lwd = c(1, 1.5, 1.5, 1.3, 1.3),
+  bty = &quot;n&quot;, cex = 0.8
 )
 </code></pre>
 <p><img alt="AAPL 測試期的一步預測波動；灰線為絕對中心化報酬。" src="./R08_arch_garch_asymmetry_forecasting_files/figure-gfm/forecast-plot-1.png"></p>
@@ -715,7 +954,7 @@ knitr::kable(unit_table, digits = 8)
 )
 </code></pre>
 <h2 id="_8">可重現結論<a class="headerlink" href="#_8" title="Permanent link">#</a></h2>
-<p>本附錄把真實實證與模擬檢查分開：AAPL 係數、診斷與測試損失全部由固定資料實跑；模擬只檢查符號與遞迴。正式報告還應保存 R 版本、訓練截止日、多起點設定、所有收斂碼、損失函數與逐期預測。</p>
+<p>本附錄把真實實證與模擬檢查分開：AAPL 係數、診斷與測試損失全部由固定資料實跑；模擬只檢查符號與遞迴。手動 <code>optim()</code> 與教師講義的 <code>fGarch::garchFit()</code> 結果並列，且套件對齊版沿用同一個固定平均數與測試期資訊邊界。正式報告還應保存 R 版本、<code>fGarch</code> 版本、訓練截止日、多起點設定、所有收斂碼、損失函數與逐期預測。</p>
 <pre><code class="language-r">sessionInfo()
 </code></pre>
 <pre><code>## R version 4.5.2 (2025-10-31)
@@ -739,12 +978,32 @@ knitr::kable(unit_table, digits = 8)
 ## [1] tibble_3.3.0 dplyr_1.2.1 
 ## 
 ## loaded via a namespace (and not attached):
-##  [1] utf8_1.2.6        R6_2.6.1          tidyselect_1.2.1  xfun_0.57        
-##  [5] magrittr_2.0.4    glue_1.8.0        knitr_1.51        pkgconfig_2.0.3  
-##  [9] generics_0.1.4    lifecycle_1.0.5   cli_3.6.5         vctrs_0.7.2      
-## [13] textshaping_1.0.5 systemfonts_1.3.2 compiler_4.5.2    tools_4.5.2      
-## [17] ragg_1.5.2        evaluate_1.0.5    pillar_1.11.1     otel_0.2.0       
-## [21] rlang_1.1.7
+##  [1] shape_1.4.6.1       gtable_0.3.6        xfun_0.57          
+##  [4] ggplot2_4.0.3       collapse_2.1.7      lattice_0.22-7     
+##  [7] quadprog_1.5-8      vctrs_0.7.2         tools_4.5.2        
+## [10] Rdpack_2.6.6        generics_0.1.4      curl_7.0.0         
+## [13] parallel_4.5.2      sandwich_3.1-1      xts_0.14.2         
+## [16] pkgconfig_2.0.3     gbutils_0.5.1       Matrix_1.7-4       
+## [19] tidyverse_2.0.0     RColorBrewer_1.1-3  S7_0.2.1           
+## [22] lifecycle_1.0.5     compiler_4.5.2      farver_2.1.2       
+## [25] maxLik_1.5-2.2      textshaping_1.0.5   codetools_0.2-20   
+## [28] htmltools_0.5.9     glmnet_4.1-10       Formula_1.2-5      
+## [31] pillar_1.11.1       MASS_7.3-65         plm_2.6-7          
+## [34] iterators_1.0.14    foreach_1.5.2       nlme_3.1-168       
+## [37] fracdiff_1.5-4      pls_2.9-0           fBasics_4052.98    
+## [40] tidyselect_1.2.1    bdsmatrix_1.3-7     digest_0.6.39      
+## [43] labeling_0.4.3      splines_4.5.2       tseries_0.10-62    
+## [46] miscTools_0.6-30    fastmap_1.2.0       grid_4.5.2         
+## [49] colorspace_2.1-2    cli_3.6.5           magrittr_2.0.4     
+## [52] utf8_1.2.6          survival_3.8-3      withr_3.0.2        
+## [55] scales_1.4.0        forecast_9.0.2      TTR_0.24.4         
+## [58] rmarkdown_2.31      quantmod_0.4.29     otel_0.2.0         
+## [61] timeDate_4052.112   ragg_1.5.2          zoo_1.8-15         
+## [64] timeSeries_4052.112 fGarch_4052.93      urca_1.3-4         
+## [67] evaluate_1.0.5      knitr_1.51          rbibutils_2.4.1    
+## [70] lmtest_0.9-40       rlang_1.1.7         spatial_7.3-18     
+## [73] Rcpp_1.1.0          glue_1.8.0          R6_2.6.1           
+## [76] cvar_0.6            systemfonts_1.3.2
 </code></pre>
       </article>
       <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R07_unit_roots_differencing_breaks.html">← 單根、差分與結構變動</a><a rel="next" href="R09_portfolio_capm_factors.html">投資組合、CAPM 與財務因子 →</a></nav>
@@ -757,6 +1016,7 @@ knitr::kable(unit_table, digits = 8)
 <li><a href="#arch-lm">ARCH--LM 輔助迴歸</a></li>
 <li><a href="#garch-gjr-garch">GARCH 與 GJR--GARCH 規格</a></li>
 <li><a href="#_3">多起點最佳化</a></li>
+<li><a href="#fgarchgarchfit">原課程套件捷徑：fGarch::garchFit()</a></li>
 <li><a href="#_4">標準化殘差診斷</a></li>
 <li><a href="#_5">無資料洩漏的一步波動預測</a><ul>
 <li><a href="#qlike">QLIKE 與平方損失</a></li>

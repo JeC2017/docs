@@ -311,7 +311,7 @@ plot(
   pch = 16, cex = 0.45, col = grDevices::adjustcolor("#173B57", 0.25),
   xlab = "Out-of-fold str_s residual",
   ylab = "Out-of-fold testscore residual",
-  main = "加州學校：DML-style residual-on-residual"
+  main = "California schools: DML-style residual-on-residual"
 )
 abline(a = 0, b = theta_dml, col = "#A34045", lwd = 2)
 ```
@@ -344,13 +344,13 @@ data.frame(truth = theta_true, partialling_estimate = theta_unit)
 hist(
   v_hat, breaks = 35, col = "#DDE8EA", border = "white",
   xlab = "Out-of-fold str_s residual",
-  main = "剩餘暴露變異"
+  main = "Residual exposure variation"
 )
 hist(
   as.numeric(clustered_score), breaks = 35,
   col = "#E8D7D5", border = "white",
   xlab = "District score sum",
-  main = "學區層級 score"
+  main = "District-level score sum"
 )
 ```
 

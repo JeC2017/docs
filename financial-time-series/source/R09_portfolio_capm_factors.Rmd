@@ -228,8 +228,8 @@ wealth <- sapply(seq_len(nrow(weights)), function(j) {
 matplot(
   months[test_id], wealth, type = "l", lty = 1, lwd = 1.5,
   col = c("#173B57", "#A34045", "#1D6D73"),
-  xlab = "月份", ylab = "累積財富",
-  main = "真實十產業：固定權重的測試期表現"
+  xlab = "Month", ylab = "Cumulative wealth",
+  main = "Real Ten-Industry Portfolios: Fixed-Weight Test Performance"
 )
 legend(
   "topleft", rownames(weights),
@@ -329,8 +329,8 @@ matplot(
   cbind(reg_data$y[test_id], capm_test, ff3_test),
   type = "l", lty = c(1, 2, 3), lwd = c(1.6, 1.2, 1.2),
   col = c("black", "#A34045", "#1D6D73"),
-  xlab = "月份", ylab = "月超額報酬（小數）",
-  main = "Manuf：測試期同期條件重建"
+  xlab = "Month", ylab = "Monthly excess return (decimal)",
+  main = "Manuf: Concurrent Factor Reconstruction in the Test Period"
 )
 legend(
   "topleft", c("Actual", "CAPM", "FF3"),

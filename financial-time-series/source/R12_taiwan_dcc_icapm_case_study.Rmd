@@ -196,12 +196,12 @@ rho_12 <- dcc_result$R[1, 2, ]
 plot(
   seq_len(T_dcc), rho_12,
   type = "l", col = "#173B57",
-  xlab = "期數", ylab = expression(rho[12 * ",t"]),
-  main = "合成資料的 DCC 條件相關"
+  xlab = "Period", ylab = expression(rho[12 * ",t"]),
+  main = "DCC Conditional Correlation in the Synthetic Example"
 )
 abline(v = max(dcc_train_id), lty = 2, col = "#A34045")
 legend(
-  "bottomright", legend = "估計期／保留期分界",
+  "bottomright", legend = "Training/holdout boundary",
   lty = 2, col = "#A34045", bty = "n"
 )
 ```
@@ -360,7 +360,44 @@ data.frame(
 
 這些係數只是在現有生成共變異數上的描述性第二階段估計。未處理第一階段估計誤差，因此不能把一般 OLS 標準誤當成完整推論。
 
-### 5.1 保留期與簡單基準比較
+### 5.1 原課程套件路線與目前可重現捷徑
+
+原課程 `slides/L09_Statistical_factor_models/W2L4_hands-on_R_factors/icapm/InteractivePDM3.R` 載入 `plm`，並以 `phtt::Eup()` 估計交互固定效果。`Eup()` 不是上面的單向公司固定效果；而且本書建置所用的 R 4.5 環境無法直接由目前 CRAN 安裝 `phtt`，舊課程檔也記錄了版本相容問題。因此我們不把另一個模型硬說成 `Eup()` 的複製。
+
+下列學生友善捷徑使用原課程已載入的 `plm`，精確重估上面的**單向公司 within 模型**。它的目的，是證明套件與手動去平均在相同模型下得到相同斜率；完整交互固定效果仍須另行固定相容的 `phtt` 環境後才可重現。
+
+```{r package-plm-within}
+stopifnot(requireNamespace("plm", quietly = TRUE))
+
+panel_train_plm <- plm::pdata.frame(
+  panel_train,
+  index = c("firm", "day"),
+  drop.index = FALSE,
+  row.names = TRUE
+)
+plm_within_fit <- plm::plm(
+  return ~ cov_X + cov_vix + cov_liq,
+  data = panel_train_plm,
+  model = "within",
+  effect = "individual"
+)
+
+plm_comparison <- data.frame(
+  predictor = predictors,
+  manual_within = unname(within_fit$beta[predictors]),
+  plm_within = unname(stats::coef(plm_within_fit)[predictors]),
+  check.names = FALSE
+)
+plm_comparison$absolute_difference <- abs(
+  plm_comparison$manual_within - plm_comparison$plm_within
+)
+knitr::kable(plm_comparison, digits = 10)
+stopifnot(max(plm_comparison$absolute_difference) < 1e-8)
+```
+
+這個核對只涵蓋點估計。標準誤仍須依日期共同衝擊、公司內序列相依與第一階段生成變數調整，不能因為 `plm()` 一行跑完就忽略推論設計。
+
+### 5.2 保留期與簡單基準比較
 
 基準模型只使用每家公司訓練期平均報酬。兩個模型都不能看測試期報酬來調參。
 

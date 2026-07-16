@@ -250,16 +250,29 @@ data.frame(
 
 ## 調校 \(\lambda\) 與 \(\alpha\)
 
-LASSO/Elastic Net 的網格以第一個訓練折的 `lambda_max` 為尺度；Ridge 使用較寬的正值網格。每一折都重新估計中心與尺度。
+LASSO 與 Elastic Net 的網格分別從「所有斜率恰為零」的門檻
+`lambda_max / alpha` 向下延伸三個數量級；Ridge 的網格則涵蓋八個數量級。
+每一折都重新估計中心與尺度。把零係數門檻明列為端點，可分辨資料真的偏好
+只有截距的預測，或只是調校網格沒有包住最小值。
 
 
 ``` r
-pp0 <- prep_x(X_raw[folds[[1]]$train, , drop = FALSE])
-y0 <- y[folds[[1]]$train]
-lambda_max <- max(abs(crossprod(pp0$train, y0 - mean(y0)))) /
-  length(y0)
-lambda_enet <- exp(seq(log(lambda_max), log(lambda_max * 0.01), length.out = 24))
-lambda_ridge <- exp(seq(log(1e-4), log(10), length.out = 24))
+lambda_max_by_fold <- vapply(folds, function(fold) {
+  pp <- prep_x(X_raw[fold$train, , drop = FALSE])
+  yy <- y[fold$train]
+  max(abs(crossprod(pp$train, yy - mean(yy)))) / length(yy)
+}, numeric(1))
+lambda_max <- max(lambda_max_by_fold)
+lambda_lasso <- exp(seq(
+  log(lambda_max), log(lambda_max * 0.001), length.out = 40
+))
+elastic_alpha <- 0.5
+lambda_elastic <- exp(seq(
+  log(lambda_max / elastic_alpha),
+  log(lambda_max / elastic_alpha * 0.001),
+  length.out = 40
+))
+lambda_ridge <- exp(seq(log(1e-4), log(1e4), length.out = 49))
 
 cv_loss <- function(lambda_grid, method, alpha = 1) {
   out <- matrix(NA_real_, nrow = length(folds), ncol = length(lambda_grid))
@@ -279,33 +292,47 @@ cv_loss <- function(lambda_grid, method, alpha = 1) {
 }
 
 loss_ridge <- cv_loss(lambda_ridge, "ridge")
-loss_lasso <- cv_loss(lambda_enet, "enet", alpha = 1)
-loss_enet <- cv_loss(lambda_enet, "enet", alpha = 0.5)
+loss_lasso <- cv_loss(lambda_lasso, "enet", alpha = 1)
+loss_enet <- cv_loss(lambda_elastic, "enet", alpha = elastic_alpha)
 
 best_ridge <- lambda_ridge[which.min(loss_ridge)]
-best_lasso <- lambda_enet[which.min(loss_lasso)]
-best_enet <- lambda_enet[which.min(loss_enet)]
+best_lasso <- lambda_lasso[which.min(loss_lasso)]
+best_enet <- lambda_elastic[which.min(loss_enet)]
 
 data.frame(
   model = c("Ridge", "LASSO", "Elastic Net"),
   lambda = c(best_ridge, best_lasso, best_enet),
-  validation_mse = c(min(loss_ridge), min(loss_lasso), min(loss_enet))
+  validation_mse = c(min(loss_ridge), min(loss_lasso), min(loss_enet)),
+  grid_location = c(
+    "interior",
+    if (which.min(loss_lasso) == 1L) "zero-slope threshold" else "interior",
+    if (which.min(loss_enet) == 1L) "zero-slope threshold" else "interior"
+  )
 )
 ```
 
 ```
-##         model     lambda validation_mse
-## 1       Ridge 10.0000000       5.043338
-## 2       LASSO  0.9337265       5.265368
-## 3 Elastic Net  0.9337265       6.010483
+##         model    lambda validation_mse        grid_location
+## 1       Ridge 31.622777       4.922462             interior
+## 2       LASSO  1.138271       5.025106 zero-slope threshold
+## 3 Elastic Net  2.276542       5.025106 zero-slope threshold
 ```
+
+``` r
+stopifnot(which.min(loss_ridge) %in% 2:(length(lambda_ridge) - 1L))
+```
+
+Ridge 的最小值落在擴大網格內部。LASSO 與 Elastic Net 則選到各自的
+`zero-slope threshold`：這個上端點是依所有驗證折中最大的零係數門檻建立，
+再增大 \(\lambda\) 也只會維持全部斜率為零。因此這兩個邊界解表示驗證資料
+偏好只有截距的預測，不是網格仍未向上延伸的未解問題。
 
 
 ``` r
 plot(log(lambda_ridge), loss_ridge, type = "l", lwd = 2,
      xlab = "log(lambda)", ylab = "Validation MSE", col = "#173B57")
-lines(log(lambda_enet), loss_lasso, lwd = 2, col = "#A34045")
-lines(log(lambda_enet), loss_enet, lwd = 2, col = "#1D6D73")
+lines(log(lambda_lasso), loss_lasso, lwd = 2, col = "#A34045")
+lines(log(lambda_elastic), loss_enet, lwd = 2, col = "#1D6D73")
 legend("topleft", c("Ridge", "LASSO", "Elastic Net"),
        col = c("#173B57", "#A34045", "#1D6D73"), lwd = 2, bty = "n")
 ```
@@ -323,7 +350,9 @@ y_test <- y[idx_test]
 
 ridge <- predict_scaled(X_tv, y_tv, X_test, best_ridge, "ridge")
 lasso <- predict_scaled(X_tv, y_tv, X_test, best_lasso, "enet", alpha = 1)
-enet <- predict_scaled(X_tv, y_tv, X_test, best_enet, "enet", alpha = 0.5)
+enet <- predict_scaled(
+  X_tv, y_tv, X_test, best_enet, "enet", alpha = elastic_alpha
+)
 
 # 以 QR pivot 選出線性獨立欄，再估計一個明確、可重現的降秩 OLS。
 # 在秩虧設計下，完整係數向量不唯一；此基準不作結構性係數解讀。
@@ -421,9 +450,9 @@ round(metrics, 4)
 ```
 ##                MSE    MAE  OOS_R2
 ## OLS_QR     14.4723 3.3798 -6.8969
-## Ridge       1.7155 0.9942  0.0639
+## Ridge       1.7429 1.0231  0.0490
 ## LASSO       1.8327 1.0738  0.0000
-## ElasticNet  1.7736 1.0383  0.0322
+## ElasticNet  1.8327 1.0738  0.0000
 ## PostLASSO   1.8327 1.0738  0.0000
 ```
 
@@ -439,19 +468,19 @@ head(coef_table, 12)
 ```
 
 ```
-##     predictor lasso  elastic_net
-## 1         spj     0  0.000000000
-## 2         rer     0  0.000000000
-## 3  rer_change     0  0.000000000
-## 4         ipi     0 -0.008832594
-## 5  ipi_change     0  0.000000000
-## 6         inr     0 -0.167632041
-## 7  inr_change     0  0.000000000
-## 8         spf     0  0.000000000
-## 9    return_f     0  0.019628847
-## 10        unr     0  0.000000000
-## 11 unr_change     0  0.000000000
-## 12        cpi     0  0.000000000
+##     predictor lasso elastic_net
+## 1         spj     0           0
+## 2         rer     0           0
+## 3  rer_change     0           0
+## 4         ipi     0           0
+## 5  ipi_change     0           0
+## 6         inr     0           0
+## 7  inr_change     0           0
+## 8         spf     0           0
+## 9    return_f     0           0
+## 10        unr     0           0
+## 11 unr_change     0           0
+## 12        cpi     0           0
 ```
 
 ``` r
@@ -514,12 +543,31 @@ sessionInfo()
 ## [1] tibble_3.3.0 dplyr_1.2.1 
 ## 
 ## loaded via a namespace (and not attached):
-##  [1] vctrs_0.7.2        cli_3.6.5          knitr_1.51         rlang_1.1.7       
-##  [5] xfun_0.57          otel_0.2.0         MatrixModels_0.5-4 generics_0.1.4    
-##  [9] textshaping_1.0.5  glue_1.8.0         ragg_1.5.2         grid_4.5.2        
-## [13] evaluate_1.0.5     SparseM_1.84-2     MASS_7.3-65        lifecycle_1.0.5   
-## [17] compiler_4.5.2     pkgconfig_2.0.3    quantreg_6.1       systemfonts_1.3.2 
-## [21] lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1   utf8_1.2.6        
-## [25] splines_4.5.2      pillar_1.11.1      magrittr_2.0.4     Matrix_1.7-4      
-## [29] tools_4.5.2        survival_3.8-3
+##  [1] shape_1.4.6.1       gtable_0.3.6        xfun_0.57          
+##  [4] ggplot2_4.0.3       collapse_2.1.7      lattice_0.22-7     
+##  [7] quadprog_1.5-8      vctrs_0.7.2         tools_4.5.2        
+## [10] Rdpack_2.6.6        generics_0.1.4      curl_7.0.0         
+## [13] parallel_4.5.2      sandwich_3.1-1      xts_0.14.2         
+## [16] pkgconfig_2.0.3     gbutils_0.5.1       Matrix_1.7-4       
+## [19] tidyverse_2.0.0     RColorBrewer_1.1-3  S7_0.2.1           
+## [22] lifecycle_1.0.5     compiler_4.5.2      farver_2.1.2       
+## [25] MatrixModels_0.5-4  maxLik_1.5-2.2      textshaping_1.0.5  
+## [28] codetools_0.2-20    SparseM_1.84-2      quantreg_6.1       
+## [31] htmltools_0.5.9     glmnet_4.1-10       Formula_1.2-5      
+## [34] pillar_1.11.1       MASS_7.3-65         plm_2.6-7          
+## [37] iterators_1.0.14    foreach_1.5.2       nlme_3.1-168       
+## [40] fracdiff_1.5-4      pls_2.9-0           fBasics_4052.98    
+## [43] tidyselect_1.2.1    bdsmatrix_1.3-7     digest_0.6.39      
+## [46] labeling_0.4.3      splines_4.5.2       tseries_0.10-62    
+## [49] miscTools_0.6-30    fastmap_1.2.0       grid_4.5.2         
+## [52] colorspace_2.1-2    cli_3.6.5           magrittr_2.0.4     
+## [55] utf8_1.2.6          survival_3.8-3      withr_3.0.2        
+## [58] scales_1.4.0        forecast_9.0.2      TTR_0.24.4         
+## [61] rmarkdown_2.31      quantmod_0.4.29     otel_0.2.0         
+## [64] timeDate_4052.112   ragg_1.5.2          zoo_1.8-15         
+## [67] timeSeries_4052.112 fGarch_4052.93      urca_1.3-4         
+## [70] evaluate_1.0.5      knitr_1.51          rbibutils_2.4.1    
+## [73] lmtest_0.9-40       rlang_1.1.7         spatial_7.3-18     
+## [76] Rcpp_1.1.0          glue_1.8.0          R6_2.6.1           
+## [79] cvar_0.6            systemfonts_1.3.2
 ```

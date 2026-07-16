@@ -10,6 +10,13 @@ output:
 
 原課程檔含價格、公司、權重與市場識別欄位，但原始供應商、成分股形成日與資料 vintage 尚未保存完整。公開 repo 隨附作者授權的 `sp500_returns_balanced_2013_2022.csv` 凍結衍生面板，因此本 Rmd 可直接、自含重跑；若要從原始市場資料重新建置，仍須補齊上游來源與形成日，再依「先按股票分組、組內排序、組內落後」的資料契約重建。這項來源缺口限制的是從原始資料重建與經濟外推，不限制公開 processed 快照的執行。
 
+原課程的對應程式是
+`slides/L09_Statistical_factor_models/W2L4_hands-on_R_factors/sp500/pca_sp500.R`：
+第 38--48 行直接用 `stats::prcomp()` 做 PCA，第 50--66 行再用
+`stats::factanal(..., factors = 3, rotation = "varimax", lower = 0.01)` 做三因子分析。
+因此本附錄保留「先看清資料契約與時間切分，再呼叫成熟套件函數」的兩層教法；
+這就是本頁的「原課程套件捷徑」，學生不必把 PCA 或最大概似因子分析的最佳化器從頭寫起。
+
 ```{r setup}
 knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
@@ -186,6 +193,9 @@ split_table
 
 個股波動尺度不同，因此本例先用**估計期**平均數與標準差把各欄標準化，再做 PCA。驗證期與測試期不得各自重新標準化。
 
+下列 `prcomp()` 就是原課程的套件捷徑；本附錄增加的限制只有「函數只能看到
+估計期」。其後用 `eigen()` 核對所有特徵值，而不是另造一個 PCA 估計器。
+
 ```{r fit-training-pca}
 pca_train <- prcomp(
   R_all[train_id, , drop = FALSE],
@@ -222,8 +232,8 @@ plot(
   explained$component[1:30],
   explained$eigenvalue[1:30],
   type = "b", pch = 19, col = "#173B57",
-  xlab = "主成分", ylab = "特徵值",
-  main = "估計期相關矩陣的前 30 個特徵值"
+  xlab = "Principal component", ylab = "Eigenvalue",
+  main = "First 30 Eigenvalues of the Training-Sample Correlation Matrix"
 )
 abline(h = 1, lty = 2, col = "#A34045")
 ```
@@ -261,6 +271,62 @@ data.frame(
   absolute_correlation = abs(cor(pc1_train, equal_weight_train))
 )
 ```
+
+### 4.2 原課程的 `factanal()` 三因子捷徑
+
+原課程也提供一個更短的統計因子模型選項。以下完全沿用原程式的
+`factanal()`、三因子、varimax 與 `lower = 0.01` 設定，但只把估計期送入函數。
+它和 PCA 的目標不同：PCA 排序總變異的正交方向；最大概似因子分析則以
+「共同因子加個別變異」近似相關矩陣。因此應比較共同性、個別變異與重建相關
+矩陣的誤差，不要求兩者負荷量逐格相同。
+
+```{r original-course-factanal-shortcut}
+fa_train <- stats::factanal(
+  R_all[train_id, , drop = FALSE],
+  factors = 3,
+  method = "mle",
+  rotation = "varimax",
+  lower = 0.01
+)
+fa_loadings <- unclass(fa_train$loadings)
+fa_model_correlation <- tcrossprod(fa_loadings)
+diag(fa_model_correlation) <-
+  diag(fa_model_correlation) + fa_train$uniquenesses
+fa_empirical_correlation <- cor(R_all[train_id, , drop = FALSE])
+
+fa_top_loadings <- do.call(rbind, lapply(seq_len(ncol(fa_loadings)), function(j) {
+  keep <- order(abs(fa_loadings[, j]), decreasing = TRUE)[1:10]
+  data.frame(
+    factor = paste0("Factor", j),
+    symbol = rownames(fa_loadings)[keep],
+    loading = fa_loadings[keep, j],
+    absolute_loading = abs(fa_loadings[keep, j]),
+    row.names = NULL
+  )
+}))
+
+data.frame(
+  estimator = c("stats::prcomp", "stats::factanal"),
+  fitted_on = "training period only",
+  main_output = c(
+    "ordered principal-component directions and scores",
+    "rotated common-factor loadings and uniquenesses"
+  )
+)
+data.frame(
+  factors = fa_train$factors,
+  correlation_reconstruction_RMSE = sqrt(mean(
+    (fa_empirical_correlation - fa_model_correlation)^2
+  )),
+  minimum_uniqueness = min(fa_train$uniquenesses),
+  maximum_uniqueness = max(fa_train$uniquenesses),
+  likelihood_ratio_p_value = unname(fa_train$PVAL)
+)
+fa_top_loadings
+```
+
+旋轉後的因子可交換次序或整欄反號；前十大負荷量是描述性標籤線索，不是產業
+分類真值，也不能把統計共同因子自動命名為可交易風險因子。
 
 ## 5. 事先鎖定維度規則
 
@@ -366,8 +432,8 @@ test_scores <- Z_test %*% pca_development$rotation[, 1:2, drop = FALSE]
 matplot(
   dates[test_id], test_scores,
   type = "l", lty = 1, col = c("#173B57", "#A34045"),
-  xlab = "日期", ylab = "主成分分數",
-  main = "以發展期負荷量計算的測試期分數"
+  xlab = "Date", ylab = "Principal component score",
+  main = "Test-Sample Scores Using Development-Sample Loadings"
 )
 legend(
   "topright", legend = c("PC1", "PC2"),

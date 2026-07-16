@@ -332,6 +332,131 @@ knitr::kable(score_table, digits = 7)
 
 分數是 2022-05-13 至 2022-12-16 這一段固定測試期的描述；測試期碰到較高波動，排序不保證在其他時期維持。
 
+## 原課程套件捷徑：`forecast` 的 AR(1) 與 `tsCV`
+
+原課程教師程式 `slides/L05_Forecasting_and_CV/W1L5_R_prediction_cv.R`
+使用 `forecast::Arima()`、`forecast::forecast()` 與 `forecast::tsCV()` 處理
+估計、預測與時間序列交叉驗證。下列程式保留這條套件捷徑，但繼續使用本書的固定
+CSV 與同一組測試起點，不重新下載 FRED 資料，也不讓測試期真值進入估計。
+
+這裡有一個值得特別注意的規格差異：前面的手動版在每個 250 期視窗使用 OLS 估計
+AR(1)；`forecast::Arima(..., method = "ML")` 則以高斯最大概似估計同一個
+AR(1) 規格。兩者的預測應當接近，但不必逐期完全相同。
+
+
+``` r
+stopifnot(requireNamespace("forecast", quietly = TRUE))
+
+comparison_window <- 250L
+stopifnot(
+  selected_model == "rolling_ar1",
+  selected_window == comparison_window
+)
+
+package_ar1_forecast <- function(z, h) {
+  fit <- forecast::Arima(
+    z,
+    order = c(1L, 0L, 0L),
+    include.mean = TRUE,
+    method = "ML"
+  )
+  forecast::forecast(fit, h = h)
+}
+
+package_forecast_at_origin <- function(y, origin, window) {
+  training_start <- origin - window + 1L
+  z <- y[training_start:origin]
+  fc <- package_ar1_forecast(z, h = 1L)
+  data.frame(
+    origin = origin,
+    target_index = origin + 1L,
+    training_start = training_start,
+    training_end = origin,
+    forecast = as.numeric(fc$mean[1]),
+    actual = y[origin + 1L]
+  )
+}
+
+package_test <- do.call(rbind, lapply(test_origins, function(origin) {
+  package_forecast_at_origin(y, origin, comparison_window)
+}))
+package_test$error <- package_test$actual - package_test$forecast
+
+# tsCV 的第 t 列是以第 t 期為預測起點的誤差。
+# window = 250 確保每次只傳入最近 250 筆可見報酬。
+package_cv_errors <- forecast::tsCV(
+  stats::ts(y),
+  forecastfunction = package_ar1_forecast,
+  h = 1L,
+  window = comparison_window,
+  initial = comparison_window
+)
+package_cv_test <- as.numeric(package_cv_errors)[test_origins]
+
+stopifnot(
+  all(is.finite(package_cv_test)),
+  max(abs(package_cv_test - package_test$error)) < 1e-10,
+  all(package_test$training_end < package_test$target_index)
+)
+
+manual_ar1_test <- test_results[
+  test_results$model == "rolling_ar1" &
+    test_results$window == comparison_window,
+]
+stopifnot(identical(manual_ar1_test$origin, package_test$origin))
+
+package_comparison <- data.frame(
+  方法 = c(
+    "手動 OLS：250 期滾動 AR(1)",
+    "forecast：250 期滾動 AR(1) ML"
+  ),
+  RMSE = c(
+    sqrt(mean(manual_ar1_test$error^2)),
+    sqrt(mean(package_test$error^2))
+  ),
+  MAE = c(
+    mean(abs(manual_ar1_test$error)),
+    mean(abs(package_test$error))
+  ),
+  平均誤差 = c(
+    mean(manual_ar1_test$error),
+    mean(package_test$error)
+  ),
+  check.names = FALSE
+)
+knitr::kable(package_comparison, digits = 7)
+```
+
+
+
+|方法                          |      RMSE|       MAE|  平均誤差|
+|:-----------------------------|---------:|---------:|---------:|
+|手動 OLS：250 期滾動 AR(1)    | 0.0081441| 0.0060522| 0.0005755|
+|forecast：250 期滾動 AR(1) ML | 0.0081438| 0.0060516| 0.0005755|
+
+``` r
+forecast_difference <- data.frame(
+  逐期預測差異指標 = c("平均絕對差", "最大絕對差"),
+  數值 = c(
+    mean(abs(manual_ar1_test$forecast - package_test$forecast)),
+    max(abs(manual_ar1_test$forecast - package_test$forecast))
+  ),
+  check.names = FALSE
+)
+knitr::kable(forecast_difference, digits = 9)
+```
+
+
+
+|逐期預測差異指標 |       數值|
+|:----------------|----------:|
+|平均絕對差       | 1.0473e-05|
+|最大絕對差       | 3.8143e-05|
+
+`tsCV()` 在這裡不負責選模；250 期視窗已經由前面的驗證期凍結。它的作用是以套件
+重做同一組滾動起點，並與逐起點迴圈的誤差完全核對。若先用全樣本
+`auto.arima()` 選好模型，再對早期起點做 `tsCV()`，仍然會把未來的選模資訊帶回過去。
+
 ## 預測路徑與累積損失
 
 

@@ -10,6 +10,12 @@ output:
 
 五公司檔涵蓋 1990 年 1 月至 2008 年 12 月，共 228 月；十公司檔涵蓋 1990 年 1 月至 2003 年 12 月，共 168 月。數值沿用原課程檔，以**月報酬百分點**表示，例如 4.5 代表約 4.5%；五公司檔為月對數報酬。資料來自原課程指向的 Ruey S. Tsay／Chicago Booth 教材檔案；公開版隨附作者授權的兩份 processed CSV，故本附錄可離線自含重跑。若另由上游教材檔重建，仍須保存教材版本與下載日。PCA 與因子分析在此只描述共同變動與低秩重建，不識別因果衝擊，也不直接證明未來報酬可預測。
 
+本附錄並不是把每一個估計器都從頭重寫。原課程程式
+`slides/L09_Statistical_factor_models/W2L4_hands-on_R_factors/R_script_for_factor_analysis.R`
+已直接使用 `stats::prcomp()`（原檔第 38--54 行）與 `stats::factanal()`（第 62--78 行）；
+以下保留相同的高階函數作為學生可先採用的「原課程套件捷徑」，再用矩陣特徵分解、
+共同性與個別變異等輸出說明函數究竟算了什麼。
+
 ```{r setup}
 knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
@@ -99,6 +105,10 @@ data.frame(
 
 五家公司為 IBM、HPQ、INTC、JPM 與 BAC。先依時間固定分成 60% 估計期、20% 驗證期、20% 測試期；標準化中心、尺度與負荷量只能由估計期得到。
 
+原課程的簡短作法就是一行 `prcomp(..., center = TRUE, scale. = TRUE)`。
+本節沿用這個 `stats` 套件捷徑；緊接著的特徵分解核對則比較特徵值與前兩個
+主成分所張成的投影空間。主成分可整欄反號，所以不逐格硬比負荷量正負號。
+
 ```{r five-stock-split}
 X_five <- as.matrix(five[, -1, drop = FALSE])
 storage.mode(X_five) <- "double"
@@ -138,8 +148,8 @@ explained
 plot(
   explained$component, explained$eigenvalue,
   type = "b", pch = 19, col = "#173B57",
-  xlab = "主成分", ylab = "特徵值",
-  main = "Tsay 五公司真實月報酬 PCA"
+  xlab = "Principal component", ylab = "Eigenvalue",
+  main = "PCA of Five Real Monthly Stock Returns"
 )
 abline(h = 1, lty = 2, col = "#A34045")
 ```
@@ -237,6 +247,11 @@ data.frame(
 
 `factanal()` 的最大概似因子分析把各股票變異拆成共同性與個別變異。以下使用完整的 1990--2003 描述樣本估計三因子並作 varimax 旋轉；沒有保留期績效或因果解讀。
 
+這也是原課程已採用的高階函數版本，不是本附錄另寫最大概似最佳化器。
+`fa_three$loadings` 對應原程式畫圖用的旋轉負荷量，`fa_three$uniquenesses`
+給個別變異，兩者合起來提供下表的共同性核對；`fa_three$PVAL` 則是模型配適
+輸出，不應被誤讀為某一個因子的經濟顯著性。
+
 ```{r factor-analysis}
 X_barra <- as.matrix(barra[, -1, drop = FALSE])
 storage.mode(X_barra) <- "double"
@@ -258,13 +273,45 @@ factor_summary
 fa_three$PVAL
 ```
 
+```{r original-course-shortcut-map}
+decomposition_gap <- max(abs(
+  factor_summary$communality + factor_summary$uniqueness - 1
+))
+
+stopifnot(
+  inherits(pca_estimate, "prcomp"),
+  inherits(fa_three, "factanal"),
+  decomposition_gap < 5e-4
+)
+
+data.frame(
+  task = c("PCA", "maximum-likelihood factor analysis"),
+  original_course_shortcut = c(
+    "stats::prcomp(center = TRUE, scale. = TRUE)",
+    "stats::factanal(factors = 3, rotation = 'varimax')"
+  ),
+  object_used_here = c("pca_estimate", "fa_three"),
+  comparison_output = c(
+    "eigenvalues and two-PC projection versus direct eigen()",
+    "rotated loadings, communalities, uniquenesses, and fit statistic"
+  ),
+  numerical_check = c(
+    sprintf(
+      "maximum eigenvalue gap = %.3e",
+      max(abs(eigenvalues - eigen_direct$values))
+    ),
+    sprintf("max |communality + uniqueness - 1| = %.3e", decomposition_gap)
+  )
+)
+```
+
 ```{r loading-plot, fig.cap="Barra 十公司三因子 varimax 旋轉後的絕對負荷量。"}
 barplot(
   t(abs(loadings_matrix)), beside = TRUE,
   col = c("#173B57", "#A34045", "#1D6D73"),
   names.arg = rownames(loadings_matrix),
   las = 2, ylab = "|factor loading|",
-  main = "真實十公司月報酬的旋轉負荷量"
+  main = "Rotated Loadings: Ten Real Monthly Stock Returns"
 )
 legend(
   "topright", paste0("Factor", 1:3),

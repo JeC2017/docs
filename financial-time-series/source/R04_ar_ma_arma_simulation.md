@@ -158,6 +158,116 @@ par(old_par)
 
 MA(1) 的母體 ACF 在一階之後為零，但有限樣本柱線仍會因抽樣誤差偏離零。AR 與 ARMA 的 ACF 通常拖尾。
 
+## 原課程套件捷徑：`forecast`
+
+原課程的
+`slides/L05_Forecasting_and_CV/W1L5_R_simulated_AR_ARMA_and_then_autoARMA.R`
+在模擬 AR 與 ARMA 後，以 `forecast::auto.arima()` 自動選階、
+`checkresiduals()` 檢查殘差，再以 `forecast()` 形成預測。下列程式對相同的固定種子模擬樣本重現這條套件工作流。原程式寫成 `seasonal = "FALSE"`；這裡改用意義明確的邏輯值 `seasonal = FALSE`。
+
+
+``` r
+stopifnot(requireNamespace("forecast", quietly = TRUE))
+
+true_orders <- list(
+  AR1 = c(p = 1, d = 0, q = 0),
+  MA1 = c(p = 0, d = 0, q = 1),
+  ARMA11 = c(p = 1, d = 0, q = 1)
+)
+true_coefficients <- list(
+  AR1 = c(ar1 = phi_ar, ma1 = NA_real_),
+  MA1 = c(ar1 = NA_real_, ma1 = theta_ma),
+  ARMA11 = c(ar1 = phi_arma, ma1 = theta_arma)
+)
+
+auto_models <- lapply(series_sim, function(z) {
+  forecast::auto.arima(ts(z), seasonal = FALSE)
+})
+
+auto_selection <- do.call(rbind, lapply(names(auto_models), function(nm) {
+  fit <- auto_models[[nm]]
+  selected <- forecast::arimaorder(fit)[c("p", "d", "q")]
+  b <- coef(fit)
+  selected_coefficients <- c(
+    ar1 = if ("ar1" %in% names(b)) unname(b["ar1"]) else NA_real_,
+    ma1 = if ("ma1" %in% names(b)) unname(b["ma1"]) else NA_real_
+  )
+  data.frame(
+    模擬真值 = nm,
+    真p = true_orders[[nm]]["p"],
+    真d = true_orders[[nm]]["d"],
+    真q = true_orders[[nm]]["q"],
+    自動p = selected["p"],
+    自動d = selected["d"],
+    自動q = selected["q"],
+    真ar1 = true_coefficients[[nm]]["ar1"],
+    估計ar1 = selected_coefficients["ar1"],
+    真ma1 = true_coefficients[[nm]]["ma1"],
+    估計ma1 = selected_coefficients["ma1"],
+    AICc = fit$aicc,
+    check.names = FALSE
+  )
+}))
+row.names(auto_selection) <- NULL
+knitr::kable(auto_selection, digits = 4)
+```
+
+
+
+|模擬真值 | 真p| 真d| 真q| 自動p| 自動d| 自動q| 真ar1| 估計ar1| 真ma1| 估計ma1|     AICc|
+|:--------|---:|---:|---:|-----:|-----:|-----:|-----:|-------:|-----:|-------:|--------:|
+|AR1      |   1|   0|   0|     1|     0|     0|   0.7|  0.7080|    NA|      NA| 1765.287|
+|MA1      |   0|   0|   1|     0|     0|     1|    NA|      NA|   0.6|  0.5866| 1702.242|
+|ARMA11   |   1|   0|   1|     2|     0|     1|   0.5|  0.5441|   0.4|  0.3538| 1742.725|
+
+
+``` r
+forecast::checkresiduals(auto_models$ARMA11, lag = 20)
+```
+
+![原課程 forecast 套件工作流對 ARMA(1,1) 模擬樣本所作的殘差診斷。](../R04_ar_ma_arma_simulation_files/figure-gfm/course-auto-arima-diagnostics-1.png)
+
+```
+## 
+## 	Ljung-Box test
+## 
+## data:  Residuals from ARIMA(2,0,1) with non-zero mean
+## Q* = 8.5675, df = 17, p-value = 0.9529
+## 
+## Model df: 3.   Total lags used: 20
+```
+
+``` r
+course_forecast <- forecast::forecast(
+  auto_models$ARMA11,
+  h = 30,
+  level = c(80, 95)
+)
+forecast_preview <- data.frame(
+  期距 = seq_len(6),
+  點預測 = as.numeric(head(course_forecast$mean, 6)),
+  下界80 = as.numeric(head(course_forecast$lower[, "80%"], 6)),
+  上界80 = as.numeric(head(course_forecast$upper[, "80%"], 6)),
+  下界95 = as.numeric(head(course_forecast$lower[, "95%"], 6)),
+  上界95 = as.numeric(head(course_forecast$upper[, "95%"], 6)),
+  check.names = FALSE
+)
+knitr::kable(forecast_preview, digits = 4)
+```
+
+
+
+| 期距|  點預測|  下界80| 上界80|  下界95| 上界95|
+|----:|-------:|-------:|------:|-------:|------:|
+|    1| -0.9432| -2.2606| 0.3742| -2.9579| 1.0715|
+|    2| -0.4310| -2.2015| 1.3395| -3.1387| 2.2767|
+|    3| -0.1528| -2.0377| 1.7321| -3.0355| 2.7299|
+|    4| -0.0002| -1.9182| 1.9177| -2.9335| 2.9331|
+|    5|  0.0834| -1.8444| 2.0113| -2.8649| 3.0318|
+|    6|  0.1293| -1.8014| 2.0601| -2.8235| 3.0822|
+
+套件版節省了逐一估計候選模型與整理診斷的程式，但不會讓階數「必然」回到資料生成真值。`auto.arima()` 是依有限樣本的資訊準則選擇模型；上表與已知真值的差異，正好顯示模型選擇也有抽樣不確定性。`checkresiduals()` 只檢查特定殘差特徵；預測區間還依賴已選模型與創新分配的假設。
+
 ## 根與衝擊反應的程式核對
 
 

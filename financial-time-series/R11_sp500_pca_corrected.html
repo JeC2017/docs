@@ -58,6 +58,12 @@
         <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R11：修正後的 S&amp;P 500 PCA</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R11_sp500_pca_corrected.Rmd">R Markdown 原始檔</a><a href="source/R11_sp500_pca_corrected.md">執行後 Markdown</a></div></header>
         <p>本附錄對應第 15 章，使用作者工作用的<strong>真實觀測凍結快照</strong>，示範如何先修正跨股票使用 <code>lag()</code> 的錯誤，再以嚴格的時間切分進行主成分分析（PCA）。資料為 2013 年 1 月 3 日至 2022 年 6 月 22 日的 2,384 個共同交易日與 89 檔股票；欄值是股票內依日期計算的日簡單報酬，採小數單位，例如 0.01 代表 1%。這 89 檔只是在共同日期均有觀察值的平衡子樣本，<strong>不是完整的 S&amp;P 500 指數成分股歷史</strong>；平衡化可能帶來成分股選擇與存活者偏誤。因此，以下結果只供方法教學，不用來衡量整體市場績效，也不構成交易策略證據；PCA 是描述性降維，不識別因果效果。</p>
 <p>原課程檔含價格、公司、權重與市場識別欄位，但原始供應商、成分股形成日與資料 vintage 尚未保存完整。公開 repo 隨附作者授權的 <code>sp500_returns_balanced_2013_2022.csv</code> 凍結衍生面板，因此本 Rmd 可直接、自含重跑；若要從原始市場資料重新建置，仍須補齊上游來源與形成日，再依「先按股票分組、組內排序、組內落後」的資料契約重建。這項來源缺口限制的是從原始資料重建與經濟外推，不限制公開 processed 快照的執行。</p>
+<p>原課程的對應程式是
+<code>slides/L09_Statistical_factor_models/W2L4_hands-on_R_factors/sp500/pca_sp500.R</code>：
+第 38--48 行直接用 <code>stats::prcomp()</code> 做 PCA，第 50--66 行再用
+<code>stats::factanal(..., factors = 3, rotation = "varimax", lower = 0.01)</code> 做三因子分析。
+因此本附錄保留「先看清資料契約與時間切分，再呼叫成熟套件函數」的兩層教法；
+這就是本頁的「原課程套件捷徑」，學生不必把 PCA 或最大概似因子分析的最佳化器從頭寫起。</p>
 <pre><code class="language-r">knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
   fig.width = 7, fig.height = 4
@@ -244,6 +250,8 @@ split_table
 </code></pre>
 <h2 id="4-pca">4. 只以估計期建立 PCA<a class="headerlink" href="#4-pca" title="Permanent link">#</a></h2>
 <p>個股波動尺度不同，因此本例先用<strong>估計期</strong>平均數與標準差把各欄標準化，再做 PCA。驗證期與測試期不得各自重新標準化。</p>
+<p>下列 <code>prcomp()</code> 就是原課程的套件捷徑；本附錄增加的限制只有「函數只能看到
+估計期」。其後用 <code>eigen()</code> 核對所有特徵值，而不是另造一個 PCA 估計器。</p>
 <pre><code class="language-r">pca_train &lt;- prcomp(
   R_all[train_id, , drop = FALSE],
   center = TRUE,
@@ -292,8 +300,8 @@ stopifnot(isTRUE(all.equal(
   explained$component[1:30],
   explained$eigenvalue[1:30],
   type = &quot;b&quot;, pch = 19, col = &quot;#173B57&quot;,
-  xlab = &quot;主成分&quot;, ylab = &quot;特徵值&quot;,
-  main = &quot;估計期相關矩陣的前 30 個特徵值&quot;
+  xlab = &quot;Principal component&quot;, ylab = &quot;Eigenvalue&quot;,
+  main = &quot;First 30 Eigenvalues of the Training-Sample Correlation Matrix&quot;
 )
 abline(h = 1, lty = 2, col = &quot;#A34045&quot;)
 </code></pre>
@@ -354,6 +362,103 @@ data.frame(
 <pre><code>##   correlation absolute_correlation
 ## 1   0.9945361            0.9945361
 </code></pre>
+<h3 id="42-factanal">4.2 原課程的 <code>factanal()</code> 三因子捷徑<a class="headerlink" href="#42-factanal" title="Permanent link">#</a></h3>
+<p>原課程也提供一個更短的統計因子模型選項。以下完全沿用原程式的
+<code>factanal()</code>、三因子、varimax 與 <code>lower = 0.01</code> 設定，但只把估計期送入函數。
+它和 PCA 的目標不同：PCA 排序總變異的正交方向；最大概似因子分析則以
+「共同因子加個別變異」近似相關矩陣。因此應比較共同性、個別變異與重建相關
+矩陣的誤差，不要求兩者負荷量逐格相同。</p>
+<pre><code class="language-r">fa_train &lt;- stats::factanal(
+  R_all[train_id, , drop = FALSE],
+  factors = 3,
+  method = &quot;mle&quot;,
+  rotation = &quot;varimax&quot;,
+  lower = 0.01
+)
+fa_loadings &lt;- unclass(fa_train$loadings)
+fa_model_correlation &lt;- tcrossprod(fa_loadings)
+diag(fa_model_correlation) &lt;-
+  diag(fa_model_correlation) + fa_train$uniquenesses
+fa_empirical_correlation &lt;- cor(R_all[train_id, , drop = FALSE])
+
+fa_top_loadings &lt;- do.call(rbind, lapply(seq_len(ncol(fa_loadings)), function(j) {
+  keep &lt;- order(abs(fa_loadings[, j]), decreasing = TRUE)[1:10]
+  data.frame(
+    factor = paste0(&quot;Factor&quot;, j),
+    symbol = rownames(fa_loadings)[keep],
+    loading = fa_loadings[keep, j],
+    absolute_loading = abs(fa_loadings[keep, j]),
+    row.names = NULL
+  )
+}))
+
+data.frame(
+  estimator = c(&quot;stats::prcomp&quot;, &quot;stats::factanal&quot;),
+  fitted_on = &quot;training period only&quot;,
+  main_output = c(
+    &quot;ordered principal-component directions and scores&quot;,
+    &quot;rotated common-factor loadings and uniquenesses&quot;
+  )
+)
+</code></pre>
+<pre><code>##         estimator            fitted_on
+## 1   stats::prcomp training period only
+## 2 stats::factanal training period only
+##                                         main_output
+## 1 ordered principal-component directions and scores
+## 2   rotated common-factor loadings and uniquenesses
+</code></pre>
+<pre><code class="language-r">data.frame(
+  factors = fa_train$factors,
+  correlation_reconstruction_RMSE = sqrt(mean(
+    (fa_empirical_correlation - fa_model_correlation)^2
+  )),
+  minimum_uniqueness = min(fa_train$uniquenesses),
+  maximum_uniqueness = max(fa_train$uniquenesses),
+  likelihood_ratio_p_value = unname(fa_train$PVAL)
+)
+</code></pre>
+<pre><code>##   factors correlation_reconstruction_RMSE minimum_uniqueness maximum_uniqueness
+## 1       3                      0.04543616               0.01          0.9718212
+##   likelihood_ratio_p_value
+## 1                        0
+</code></pre>
+<pre><code class="language-r">fa_top_loadings
+</code></pre>
+<pre><code>##     factor symbol   loading absolute_loading
+## 1  Factor1    JPM 0.7479158        0.7479158
+## 2  Factor1    BAC 0.7216907        0.7216907
+## 3  Factor1    WFC 0.6879486        0.6879486
+## 4  Factor1    HON 0.6858981        0.6858981
+## 5  Factor1    ETN 0.6799282        0.6799282
+## 6  Factor1    EMR 0.6732746        0.6732746
+## 7  Factor1     MA 0.6407425        0.6407425
+## 8  Factor1    TXN 0.6332394        0.6332394
+## 9  Factor1    MMC 0.6243780        0.6243780
+## 10 Factor1    ADI 0.6226653        0.6226653
+## 11 Factor2    DUK 0.8362718        0.8362718
+## 12 Factor2    NEE 0.8118155        0.8118155
+## 13 Factor2      D 0.7995546        0.7995546
+## 14 Factor2    SRE 0.7042550        0.7042550
+## 15 Factor2    PEP 0.6505500        0.6505500
+## 16 Factor2     KO 0.6056677        0.6056677
+## 17 Factor2     PG 0.5631149        0.5631149
+## 18 Factor2    AMT 0.5242250        0.5242250
+## 19 Factor2     VZ 0.4919582        0.4919582
+## 20 Factor2     PM 0.4914175        0.4914175
+## 21 Factor3  GOOGL 0.9234105        0.9234105
+## 22 Factor3   GOOG 0.9232837        0.9232837
+## 23 Factor3   AMZN 0.4782895        0.4782895
+## 24 Factor3   META 0.3947261        0.3947261
+## 25 Factor3   MSFT 0.3930120        0.3930120
+## 26 Factor3     MA 0.3371884        0.3371884
+## 27 Factor3   ADBE 0.3357633        0.3357633
+## 28 Factor3   BKNG 0.3241127        0.3241127
+## 29 Factor3      V 0.3140103        0.3140103
+## 30 Factor3    CRM 0.3040167        0.3040167
+</code></pre>
+<p>旋轉後的因子可交換次序或整欄反號；前十大負荷量是描述性標籤線索，不是產業
+分類真值，也不能把統計共同因子自動命名為可交易風險因子。</p>
 <h2 id="5">5. 事先鎖定維度規則<a class="headerlink" href="#5" title="Permanent link">#</a></h2>
 <p>若以同一組變數的重建誤差選維度，保留全部 89 個主成分必然達到零誤差。為避免看過測試期才改規則，本例在分析前指定：選擇估計期累積解釋比例首次達 80% 的最小主成分個數。</p>
 <pre><code class="language-r">target_pve &lt;- 0.80
@@ -456,8 +561,8 @@ test_scores &lt;- Z_test %*% pca_development$rotation[, 1:2, drop = FALSE]
 matplot(
   dates[test_id], test_scores,
   type = &quot;l&quot;, lty = 1, col = c(&quot;#173B57&quot;, &quot;#A34045&quot;),
-  xlab = &quot;日期&quot;, ylab = &quot;主成分分數&quot;,
-  main = &quot;以發展期負荷量計算的測試期分數&quot;
+  xlab = &quot;Date&quot;, ylab = &quot;Principal component score&quot;,
+  main = &quot;Test-Sample Scores Using Development-Sample Loadings&quot;
 )
 legend(
   &quot;topright&quot;, legend = c(&quot;PC1&quot;, &quot;PC2&quot;),
@@ -499,12 +604,32 @@ legend(
 ## [1] tibble_3.3.0 dplyr_1.2.1 
 ## 
 ## loaded via a namespace (and not attached):
-##  [1] utf8_1.2.6        R6_2.6.1          tidyselect_1.2.1  xfun_0.57        
-##  [5] magrittr_2.0.4    glue_1.8.0        knitr_1.51        pkgconfig_2.0.3  
-##  [9] generics_0.1.4    lifecycle_1.0.5   cli_3.6.5         vctrs_0.7.2      
-## [13] textshaping_1.0.5 systemfonts_1.3.2 compiler_4.5.2    tools_4.5.2      
-## [17] ragg_1.5.2        evaluate_1.0.5    pillar_1.11.1     otel_0.2.0       
-## [21] rlang_1.1.7
+##  [1] shape_1.4.6.1       gtable_0.3.6        xfun_0.57          
+##  [4] ggplot2_4.0.3       collapse_2.1.7      lattice_0.22-7     
+##  [7] quadprog_1.5-8      vctrs_0.7.2         tools_4.5.2        
+## [10] Rdpack_2.6.6        generics_0.1.4      curl_7.0.0         
+## [13] parallel_4.5.2      sandwich_3.1-1      xts_0.14.2         
+## [16] pkgconfig_2.0.3     gbutils_0.5.1       Matrix_1.7-4       
+## [19] tidyverse_2.0.0     RColorBrewer_1.1-3  S7_0.2.1           
+## [22] lifecycle_1.0.5     compiler_4.5.2      farver_2.1.2       
+## [25] maxLik_1.5-2.2      textshaping_1.0.5   codetools_0.2-20   
+## [28] htmltools_0.5.9     glmnet_4.1-10       Formula_1.2-5      
+## [31] pillar_1.11.1       MASS_7.3-65         plm_2.6-7          
+## [34] iterators_1.0.14    foreach_1.5.2       nlme_3.1-168       
+## [37] fracdiff_1.5-4      pls_2.9-0           fBasics_4052.98    
+## [40] tidyselect_1.2.1    bdsmatrix_1.3-7     digest_0.6.39      
+## [43] labeling_0.4.3      splines_4.5.2       tseries_0.10-62    
+## [46] miscTools_0.6-30    fastmap_1.2.0       grid_4.5.2         
+## [49] colorspace_2.1-2    cli_3.6.5           magrittr_2.0.4     
+## [52] utf8_1.2.6          survival_3.8-3      withr_3.0.2        
+## [55] scales_1.4.0        forecast_9.0.2      TTR_0.24.4         
+## [58] rmarkdown_2.31      quantmod_0.4.29     otel_0.2.0         
+## [61] timeDate_4052.112   ragg_1.5.2          zoo_1.8-15         
+## [64] timeSeries_4052.112 fGarch_4052.93      urca_1.3-4         
+## [67] evaluate_1.0.5      knitr_1.51          rbibutils_2.4.1    
+## [70] lmtest_0.9-40       rlang_1.1.7         spatial_7.3-18     
+## [73] Rcpp_1.1.0          glue_1.8.0          R6_2.6.1           
+## [76] cvar_0.6            systemfonts_1.3.2
 </code></pre>
       </article>
       <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R10_pca_factor_analysis.html">← PCA 與因子分析</a><a rel="next" href="R12_taiwan_dcc_icapm_case_study.html">臺灣 DCC／ICAPM 案例 →</a></nav>
@@ -517,6 +642,7 @@ legend(
 <li><a href="#3">3. 描述統計與時間切分</a></li>
 <li><a href="#4-pca">4. 只以估計期建立 PCA</a><ul>
 <li><a href="#41">4.1 負荷量與正負號不定性</a></li>
+<li><a href="#42-factanal">4.2 原課程的 factanal() 三因子捷徑</a></li>
 </ul>
 </li>
 <li><a href="#5">5. 事先鎖定維度規則</a></li>

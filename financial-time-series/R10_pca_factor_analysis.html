@@ -58,6 +58,11 @@
         <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R10：PCA 與因子分析</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R10_pca_factor_analysis.Rmd">R Markdown 原始檔</a><a href="source/R10_pca_factor_analysis.md">執行後 Markdown</a></div></header>
         <p>本附錄對應第 15 章，以 Tsay《Analysis of Financial Time Series》第三版課程資料中的兩組真實股票月報酬作為主體：五家公司資料用於 PCA 與跨期低秩重建，十家公司 Barra 範例用於最大概似因子分析與 varimax 旋轉。合成低秩資料只保留在最後作程式真值核對，不再充當主要實證。</p>
 <p>五公司檔涵蓋 1990 年 1 月至 2008 年 12 月，共 228 月；十公司檔涵蓋 1990 年 1 月至 2003 年 12 月，共 168 月。數值沿用原課程檔，以<strong>月報酬百分點</strong>表示，例如 4.5 代表約 4.5%；五公司檔為月對數報酬。資料來自原課程指向的 Ruey S. Tsay／Chicago Booth 教材檔案；公開版隨附作者授權的兩份 processed CSV，故本附錄可離線自含重跑。若另由上游教材檔重建，仍須保存教材版本與下載日。PCA 與因子分析在此只描述共同變動與低秩重建，不識別因果衝擊，也不直接證明未來報酬可預測。</p>
+<p>本附錄並不是把每一個估計器都從頭重寫。原課程程式
+<code>slides/L09_Statistical_factor_models/W2L4_hands-on_R_factors/R_script_for_factor_analysis.R</code>
+已直接使用 <code>stats::prcomp()</code>（原檔第 38--54 行）與 <code>stats::factanal()</code>（第 62--78 行）；
+以下保留相同的高階函數作為學生可先採用的「原課程套件捷徑」，再用矩陣特徵分解、
+共同性與個別變異等輸出說明函數究竟算了什麼。</p>
 <pre><code class="language-r">knitr::opts_chunk$set(
   echo = TRUE, message = FALSE, warning = FALSE,
   fig.width = 7, fig.height = 4.3
@@ -155,6 +160,9 @@ rbind(
 </code></pre>
 <h2 id="2-pca">2. 五公司真實月報酬的 PCA<a class="headerlink" href="#2-pca" title="Permanent link">#</a></h2>
 <p>五家公司為 IBM、HPQ、INTC、JPM 與 BAC。先依時間固定分成 60% 估計期、20% 驗證期、20% 測試期；標準化中心、尺度與負荷量只能由估計期得到。</p>
+<p>原課程的簡短作法就是一行 <code>prcomp(..., center = TRUE, scale. = TRUE)</code>。
+本節沿用這個 <code>stats</code> 套件捷徑；緊接著的特徵分解核對則比較特徵值與前兩個
+主成分所張成的投影空間。主成分可整欄反號，所以不逐格硬比負荷量正負號。</p>
 <pre><code class="language-r">X_five &lt;- as.matrix(five[, -1, drop = FALSE])
 storage.mode(X_five) &lt;- &quot;double&quot;
 n_five &lt;- nrow(X_five)
@@ -201,8 +209,8 @@ explained
 <pre><code class="language-r">plot(
   explained$component, explained$eigenvalue,
   type = &quot;b&quot;, pch = 19, col = &quot;#173B57&quot;,
-  xlab = &quot;主成分&quot;, ylab = &quot;特徵值&quot;,
-  main = &quot;Tsay 五公司真實月報酬 PCA&quot;
+  xlab = &quot;Principal component&quot;, ylab = &quot;Eigenvalue&quot;,
+  main = &quot;PCA of Five Real Monthly Stock Returns&quot;
 )
 abline(h = 1, lty = 2, col = &quot;#A34045&quot;)
 </code></pre>
@@ -298,6 +306,10 @@ data.frame(
 <p>這是用同月五檔報酬計算同月分數與重建，不是以前一期資訊預測下一期報酬。</p>
 <h2 id="4-barra">4. Barra 十公司真實月報酬的因子分析<a class="headerlink" href="#4-barra" title="Permanent link">#</a></h2>
 <p><code>factanal()</code> 的最大概似因子分析把各股票變異拆成共同性與個別變異。以下使用完整的 1990--2003 描述樣本估計三因子並作 varimax 旋轉；沒有保留期績效或因果解讀。</p>
+<p>這也是原課程已採用的高階函數版本，不是本附錄另寫最大概似最佳化器。
+<code>fa_three$loadings</code> 對應原程式畫圖用的旋轉負荷量，<code>fa_three$uniquenesses</code>
+給個別變異，兩者合起來提供下表的共同性核對；<code>fa_three$PVAL</code> 則是模型配適
+輸出，不應被誤讀為某一個因子的經濟顯著性。</p>
 <pre><code class="language-r">X_barra &lt;- as.matrix(barra[, -1, drop = FALSE])
 storage.mode(X_barra) &lt;- &quot;double&quot;
 fa_three &lt;- factanal(
@@ -346,12 +358,55 @@ round(loadings_matrix, 3)
 <pre><code>##  objective 
 ## 0.08890732
 </code></pre>
+<pre><code class="language-r">decomposition_gap &lt;- max(abs(
+  factor_summary$communality + factor_summary$uniqueness - 1
+))
+
+stopifnot(
+  inherits(pca_estimate, &quot;prcomp&quot;),
+  inherits(fa_three, &quot;factanal&quot;),
+  decomposition_gap &lt; 5e-4
+)
+
+data.frame(
+  task = c(&quot;PCA&quot;, &quot;maximum-likelihood factor analysis&quot;),
+  original_course_shortcut = c(
+    &quot;stats::prcomp(center = TRUE, scale. = TRUE)&quot;,
+    &quot;stats::factanal(factors = 3, rotation = 'varimax')&quot;
+  ),
+  object_used_here = c(&quot;pca_estimate&quot;, &quot;fa_three&quot;),
+  comparison_output = c(
+    &quot;eigenvalues and two-PC projection versus direct eigen()&quot;,
+    &quot;rotated loadings, communalities, uniquenesses, and fit statistic&quot;
+  ),
+  numerical_check = c(
+    sprintf(
+      &quot;maximum eigenvalue gap = %.3e&quot;,
+      max(abs(eigenvalues - eigen_direct$values))
+    ),
+    sprintf(&quot;max |communality + uniqueness - 1| = %.3e&quot;, decomposition_gap)
+  )
+)
+</code></pre>
+<pre><code>##                                 task
+## 1                                PCA
+## 2 maximum-likelihood factor analysis
+##                             original_course_shortcut object_used_here
+## 1        stats::prcomp(center = TRUE, scale. = TRUE)     pca_estimate
+## 2 stats::factanal(factors = 3, rotation = 'varimax')         fa_three
+##                                                  comparison_output
+## 1          eigenvalues and two-PC projection versus direct eigen()
+## 2 rotated loadings, communalities, uniquenesses, and fit statistic
+##                                  numerical_check
+## 1             maximum eigenvalue gap = 2.220e-15
+## 2 max |communality + uniqueness - 1| = 1.565e-05
+</code></pre>
 <pre><code class="language-r">barplot(
   t(abs(loadings_matrix)), beside = TRUE,
   col = c(&quot;#173B57&quot;, &quot;#A34045&quot;, &quot;#1D6D73&quot;),
   names.arg = rownames(loadings_matrix),
   las = 2, ylab = &quot;|factor loading|&quot;,
-  main = &quot;真實十公司月報酬的旋轉負荷量&quot;
+  main = &quot;Rotated Loadings: Ten Real Monthly Stock Returns&quot;
 )
 legend(
   &quot;topright&quot;, paste0(&quot;Factor&quot;, 1:3),
@@ -419,12 +474,32 @@ data.frame(
 ## [1] tibble_3.3.0 dplyr_1.2.1 
 ## 
 ## loaded via a namespace (and not attached):
-##  [1] utf8_1.2.6        R6_2.6.1          tidyselect_1.2.1  xfun_0.57        
-##  [5] magrittr_2.0.4    glue_1.8.0        knitr_1.51        pkgconfig_2.0.3  
-##  [9] generics_0.1.4    lifecycle_1.0.5   cli_3.6.5         vctrs_0.7.2      
-## [13] textshaping_1.0.5 systemfonts_1.3.2 compiler_4.5.2    tools_4.5.2      
-## [17] ragg_1.5.2        evaluate_1.0.5    pillar_1.11.1     otel_0.2.0       
-## [21] rlang_1.1.7
+##  [1] shape_1.4.6.1       gtable_0.3.6        xfun_0.57          
+##  [4] ggplot2_4.0.3       collapse_2.1.7      lattice_0.22-7     
+##  [7] quadprog_1.5-8      vctrs_0.7.2         tools_4.5.2        
+## [10] Rdpack_2.6.6        generics_0.1.4      curl_7.0.0         
+## [13] parallel_4.5.2      sandwich_3.1-1      xts_0.14.2         
+## [16] pkgconfig_2.0.3     gbutils_0.5.1       Matrix_1.7-4       
+## [19] tidyverse_2.0.0     RColorBrewer_1.1-3  S7_0.2.1           
+## [22] lifecycle_1.0.5     compiler_4.5.2      farver_2.1.2       
+## [25] maxLik_1.5-2.2      textshaping_1.0.5   codetools_0.2-20   
+## [28] htmltools_0.5.9     glmnet_4.1-10       Formula_1.2-5      
+## [31] pillar_1.11.1       MASS_7.3-65         plm_2.6-7          
+## [34] iterators_1.0.14    foreach_1.5.2       nlme_3.1-168       
+## [37] fracdiff_1.5-4      pls_2.9-0           fBasics_4052.98    
+## [40] tidyselect_1.2.1    bdsmatrix_1.3-7     digest_0.6.39      
+## [43] labeling_0.4.3      splines_4.5.2       tseries_0.10-62    
+## [46] miscTools_0.6-30    fastmap_1.2.0       grid_4.5.2         
+## [49] colorspace_2.1-2    cli_3.6.5           magrittr_2.0.4     
+## [52] utf8_1.2.6          survival_3.8-3      withr_3.0.2        
+## [55] scales_1.4.0        forecast_9.0.2      TTR_0.24.4         
+## [58] rmarkdown_2.31      quantmod_0.4.29     otel_0.2.0         
+## [61] timeDate_4052.112   ragg_1.5.2          zoo_1.8-15         
+## [64] timeSeries_4052.112 fGarch_4052.93      urca_1.3-4         
+## [67] evaluate_1.0.5      knitr_1.51          rbibutils_2.4.1    
+## [70] lmtest_0.9-40       rlang_1.1.7         spatial_7.3-18     
+## [73] Rcpp_1.1.0          glue_1.8.0          R6_2.6.1           
+## [76] cvar_0.6            systemfonts_1.3.2
 </code></pre>
       </article>
       <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R09_portfolio_capm_factors.html">← 投資組合、CAPM 與財務因子</a><a rel="next" href="R11_sp500_pca_corrected.html">修正後的 S&amp;P 500 PCA →</a></nav>
