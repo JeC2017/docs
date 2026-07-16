@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="《財務時間序列分析》R 線上附錄：R17：共整合、Johansen 檢定與 VECM">
+  <title>R17：共整合、Johansen 檢定與 VECM｜財務時間序列分析</title>
+  <link rel="stylesheet" href="assets/site.css">
+  <script>
+    window.MathJax = {
+      tex: {inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']]},
+      svg: {fontCache: 'local'},
+      options: {skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']}
+    };
+  </script>
+  <script defer src="assets/mathjax-loader.js"></script>
+  <script defer src="assets/site.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要內容</a>
+  <header class="site-header">
+    <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
+    <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
+    <a class="policy-link" href="data-policy.html">資料政策</a>
+  </header>
+  <div class="layout">
+    <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
+      <p class="sidebar-title">線上附錄</p>
+      <ol><li><a href="index.html">首頁</a></li>
+<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
+<li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
+<li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
+<li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與經驗特徵</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA 模擬</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html">R09　投資組合、CAPM 與財務因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
+<li><a href="R17_cointegration_vecm.html" aria-current="page" class="active">R17　共整合、Johansen 檢定與 VECM</a></li>
+<li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
+    </nav>
+    <main id="main-content" class="content">
+      <div class="publication-note">
+        本網站提供作者執行後的教學內容與程式原始檔；未經確認可再散布的原始資料不隨網站發布。
+        詳見<a href="data-policy.html">資料與重現政策</a>。
+      </div>
+      <article>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R17：共整合、Johansen 檢定與 VECM</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R17_cointegration_vecm.Rmd">R Markdown 原始檔</a><a href="source/R17_cointegration_vecm.md">執行後 Markdown</a></div></header>
+        <p>本附錄對應第 22 章。第一部分以已知共整合向量的模擬核對利差、誤差修正與 Johansen 特徵值；第二部分用固定日本短長期利率作探索性示範。為避免偽造臨界值，本附錄計算共整合秩統計量，但不自行硬編套件表格或宣稱單一模型規格已證明共整合。</p>
+<h2 id="_1">執行條件<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
+<ul>
+<li>base R 與 <code>knitr</code>；不安裝套件、不下載資料。</li>
+<li>固定資料：<code>data/processed/japan_monthly_2007_2018.csv</code>。</li>
+<li>Johansen 函數是教學版不受限截距（unrestricted constant）、無差分落後差分項的示範，不替代完整套件及其臨界值表。</li>
+</ul>
+<pre><code class="language-r">knitr::opts_chunk$set(
+  echo = TRUE, message = FALSE, warning = FALSE,
+  fig.width = 7, fig.height = 4.5
+)
+set.seed(20260716)
+</code></pre>
+<h2 id="1">已知共整合秩為 1 的教學模擬<a class="headerlink" href="#1" title="Permanent link">#</a></h2>
+<p>建立共同隨機趨勢 (q_t=q_{t-1}+\eta_t) 與定態 spread
+(z_t=0.65z_{t-1}+e_t)，再令 (y_{2t}=q_t)、(y_{1t}=q_t+z_t)。因此真實共整合向量為 \(\beta=(1,-1)^\top\)。</p>
+<pre><code class="language-r">Tn &lt;- 500L
+eta &lt;- rnorm(Tn)
+e &lt;- rnorm(Tn, sd = 0.5)
+q &lt;- cumsum(eta)
+z &lt;- numeric(Tn)
+for (t in 2:Tn) z[t] &lt;- 0.65 * z[t - 1] + e[t]
+
+Y &lt;- cbind(y1 = q + z, y2 = q)
+spread &lt;- Y[, 1] - Y[, 2]
+
+par(mfrow = c(2, 1))
+matplot(Y, type = &quot;l&quot;, lty = 1, col = c(&quot;#173B57&quot;, &quot;#A34045&quot;),
+        ylab = &quot;Level&quot;, xlab = &quot;t&quot;)
+legend(&quot;topleft&quot;, c(&quot;y1&quot;, &quot;y2&quot;), col = c(&quot;#173B57&quot;, &quot;#A34045&quot;),
+       lty = 1, bty = &quot;n&quot;)
+plot(spread, type = &quot;l&quot;, col = &quot;#1D6D73&quot;, ylab = &quot;y1 - y2&quot;, xlab = &quot;t&quot;)
+abline(h = mean(spread), lty = 2)
+</code></pre>
+<p><img alt="plot of chunk simulate" src="./R17_cointegration_vecm_files/figure-gfm/simulate-1.png"></p>
+<pre><code class="language-r">par(mfrow = c(1, 1))
+</code></pre>
+<h2 id="ar1-persistence-diagnostic">AR(1) persistence diagnostic<a class="headerlink" href="#ar1-persistence-diagnostic" title="Permanent link">#</a></h2>
+<p>下列函數回報 (\Delta x_t=a+\rho x_{t-1}+) lagged differences 的 OLS t-statistic。它不是完整 ADF 檢定器；臨界值依 deterministic terms 與是否為估計殘差而不同。</p>
+<pre><code class="language-r">adf_regression &lt;- function(x, diff_lags = 0L, include_trend = FALSE) {
+  x &lt;- as.numeric(x)
+  dx &lt;- diff(x)
+  n &lt;- length(dx)
+  start &lt;- diff_lags + 1L
+  y &lt;- dx[start:n]
+  x_lag &lt;- x[start:n]
+  X &lt;- cbind(Intercept = 1, LevelLag = x_lag)
+  if (include_trend) X &lt;- cbind(X, Trend = seq_along(y))
+  if (diff_lags &gt; 0L) {
+    for (j in seq_len(diff_lags)) {
+      X &lt;- cbind(X, dx[(start - j):(n - j)])
+      colnames(X)[ncol(X)] &lt;- paste0(&quot;dLag&quot;, j)
+    }
+  }
+  fit &lt;- lm.fit(X, y)
+  df &lt;- length(y) - fit$rank
+  sigma2 &lt;- sum(fit$residuals^2) / df
+  vcov &lt;- sigma2 * chol2inv(qr.R(fit$qr)[seq_len(fit$rank),
+                                      seq_len(fit$rank), drop = FALSE])
+  # 此範例 X 滿秩；LevelLag 是第二欄。
+  c(rho = fit$coefficients[&quot;LevelLag&quot;],
+    t_stat = fit$coefficients[&quot;LevelLag&quot;] / sqrt(vcov[2, 2]))
+}
+
+rbind(
+  y1_level = adf_regression(Y[, 1], diff_lags = 1),
+  y2_level = adf_regression(Y[, 2], diff_lags = 1),
+  spread = adf_regression(spread, diff_lags = 1)
+)
+</code></pre>
+<pre><code>##          rho.LevelLag t_stat.LevelLag
+## y1_level -0.010508363       -1.690820
+## y2_level -0.009143012       -1.614674
+## spread   -0.345531963       -9.004964
+</code></pre>
+<p>解讀只比較相對 persistence：模擬 levels 應比 spread 更接近單根。不得把一般常態 1.96 當 ADF 臨界值。</p>
+<h2 id="ecm">兩步 ECM<a class="headerlink" href="#ecm" title="Permanent link">#</a></h2>
+<pre><code class="language-r"># 第一步：y1 對 y2 的長期迴歸。
+long_run &lt;- lm(y1 ~ y2, data = as.data.frame(Y))
+ec_error &lt;- residuals(long_run)
+
+# 第二步：兩個差分方程都含前一期估計均衡誤差。
+dY &lt;- diff(Y)
+ect_lag &lt;- ec_error[-length(ec_error)]
+ecm_y1 &lt;- lm(dY[, 1] ~ ect_lag)
+ecm_y2 &lt;- lm(dY[, 2] ~ ect_lag)
+
+data.frame(
+  equation = c(&quot;Delta y1&quot;, &quot;Delta y2&quot;),
+  adjustment = c(coef(ecm_y1)[&quot;ect_lag&quot;], coef(ecm_y2)[&quot;ect_lag&quot;]),
+  standard_error = c(summary(ecm_y1)$coef[&quot;ect_lag&quot;, &quot;Std. Error&quot;],
+                     summary(ecm_y2)$coef[&quot;ect_lag&quot;, &quot;Std. Error&quot;])
+)
+</code></pre>
+<pre><code>##   equation  adjustment standard_error
+## 1 Delta y1 -0.28585029     0.07841242
+## 2 Delta y2  0.07958777     0.07250540
+</code></pre>
+<pre><code class="language-r">coef(long_run)
+</code></pre>
+<pre><code>## (Intercept)          y2 
+##   0.1055747   0.9904325
+</code></pre>
+<p>因 (y_1-y_2=z_t)，正 spread 應由兩個變數的相對變動縮小。正規化方向改變時，\(\alpha\) 符號也會一起改變。</p>
+<h2 id="johansen-eigenvalues">教學版 Johansen eigenvalues<a class="headerlink" href="#johansen-eigenvalues" title="Permanent link">#</a></h2>
+<p>對 VECM(1)</p>
+<p>\[
+\Delta Y_t=\Pi Y_{t-1}+c+u_t,
+\]</p>
+<p>分別從 \(\Delta Y_t\) 與 \(Y_{t-1}\) 移除截距，再計算 generalized eigenvalues。完整 Johansen 程序需按差分 lag 與 deterministic case 改變 residualization 與臨界值。</p>
+<pre><code class="language-r">johansen_eigen_demo &lt;- function(Y) {
+  Y &lt;- as.matrix(Y)
+  dY &lt;- diff(Y)
+  Ylag &lt;- Y[-nrow(Y), , drop = FALSE]
+  n &lt;- nrow(dY)
+
+  # 不受限截距的教學簡化：兩者都對常數殘差化（移除欄平均）。
+  R0 &lt;- sweep(dY, 2, colMeans(dY))
+  R1 &lt;- sweep(Ylag, 2, colMeans(Ylag))
+  S00 &lt;- crossprod(R0) / n
+  S11 &lt;- crossprod(R1) / n
+  S01 &lt;- crossprod(R0, R1) / n
+  S10 &lt;- t(S01)
+
+  M &lt;- solve(S11, S10 %*% solve(S00, S01))
+  eig &lt;- eigen(M)
+  lambda &lt;- sort(Re(eig$values), decreasing = TRUE)
+  lambda &lt;- pmin(pmax(lambda, 0), 1 - 1e-12)
+
+  K &lt;- ncol(Y)
+  trace_stats &lt;- vapply(0:(K - 1L), function(r) {
+    -n * sum(log(1 - lambda[(r + 1L):K]))
+  }, numeric(1))
+  max_stats &lt;- -n * log(1 - lambda)
+  list(
+    eigenvalues = lambda,
+    trace = setNames(trace_stats, paste0(&quot;r&lt;=&quot;, 0:(K - 1L))),
+    max_eigen = setNames(max_stats, paste0(0:(K - 1L), &quot; vs &quot;, 1:K)),
+    n = n
+  )
+}
+
+j_sim &lt;- johansen_eigen_demo(Y)
+j_sim
+</code></pre>
+<pre><code>## $eigenvalues
+## [1] 0.181497909 0.005569738
+## 
+## $trace
+##       r&lt;=0       r&lt;=1 
+## 102.726452   2.787068 
+## 
+## $max_eigen
+##    0 vs 1    1 vs 2 
+## 99.939385  2.787068 
+## 
+## $n
+## [1] 499
+</code></pre>
+<p>較大的第一特徵值與較小的第二特徵值符合共整合秩為 1 的資料生成結構，但正式的共整合秩判定必須使用與確定性規格、樣本數及落後階數相符的非標準臨界值。</p>
+<h2 id="vecm">已知 VECM 參數的矩陣核對<a class="headerlink" href="#vecm" title="Permanent link">#</a></h2>
+<pre><code class="language-r">alpha &lt;- matrix(c(-0.2, 0.1), ncol = 1)
+beta &lt;- matrix(c(1, -1), ncol = 1)
+Pi &lt;- alpha %*% t(beta)
+eigen(Pi)$values
+</code></pre>
+<pre><code>## [1] -0.3  0.0
+</code></pre>
+<pre><code class="language-r">Pi
+</code></pre>
+<pre><code>##      [,1] [,2]
+## [1,] -0.2  0.2
+## [2,]  0.1 -0.1
+</code></pre>
+<pre><code class="language-r">previous_spread &lt;- 0.5
+expected_change &lt;- as.numeric(alpha * previous_spread)
+new_spread &lt;- previous_spread + expected_change[1] - expected_change[2]
+c(dy1 = expected_change[1], dy2 = expected_change[2], new_spread = new_spread)
+</code></pre>
+<pre><code>##        dy1        dy2 new_spread 
+##      -0.10       0.05       0.35
+</code></pre>
+<h2 id="_2">固定日本短長期利率：探索性示範<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
+<pre><code class="language-r">path &lt;- &quot;data/processed/japan_monthly_2007_2018.csv&quot;
+jp &lt;- read.csv(path, stringsAsFactors = FALSE)
+jp$date &lt;- as.Date(jp$date)
+jp &lt;- jp[order(jp$date), ]
+keep &lt;- complete.cases(jp[, c(&quot;inr&quot;, &quot;yield_10&quot;)])
+Y_jp &lt;- as.matrix(jp[keep, c(&quot;yield_10&quot;, &quot;inr&quot;)])
+dates &lt;- jp$date[keep]
+colnames(Y_jp) &lt;- c(&quot;Yield10&quot;, &quot;ShortRate&quot;)
+
+matplot(dates, Y_jp, type = &quot;l&quot;, lty = 1,
+        col = c(&quot;#173B57&quot;, &quot;#A34045&quot;),
+        xlab = &quot;Date&quot;, ylab = &quot;Percent&quot;)
+legend(&quot;topright&quot;, colnames(Y_jp), col = c(&quot;#173B57&quot;, &quot;#A34045&quot;),
+       lty = 1, bty = &quot;n&quot;)
+</code></pre>
+<p><img alt="plot of chunk japan-data" src="./R17_cointegration_vecm_files/figure-gfm/japan-data-1.png"></p>
+<pre><code class="language-r">spread_jp &lt;- Y_jp[, 1] - Y_jp[, 2]
+rbind(
+  Yield10 = adf_regression(Y_jp[, 1], diff_lags = 1),
+  ShortRate = adf_regression(Y_jp[, 2], diff_lags = 1),
+  Spread = adf_regression(spread_jp, diff_lags = 1)
+)
+</code></pre>
+<pre><code>##           rho.LevelLag t_stat.LevelLag
+## Yield10    -0.01617041      -1.1870966
+## ShortRate  -0.06474252      -3.4780026
+## Spread     -0.01290881      -0.8331237
+</code></pre>
+<pre><code class="language-r">johansen_eigen_demo(Y_jp)
+</code></pre>
+<pre><code>## $eigenvalues
+## [1] 0.07896105 0.01295491
+## 
+## $trace
+##      r&lt;=0      r&lt;=1 
+## 12.578610  1.721221 
+## 
+## $max_eigen
+##    0 vs 1    1 vs 2 
+## 10.857389  1.721221 
+## 
+## $n
+## [1] 132
+</code></pre>
+<p>這段輸出不應被寫成「已證明日本利率共整合」。樣本只有約十一年，零利率制度、結構變動、deterministic terms 與 lag choice 都可能改變判讀。</p>
+<h2 id="ecm_1">簡單 ECM 與殘差診斷<a class="headerlink" href="#ecm_1" title="Permanent link">#</a></h2>
+<pre><code class="language-r">long_jp &lt;- lm(Yield10 ~ ShortRate, data = as.data.frame(Y_jp))
+ect_jp &lt;- residuals(long_jp)
+d_jp &lt;- diff(Y_jp)
+ect_lag_jp &lt;- ect_jp[-length(ect_jp)]
+
+ecm_long &lt;- lm(d_jp[, &quot;Yield10&quot;] ~ ect_lag_jp)
+ecm_short &lt;- lm(d_jp[, &quot;ShortRate&quot;] ~ ect_lag_jp)
+
+summary(ecm_long)$coef
+</code></pre>
+<pre><code>##                Estimate Std. Error   t value  Pr(&gt;|t|)
+## (Intercept) -0.01117912 0.00714045 -1.565604 0.1198723
+## ect_lag_jp  -0.02107412 0.01551867 -1.357985 0.1768207
+</code></pre>
+<pre><code class="language-r">summary(ecm_short)$coef
+</code></pre>
+<pre><code>##                 Estimate  Std. Error    t value  Pr(&gt;|t|)
+## (Intercept) -0.003402197 0.002424581 -1.4032099 0.1629382
+## ect_lag_jp  -0.001851880 0.005269455 -0.3514368 0.7258296
+</code></pre>
+<pre><code class="language-r">par(mfrow = c(1, 2))
+acf(residuals(ecm_long), main = &quot;Long-rate ECM residual ACF&quot;)
+acf(residuals(ecm_short), main = &quot;Short-rate ECM residual ACF&quot;)
+</code></pre>
+<p><img alt="plot of chunk japan-ecm" src="./R17_cointegration_vecm_files/figure-gfm/japan-ecm-1.png"></p>
+<pre><code class="language-r">par(mfrow = c(1, 1))
+</code></pre>
+<h2 id="_3">報告與退場規則<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<ol>
+<li>先說明各 series 的整合階數證據與 deterministic terms。</li>
+<li>VECM 的差分 lags 比水準 VAR lags 少一階。</li>
+<li>報告跡檢定與最大特徵值檢定所使用的確切規格與臨界值；本教學函數未內建它們。</li>
+<li>比較前先把共整合向量正規化為同一尺度與符號。</li>
+<li>共整合秩對落後階數、趨勢或子樣本翻轉時，不把單一結果包裝成長期法則。</li>
+<li>共整合不等於套利；VECM 創新項也不等於結構衝擊。</li>
+</ol>
+<pre><code class="language-r">sessionInfo()
+</code></pre>
+<pre><code>## R version 4.5.2 (2025-10-31)
+## Platform: aarch64-apple-darwin20
+## Running under: macOS Tahoe 26.5.1
+## 
+## Matrix products: default
+## BLAS:   /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib 
+## LAPACK: /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.1
+## 
+## locale:
+## [1] C.UTF-8/C.UTF-8/C.UTF-8/C/C.UTF-8/C.UTF-8
+## 
+## time zone: Asia/Tokyo
+## tzcode source: internal
+## 
+## attached base packages:
+## [1] stats     graphics  grDevices utils     datasets  methods   base     
+## 
+## other attached packages:
+## [1] tibble_3.3.0 dplyr_1.2.1 
+## 
+## loaded via a namespace (and not attached):
+##  [1] vctrs_0.7.2        cli_3.6.5          knitr_1.51         rlang_1.1.7       
+##  [5] xfun_0.57          otel_0.2.0         MatrixModels_0.5-4 generics_0.1.4    
+##  [9] glue_1.8.0         grid_4.5.2         evaluate_1.0.5     SparseM_1.84-2    
+## [13] MASS_7.3-65        lifecycle_1.0.5    compiler_4.5.2     pkgconfig_2.0.3   
+## [17] quantreg_6.1       lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1  
+## [21] utf8_1.2.6         splines_4.5.2      pillar_1.11.1      magrittr_2.0.4    
+## [25] Matrix_1.7-4       tools_4.5.2        withr_3.0.2        survival_3.8-3
+</code></pre>
+      </article>
+      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R16_var_irf.html">← VAR、識別與衝擊反應函數</a><a rel="next" href="R18_local_projection_irf.html">VAR、局部投影與進階 IRF →</a></nav>
+      <footer>© 陳釗而　《財務時間序列分析》</footer>
+    </main>
+    <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
+<ul>
+<li><a href="#_1">執行條件</a></li>
+<li><a href="#1">已知共整合秩為 1 的教學模擬</a></li>
+<li><a href="#ar1-persistence-diagnostic">AR(1) persistence diagnostic</a></li>
+<li><a href="#ecm">兩步 ECM</a></li>
+<li><a href="#johansen-eigenvalues">教學版 Johansen eigenvalues</a></li>
+<li><a href="#vecm">已知 VECM 參數的矩陣核對</a></li>
+<li><a href="#_2">固定日本短長期利率：探索性示範</a></li>
+<li><a href="#ecm_1">簡單 ECM 與殘差診斷</a></li>
+<li><a href="#_3">報告與退場規則</a></li>
+</ul>
+</div>
+</aside>
+  </div>
+</body>
+</html>

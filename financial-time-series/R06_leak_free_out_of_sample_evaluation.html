@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="《財務時間序列分析》R 線上附錄：R06：無資料洩漏的樣本外評估">
+  <title>R06：無資料洩漏的樣本外評估｜財務時間序列分析</title>
+  <link rel="stylesheet" href="assets/site.css">
+  <script>
+    window.MathJax = {
+      tex: {inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']]},
+      svg: {fontCache: 'local'},
+      options: {skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']}
+    };
+  </script>
+  <script defer src="assets/mathjax-loader.js"></script>
+  <script defer src="assets/site.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要內容</a>
+  <header class="site-header">
+    <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
+    <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
+    <a class="policy-link" href="data-policy.html">資料政策</a>
+  </header>
+  <div class="layout">
+    <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
+      <p class="sidebar-title">線上附錄</p>
+      <ol><li><a href="index.html">首頁</a></li>
+<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
+<li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
+<li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
+<li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與經驗特徵</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA 模擬</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html" aria-current="page" class="active">R06　無資料洩漏的樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html">R09　投資組合、CAPM 與財務因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
+<li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
+<li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
+    </nav>
+    <main id="main-content" class="content">
+      <div class="publication-note">
+        本網站提供作者執行後的教學內容與程式原始檔；未經確認可再散布的原始資料不隨網站發布。
+        詳見<a href="data-policy.html">資料與重現政策</a>。
+      </div>
+      <article>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R06：無資料洩漏的樣本外評估</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R06_leak_free_out_of_sample_evaluation.Rmd">R Markdown 原始檔</a><a href="source/R06_leak_free_out_of_sample_evaluation.md">執行後 Markdown</a></div></header>
+        <p>本附錄對應第 8 章。使用凍結股票面板建立等權教學投資組合，依時間切成訓練、驗證與測試期。驗證期只選滾動平均視窗；選定後凍結規格，在測試期比較零報酬、擴展平均、滾動平均與擴展 AR(1)。沒有隨機打散日期，也沒有使用測試期調整模型。</p>
+<pre><code class="language-r">knitr::opts_chunk$set(
+  echo = TRUE, message = FALSE, warning = FALSE,
+  fig.width = 7, fig.height = 4.5
+)
+
+root_candidates &lt;- c(&quot;.&quot;, &quot;..&quot;)
+is_root &lt;- vapply(root_candidates, function(x) {
+  file.exists(file.path(x, &quot;main.tex&quot;))
+}, logical(1))
+stopifnot(any(is_root))
+project_root &lt;- root_candidates[which(is_root)[1]]
+project_path &lt;- function(...) file.path(project_root, ...)
+</code></pre>
+<h2 id="_1">固定資料與預測目標<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
+<p>原檔為一欄日期與 89 檔股票日簡單報酬。本附錄每日等權平均，目標是預測下一個共同交易日的教學投資組合報酬。這不是官方 S\&amp;P 500 指數，也未處理成分股生存者偏誤，不能用來宣稱可交易績效。</p>
+<pre><code class="language-r">panel_path &lt;- project_path(
+  &quot;data&quot;, &quot;processed&quot;, &quot;sp500_returns_balanced_2013_2022.csv&quot;
+)
+manifest_path &lt;- project_path(&quot;data&quot;, &quot;processed&quot;, &quot;manifest.csv&quot;)
+stopifnot(file.exists(panel_path), file.exists(manifest_path))
+
+panel &lt;- read.csv(panel_path, check.names = FALSE)
+dates &lt;- as.Date(panel$date)
+R &lt;- as.matrix(panel[, setdiff(names(panel), &quot;date&quot;)])
+storage.mode(R) &lt;- &quot;double&quot;
+portfolio_return &lt;- rowMeans(R)
+
+stopifnot(
+  !anyNA(dates), !anyNA(portfolio_return),
+  all(diff(dates) &gt; 0), length(portfolio_return) == nrow(panel)
+)
+
+n &lt;- length(portfolio_return)
+c(
+  observations = n,
+  assets = ncol(R),
+  start = format(min(dates)),
+  end = format(max(dates))
+)
+</code></pre>
+<pre><code>## observations       assets        start          end 
+##       &quot;2384&quot;         &quot;89&quot; &quot;2013-01-03&quot; &quot;2022-06-22&quot;
+</code></pre>
+<h2 id="_2">依時間固定三個區段<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
+<p>前 60\% 是初始訓練期，接下來 20\% 是驗證期，最後 20\% 是一次性測試期。切點以觀察順序定義，再列出實際日期供審核。</p>
+<pre><code class="language-r">train_end &lt;- floor(0.60 * n)
+validation_end &lt;- floor(0.80 * n)
+
+split_table &lt;- data.frame(
+  segment = c(&quot;training&quot;, &quot;validation&quot;, &quot;test&quot;),
+  first_index = c(1L, train_end + 1L, validation_end + 1L),
+  last_index = c(train_end, validation_end, n)
+)
+split_table$first_date &lt;- dates[split_table$first_index]
+split_table$last_date &lt;- dates[split_table$last_index]
+split_table$observations &lt;- with(
+  split_table, last_index - first_index + 1L
+)
+split_table
+</code></pre>
+<pre><code>##      segment first_index last_index first_date  last_date observations
+## 1   training           1       1430 2013-01-03 2018-09-06         1430
+## 2 validation        1431       1907 2018-09-07 2020-07-30          477
+## 3       test        1908       2384 2020-07-31 2022-06-22          477
+</code></pre>
+<p>一個起點 \(t\) 只能使用第 1 至 \(t\) 筆報酬，並預測第 \(t+1\) 筆。下列函數把資料邊界寫進回傳值，便於查核。</p>
+<h2 id="_3">單一起點預測函數<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<pre><code class="language-r">forecast_at_origin &lt;- function(y, origin, model, window = NULL) {
+  stopifnot(origin &gt;= 3L, origin &lt; length(y))
+
+  if (model == &quot;zero&quot;) {
+    pred &lt;- 0
+    training_start &lt;- 1L
+  } else if (model == &quot;expanding_mean&quot;) {
+    training_start &lt;- 1L
+    pred &lt;- mean(y[training_start:origin])
+  } else if (model == &quot;rolling_mean&quot;) {
+    stopifnot(!is.null(window), origin &gt;= window)
+    training_start &lt;- origin - window + 1L
+    pred &lt;- mean(y[training_start:origin])
+  } else if (model == &quot;expanding_ar1&quot;) {
+    training_start &lt;- 1L
+    y_train &lt;- y[training_start:origin]
+    X &lt;- cbind(1, y_train[-length(y_train)])
+    target &lt;- y_train[-1]
+    beta &lt;- qr.solve(X, target)
+    pred &lt;- beta[1] + beta[2] * y[origin]
+  } else {
+    stop(&quot;未知模型。&quot;)
+  }
+
+  data.frame(
+    origin = origin,
+    target_index = origin + 1L,
+    training_start = training_start,
+    training_end = origin,
+    forecast = as.numeric(pred),
+    actual = y[origin + 1L]
+  )
+}
+
+evaluate_origins &lt;- function(y, origins, model, window = NULL) {
+  out &lt;- do.call(rbind, lapply(origins, function(o) {
+    forecast_at_origin(y, o, model, window)
+  }))
+  out$model &lt;- model
+  out$window &lt;- if (is.null(window)) NA_integer_ else as.integer(window)
+  out$error &lt;- out$actual - out$forecast
+  stopifnot(
+    all(out$training_end == out$origin),
+    all(out$training_end &lt; out$target_index)
+  )
+  out
+}
+</code></pre>
+<h2 id="_4">驗證期只用來選滾動視窗<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
+<p>候選視窗為 60、125、250 個共同交易日。每個起點都只以當時往前的固定長度平均形成預測。</p>
+<pre><code class="language-r">validation_origins &lt;- train_end:(validation_end - 1L)
+window_grid &lt;- c(60L, 125L, 250L)
+
+validation_results &lt;- lapply(window_grid, function(w) {
+  evaluate_origins(
+    portfolio_return, validation_origins,
+    model = &quot;rolling_mean&quot;, window = w
+  )
+})
+
+validation_score &lt;- data.frame(
+  window = window_grid,
+  RMSE = vapply(validation_results, function(z) {
+    sqrt(mean(z$error^2))
+  }, numeric(1)),
+  MAE = vapply(validation_results, function(z) {
+    mean(abs(z$error))
+  }, numeric(1))
+)
+validation_score
+</code></pre>
+<pre><code>##   window       RMSE        MAE
+## 1     60 0.01737418 0.01007542
+## 2    125 0.01724110 0.01005148
+## 3    250 0.01719964 0.01000231
+</code></pre>
+<pre><code class="language-r">selected_window &lt;- validation_score$window[
+  which.min(validation_score$RMSE)
+]
+selected_window
+</code></pre>
+<pre><code>## [1] 250
+</code></pre>
+<p>視窗只依驗證 RMSE 選一次。接下來不因測試結果改變。</p>
+<h2 id="_5">一次性測試期<a class="headerlink" href="#_5" title="Permanent link">#</a></h2>
+<pre><code class="language-r">test_origins &lt;- validation_end:(n - 1L)
+
+test_results &lt;- rbind(
+  evaluate_origins(
+    portfolio_return, test_origins, &quot;zero&quot;
+  ),
+  evaluate_origins(
+    portfolio_return, test_origins, &quot;expanding_mean&quot;
+  ),
+  evaluate_origins(
+    portfolio_return, test_origins, &quot;rolling_mean&quot;,
+    window = selected_window
+  ),
+  evaluate_origins(
+    portfolio_return, test_origins, &quot;expanding_ar1&quot;
+  )
+)
+
+test_results$origin_date &lt;- dates[test_results$origin]
+test_results$target_date &lt;- dates[test_results$target_index]
+test_results$training_start_date &lt;- dates[test_results$training_start]
+test_results$training_end_date &lt;- dates[test_results$training_end]
+
+head(test_results, 8)
+</code></pre>
+<pre><code>##   origin target_index training_start training_end forecast       actual model
+## 1   1907         1908              1         1907        0 -0.001079797  zero
+## 2   1908         1909              1         1908        0  0.004716595  zero
+## 3   1909         1910              1         1909        0  0.007220686  zero
+## 4   1910         1911              1         1910        0  0.007924137  zero
+## 5   1911         1912              1         1911        0  0.004493475  zero
+## 6   1912         1913              1         1912        0  0.002346122  zero
+## 7   1913         1914              1         1913        0  0.003915023  zero
+## 8   1914         1915              1         1914        0 -0.005279467  zero
+##   window        error origin_date target_date training_start_date
+## 1     NA -0.001079797  2020-07-30  2020-07-31          2013-01-03
+## 2     NA  0.004716595  2020-07-31  2020-08-03          2013-01-03
+## 3     NA  0.007220686  2020-08-03  2020-08-04          2013-01-03
+## 4     NA  0.007924137  2020-08-04  2020-08-05          2013-01-03
+## 5     NA  0.004493475  2020-08-05  2020-08-06          2013-01-03
+## 6     NA  0.002346122  2020-08-06  2020-08-07          2013-01-03
+## 7     NA  0.003915023  2020-08-07  2020-08-10          2013-01-03
+## 8     NA -0.005279467  2020-08-10  2020-08-11          2013-01-03
+##   training_end_date
+## 1        2020-07-30
+## 2        2020-07-31
+## 3        2020-08-03
+## 4        2020-08-04
+## 5        2020-08-05
+## 6        2020-08-06
+## 7        2020-08-07
+## 8        2020-08-10
+</code></pre>
+<pre><code class="language-r">score_one &lt;- function(z) {
+  c(
+    observations = nrow(z),
+    RMSE = sqrt(mean(z$error^2)),
+    MAE = mean(abs(z$error)),
+    mean_error = mean(z$error)
+  )
+}
+
+score_table &lt;- do.call(
+  rbind,
+  lapply(split(test_results, test_results$model), score_one)
+)
+round(score_table, 6)
+</code></pre>
+<pre><code>##                observations     RMSE      MAE mean_error
+## expanding_ar1           477 0.010446 0.007750  -0.000145
+## expanding_mean          477 0.010314 0.007626  -0.000125
+## rolling_mean            477 0.010313 0.007622  -0.000427
+## zero                    477 0.010335 0.007668   0.000700
+</code></pre>
+<p>分數是固定資料期間的描述，不代表未來必然維持相同排序。日平均報酬很小，因此任何改善都應連同抽樣不確定性、交易成本與市場穩定性判讀。</p>
+<h2 id="rmse">逐期誤差比單一 RMSE 更可審核<a class="headerlink" href="#rmse" title="Permanent link">#</a></h2>
+<pre><code class="language-r">models &lt;- unique(test_results$model)
+colors &lt;- c(&quot;#173B57&quot;, &quot;#A34045&quot;, &quot;#1D6D73&quot;, &quot;#8A6D3B&quot;)
+
+plot(
+  NA,
+  xlim = range(dates[test_origins + 1L]),
+  ylim = c(0, max(vapply(
+    split(test_results$error, test_results$model),
+    function(e) sum(e^2),
+    numeric(1)
+  ))),
+  xlab = &quot;目標日期&quot;, ylab = &quot;累積平方誤差&quot;
+)
+
+for (j in seq_along(models)) {
+  z &lt;- test_results[test_results$model == models[j], ]
+  lines(
+    z$target_date, cumsum(z$error^2),
+    col = colors[j], lwd = 2
+  )
+}
+legend(
+  &quot;topleft&quot;, models, col = colors[seq_along(models)],
+  lty = 1, lwd = 2, bty = &quot;n&quot;
+)
+</code></pre>
+<p><img alt="測試期各模型的累積平方預測誤差。" src="./R06_leak_free_out_of_sample_evaluation_files/figure-gfm/cumulative-loss-1.png"></p>
+<p>累積損失若在少數危機日突然跳升，平均 RMSE 可能主要由那些日期主導。這不是刪除危機日的理由，而是提示應分開報告市場狀態與結構穩定性。</p>
+<h2 id="_6">程式防漏檢核<a class="headerlink" href="#_6" title="Permanent link">#</a></h2>
+<pre><code class="language-r">leakage_audit &lt;- within(
+  test_results[, c(
+    &quot;model&quot;, &quot;origin_date&quot;, &quot;target_date&quot;,
+    &quot;training_start_date&quot;, &quot;training_end_date&quot;
+  )],
+  valid_timing &lt;- training_end_date == origin_date &amp;
+    training_end_date &lt; target_date
+)
+table(leakage_audit$valid_timing)
+</code></pre>
+<pre><code>## 
+## TRUE 
+## 1908
+</code></pre>
+<pre><code class="language-r">stopifnot(all(leakage_audit$valid_timing))
+</code></pre>
+<p>若未來加入標準化、PCA、變數選擇或缺值填補，這些步驟也必須搬進 forecast_at_origin，且只對 training_start:training_end 配適。先用全樣本轉換再呼叫此函數仍然是資料洩漏。</p>
+<h2 id="_7">可重現報告應保留<a class="headerlink" href="#_7" title="Permanent link">#</a></h2>
+<ul>
+<li>凍結資料檔與 manifest 檢查碼；</li>
+<li>三段日期、每個預測起點與目標日期；</li>
+<li>候選視窗與驗證分數；</li>
+<li>規格凍結時間；</li>
+<li>測試期逐筆預測、誤差、訓練起訖日；</li>
+<li>RMSE、MAE、平均誤差與簡單基準；</li>
+<li>任何事後敏感度分析都和主要測試結果分開標示。</li>
+</ul>
+      </article>
+      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R05_arma_estimation_diagnostics_forecasting.html">← ARMA 估計、診斷與多步預測</a><a rel="next" href="R07_unit_roots_differencing_breaks.html">單根、差分與結構變動 →</a></nav>
+      <footer>© 陳釗而　《財務時間序列分析》</footer>
+    </main>
+    <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
+<ul>
+<li><a href="#_1">固定資料與預測目標</a></li>
+<li><a href="#_2">依時間固定三個區段</a></li>
+<li><a href="#_3">單一起點預測函數</a></li>
+<li><a href="#_4">驗證期只用來選滾動視窗</a></li>
+<li><a href="#_5">一次性測試期</a></li>
+<li><a href="#rmse">逐期誤差比單一 RMSE 更可審核</a></li>
+<li><a href="#_6">程式防漏檢核</a></li>
+<li><a href="#_7">可重現報告應保留</a></li>
+</ul>
+</div>
+</aside>
+  </div>
+</body>
+</html>

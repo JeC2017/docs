@@ -1,0 +1,392 @@
+---
+title: "R11：S&P 500 平衡子樣本的 PCA 與跨股票 lag 修正"
+output:
+  github_document:
+    toc: true
+    toc_depth: 3
+---
+
+本附錄對應第 15 章，使用專案內凍結的日報酬面板，示範如何先修正跨股票使用 `lag()` 的錯誤，再以嚴格的時間切分進行主成分分析（PCA）。資料只包含 89 檔在共同日期均有觀察值的股票，**不是完整的 S&P 500 指數成分股歷史**；平衡化可能帶來成分股選擇與存活者偏誤。因此，以下結果只供方法教學，不用來衡量整體市場績效，也不構成交易策略證據。
+
+依 `data/DATA_SOURCES.md` 的已決定政策，公開網站提供程式與執行結果，但不再散布凍結價格衍生面板；讀者須自行取得合法資料，再執行同一套清理程式。
+
+```{r setup}
+knitr::opts_chunk$set(
+  echo = TRUE, message = FALSE, warning = FALSE,
+  fig.width = 7, fig.height = 4
+)
+stopifnot(getRversion() >= "4.3.0")
+set.seed(1111)
+```
+
+## 1. 找到凍結資料並核對檔案
+
+本檔不使用 `setwd()`、不安裝套件，也不在執行時下載資料。下列函數容許讀者從專案根目錄或 `online_appendix/` 執行檔案。
+
+```{r locate-files}
+locate_project_file <- function(relative_path) {
+  candidates <- c(
+    relative_path,
+    file.path("..", relative_path),
+    file.path("../..", relative_path)
+  )
+  hit <- candidates[file.exists(candidates)]
+  if (length(hit) == 0L) {
+    stop("找不到專案檔案：", relative_path)
+  }
+  normalizePath(hit[1], mustWork = TRUE)
+}
+
+returns_file <- locate_project_file(
+  "data/processed/sp500_returns_balanced_2013_2022.csv"
+)
+manifest_file <- locate_project_file("data/processed/manifest.csv")
+```
+
+```{r read-and-validate}
+return_df <- read.csv(
+  returns_file,
+  check.names = FALSE,
+  stringsAsFactors = FALSE
+)
+manifest <- read.csv(manifest_file, stringsAsFactors = FALSE)
+
+dates <- as.Date(return_df$date)
+R_all <- as.matrix(return_df[, -1, drop = FALSE])
+storage.mode(R_all) <- "double"
+
+manifest_key <- "data/processed/sp500_returns_balanced_2013_2022.csv"
+manifest_row <- manifest[manifest$file == manifest_key, , drop = FALSE]
+actual_md5 <- unname(tools::md5sum(returns_file))
+
+stopifnot(
+  nrow(manifest_row) == 1L,
+  nrow(return_df) == manifest_row$rows,
+  ncol(return_df) == manifest_row$columns,
+  identical(actual_md5, manifest_row$md5),
+  nrow(return_df) == 2384L,
+  ncol(R_all) == 89L,
+  !anyNA(dates),
+  !anyDuplicated(dates),
+  all(diff(dates) > 0),
+  !anyNA(R_all),
+  all(is.finite(R_all)),
+  !anyDuplicated(colnames(R_all))
+)
+
+data.frame(
+  first_date = min(dates),
+  last_date = max(dates),
+  trading_days = nrow(R_all),
+  stocks = ncol(R_all),
+  md5 = actual_md5
+)
+```
+
+檢查碼的用途是確認本次分析讀到的確實是教材所凍結的版本；它不能替代資料授權或經濟意義的查核。
+
+## 2. 為何不能在整張長表直接做 `lag()`
+
+若長格式價格表依日期與股票代碼排序後，直接對整欄價格取落後值，某一列的「前一期」往往會是另一檔股票。下列微型資料刻意重現此錯誤。
+
+```{r cross-ticker-bug}
+toy_price <- data.frame(
+  date = rep(as.Date("2024-01-01") + 0:2, each = 2),
+  symbol = rep(c("AAA", "BBB"), times = 3),
+  price = c(100, 50, 110, 45, 121, 49.5)
+)
+toy_price <- toy_price[order(toy_price$date, toy_price$symbol), ]
+
+# 錯誤：完全沒有按股票分組。
+toy_price$return_wrong <- c(
+  NA_real_,
+  diff(toy_price$price) / head(toy_price$price, -1)
+)
+toy_price
+```
+
+例如 `BBB` 第一天的錯誤報酬拿 `AAA` 第一天的價格當分母；`AAA` 第二天又拿 `BBB` 第一天當分母。正確做法是先按股票分組、在每一組內按日期排序，然後才計算報酬。
+
+```{r grouped-return-function}
+within_symbol_return <- function(data) {
+  required <- c("date", "symbol", "price")
+  stopifnot(all(required %in% names(data)))
+
+  groups <- split(data, data$symbol, drop = TRUE)
+  corrected <- lapply(groups, function(one_stock) {
+    one_stock <- one_stock[order(one_stock$date), , drop = FALSE]
+    one_stock$return <- c(
+      NA_real_,
+      diff(one_stock$price) / head(one_stock$price, -1)
+    )
+    one_stock
+  })
+  corrected <- do.call(rbind, corrected)
+  rownames(corrected) <- NULL
+  corrected[order(corrected$date, corrected$symbol), ]
+}
+
+toy_correct <- within_symbol_return(toy_price[, c("date", "symbol", "price")])
+toy_correct
+
+# 可執行的方向與分組單元測試。
+first_in_group <- !duplicated(toy_correct$symbol)
+stopifnot(
+  all(is.na(toy_correct$return[first_in_group])),
+  isTRUE(all.equal(
+    toy_correct$return[toy_correct$symbol == "AAA"][-1],
+    c(0.10, 0.10), tolerance = 1e-12
+  )),
+  isTRUE(all.equal(
+    toy_correct$return[toy_correct$symbol == "BBB"][-1],
+    c(-0.10, 0.10), tolerance = 1e-12
+  ))
+)
+```
+
+本專案的凍結面板正是由「先按股票代碼分組，再計算報酬」的建檔程序產生；原始價格的第一期因無法計算報酬而不會硬填成 0。
+
+## 3. 描述統計與時間切分
+
+先查看每檔股票日報酬的平均數、標準差與極端值。這些摘要不等同於投資績效比較，尤其資料是經平衡化後的子樣本。
+
+```{r descriptive-statistics}
+stock_summary <- data.frame(
+  symbol = colnames(R_all),
+  mean = colMeans(R_all),
+  sd = apply(R_all, 2, sd),
+  minimum = apply(R_all, 2, min),
+  maximum = apply(R_all, 2, max)
+)
+
+stock_summary[order(stock_summary$sd, decreasing = TRUE)[1:10], ]
+```
+
+為避免未來資料影響中心化、尺度與主成分負荷量，本例固定切成連續三段：前 65% 為估計期、接著 15% 為驗證期、最後 20% 為測試期。不能先隨機打散日資料再切分。
+
+```{r chronological-split}
+T_total <- nrow(R_all)
+train_end <- floor(0.65 * T_total)
+validation_end <- floor(0.80 * T_total)
+
+train_id <- seq_len(train_end)
+validation_id <- seq.int(train_end + 1L, validation_end)
+test_id <- seq.int(validation_end + 1L, T_total)
+
+split_table <- data.frame(
+  sample = c("估計期", "驗證期", "測試期"),
+  first_date = dates[c(min(train_id), min(validation_id), min(test_id))],
+  last_date = dates[c(max(train_id), max(validation_id), max(test_id))],
+  observations = c(length(train_id), length(validation_id), length(test_id))
+)
+split_table
+```
+
+## 4. 只以估計期建立 PCA
+
+個股波動尺度不同，因此本例先用**估計期**平均數與標準差把各欄標準化，再做 PCA。驗證期與測試期不得各自重新標準化。
+
+```{r fit-training-pca}
+pca_train <- prcomp(
+  R_all[train_id, , drop = FALSE],
+  center = TRUE,
+  scale. = TRUE
+)
+
+eigenvalues <- pca_train$sdev^2
+pve <- eigenvalues / sum(eigenvalues)
+explained <- data.frame(
+  component = seq_along(pve),
+  eigenvalue = eigenvalues,
+  PVE = pve,
+  cumulative_PVE = cumsum(pve)
+)
+head(explained, 15)
+```
+
+```{r eigenvalue-check}
+Z_train <- scale(
+  R_all[train_id, , drop = FALSE],
+  center = pca_train$center,
+  scale = pca_train$scale
+)
+direct_eigen <- eigen(cor(Z_train), symmetric = TRUE, only.values = TRUE)$values
+
+stopifnot(isTRUE(all.equal(
+  unname(eigenvalues), unname(direct_eigen), tolerance = 1e-9
+)))
+```
+
+```{r scree-plot}
+plot(
+  explained$component[1:30],
+  explained$eigenvalue[1:30],
+  type = "b", pch = 19, col = "#173B57",
+  xlab = "主成分", ylab = "特徵值",
+  main = "估計期相關矩陣的前 30 個特徵值"
+)
+abline(h = 1, lty = 2, col = "#A34045")
+```
+
+### 4.1 負荷量與正負號不定性
+
+特徵向量整欄乘以 (-1) 仍是同一個主成分。因此，不能把 PC1 負荷量的正負號當成可識別的經濟方向。下表依絕對值列出前兩個主成分的重要股票，並保留原符號以利重現。
+
+```{r top-loadings}
+largest_loadings <- function(fit, component, n = 12L) {
+  loading <- fit$rotation[, component]
+  keep <- order(abs(loading), decreasing = TRUE)[seq_len(n)]
+  data.frame(
+    component = paste0("PC", component),
+    symbol = names(loading)[keep],
+    loading = unname(loading[keep]),
+    absolute_loading = abs(unname(loading[keep]))
+  )
+}
+
+rbind(
+  largest_loadings(pca_train, 1),
+  largest_loadings(pca_train, 2)
+)
+```
+
+將估計期 PC1 分數與 89 檔股票的等權平均報酬相比，可作為「共同移動」的描述性核對；這個等權組合不是 S&P 500 指數。
+
+```{r pc1-equal-weight-check}
+equal_weight_train <- rowMeans(R_all[train_id, , drop = FALSE])
+pc1_train <- pca_train$x[, 1]
+
+data.frame(
+  correlation = cor(pc1_train, equal_weight_train),
+  absolute_correlation = abs(cor(pc1_train, equal_weight_train))
+)
+```
+
+## 5. 事先鎖定維度規則
+
+若以同一組變數的重建誤差選維度，保留全部 89 個主成分必然達到零誤差。為避免看過測試期才改規則，本例在分析前指定：選擇估計期累積解釋比例首次達 80% 的最小主成分個數。
+
+```{r locked-dimension-rule}
+target_pve <- 0.80
+r_selected <- which(explained$cumulative_PVE >= target_pve)[1]
+
+data.frame(
+  target_PVE = target_pve,
+  selected_components = r_selected,
+  achieved_training_PVE = explained$cumulative_PVE[r_selected]
+)
+```
+
+80% 不是自然法則；它是透明、可事先登錄的教學規則。研究者也可用經濟損失函數或只使用驗證期的預測準則，但不能以最終測試期調參。
+
+## 6. 驗證期診斷與最終測試
+
+下列函數固定使用估計樣本所得到的中心、尺度與負荷量，把新資料投影到前 (r) 個主成分後再重建。
+
+```{r reconstruction-functions}
+standardized_reconstruction <- function(fit, newdata, r) {
+  stopifnot(r >= 0L, r <= ncol(fit$rotation))
+  Z <- scale(newdata, center = fit$center, scale = fit$scale)
+  if (r == 0L) {
+    Z_hat <- matrix(0, nrow = nrow(Z), ncol = ncol(Z))
+  } else {
+    V <- fit$rotation[, seq_len(r), drop = FALSE]
+    Z_hat <- (Z %*% V) %*% t(V)
+  }
+  list(actual = Z, reconstructed = Z_hat)
+}
+
+reconstruction_diagnostics <- function(object) {
+  sse <- sum((object$actual - object$reconstructed)^2)
+  sst <- sum(object$actual^2)
+  c(
+    standardized_MSE = mean((object$actual - object$reconstructed)^2),
+    out_of_sample_fraction_reconstructed = 1 - sse / sst
+  )
+}
+```
+
+先用驗證期確認所選維度的表現，但不再改動 80% 規則。
+
+```{r validation-diagnostics}
+r_grid <- sort(unique(c(1L, 2L, 5L, 10L, 20L, r_selected, 40L, 60L, 89L)))
+r_grid <- r_grid[r_grid <= ncol(R_all)]
+
+validation_table <- do.call(rbind, lapply(r_grid, function(r) {
+  diagnostic <- reconstruction_diagnostics(
+    standardized_reconstruction(
+      pca_train,
+      R_all[validation_id, , drop = FALSE],
+      r
+    )
+  )
+  data.frame(r = r, t(diagnostic), row.names = NULL)
+}))
+validation_table
+```
+
+鎖定 (r) 後，把估計期與驗證期合併重新估計中心、尺度與負荷量；最終測試期仍完全未參與估計或選擇。
+
+```{r locked-final-test}
+development_id <- c(train_id, validation_id)
+pca_development <- prcomp(
+  R_all[development_id, , drop = FALSE],
+  center = TRUE,
+  scale. = TRUE
+)
+
+test_object <- standardized_reconstruction(
+  pca_development,
+  R_all[test_id, , drop = FALSE],
+  r_selected
+)
+test_diagnostic <- reconstruction_diagnostics(test_object)
+
+data.frame(
+  selected_components = r_selected,
+  test_standardized_MSE = unname(test_diagnostic[1]),
+  test_fraction_reconstructed = unname(test_diagnostic[2])
+)
+```
+
+這是「同一期觀察值的降維重建」，不是 (t-1) 期預測 (t) 期報酬。若要宣稱預測能力，還須只用當時可取得的過去資料估計因子動態，並以真正的樣本外預測損失評估。
+
+## 7. 測試期分數的時間圖
+
+測試期分數用發展期的固定負荷量計算，不會重新估計 PCA。圖形只呈現共同波動的相對尺度，PC 的正負號仍可整欄翻轉。
+
+```{r test-score-plot}
+Z_test <- scale(
+  R_all[test_id, , drop = FALSE],
+  center = pca_development$center,
+  scale = pca_development$scale
+)
+test_scores <- Z_test %*% pca_development$rotation[, 1:2, drop = FALSE]
+
+matplot(
+  dates[test_id], test_scores,
+  type = "l", lty = 1, col = c("#173B57", "#A34045"),
+  xlab = "日期", ylab = "主成分分數",
+  main = "以發展期負荷量計算的測試期分數"
+)
+legend(
+  "topright", legend = c("PC1", "PC2"),
+  col = c("#173B57", "#A34045"), lty = 1, bty = "n"
+)
+```
+
+## 8. 可重現性與解讀清單
+
+執行真實資料 PCA 時，至少應逐項確認：
+
+1. 報酬是否確實在股票內計算，沒有跨股票落後值；
+2. 股票宇宙與日期平衡規則是否清楚，是否有成分股或存活者偏誤；
+3. 規格選擇時，中心、尺度與負荷量是否只由估計期決定；鎖定維度後的最終重估是否只用發展期（估計期＋驗證期），完全不使用測試期；
+4. 維度規則是否在查看測試期前鎖定；
+5. 是否把同日重建誤稱為未來報酬預測；
+6. 是否承認 PCA 正負號與未旋轉共同子空間的可識別限制；
+7. 原始資料是否允許再散布。
+
+```{r session-info}
+sessionInfo()
+```

@@ -1,0 +1,256 @@
+---
+title: "R05：ARMA 估計、診斷與多步預測"
+output:
+  github_document:
+    toc: true
+    toc_depth: 3
+---
+
+本附錄對應第 6--7 章。以固定種子 ARMA(1,1) 資料示範：先保留時間排序的測試期，只在訓練樣本比較低階候選模型，再檢查根、殘差與平方殘差，最後形成一次多步預測與區間。因資料生成參數已知，可分辨估計誤差與程式錯誤。
+
+```{r setup}
+knitr::opts_chunk$set(
+  echo = TRUE, message = FALSE, warning = FALSE,
+  fig.width = 7, fig.height = 4.5
+)
+set.seed(20260716)
+```
+
+## 固定資料生成過程與時間切分
+
+```{r simulate-split}
+n <- 700L
+true_phi <- 0.55
+true_theta <- -0.35
+innovation_sd <- 1.2
+
+y <- as.numeric(arima.sim(
+  model = list(ar = true_phi, ma = true_theta),
+  n = n, sd = innovation_sd
+))
+
+train_end <- 550L
+y_train <- y[1:train_end]
+y_test <- y[(train_end + 1L):n]
+
+c(
+  training_observations = length(y_train),
+  test_observations = length(y_test),
+  first_test_index = train_end + 1L
+)
+```
+
+測試期在模型選擇時完全不使用。這個附錄比較的是「訓練期末一次形成的多步預測」，不是每期重新估計的一步策略；後者見 R06。
+
+## 候選模型與共同樣本
+
+候選集合事前限制為低階模型。stats::arima 對定態 ARMA 的 intercept 係數代表序列平均數，不是
+\(Y_t=c+\phi Y_{t-1}+a_t\) 中的 \(c\)；判讀時必須注意參數化。
+
+```{r fit-candidates}
+candidate_orders <- list(
+  ARMA00 = c(0, 0, 0),
+  AR10 = c(1, 0, 0),
+  MA01 = c(0, 0, 1),
+  ARMA11 = c(1, 0, 1),
+  AR20 = c(2, 0, 0),
+  MA02 = c(0, 0, 2)
+)
+
+fits <- lapply(candidate_orders, function(ord) {
+  arima(
+    y_train,
+    order = ord,
+    include.mean = TRUE,
+    method = "ML"
+  )
+})
+
+model_table <- data.frame(
+  model = names(fits),
+  p = vapply(candidate_orders, function(z) z[1], numeric(1)),
+  q = vapply(candidate_orders, function(z) z[3], numeric(1)),
+  log_likelihood = vapply(fits, function(z) as.numeric(logLik(z)), numeric(1)),
+  AIC = vapply(fits, AIC, numeric(1)),
+  BIC = vapply(fits, BIC, numeric(1)),
+  row.names = NULL
+)
+model_table[order(model_table$AIC), ]
+```
+
+所有模型使用同一訓練序列；這避免 AIC 差異混入樣本不同。AIC/BIC 只負責縮小候選集合，不是測試期成績。
+
+## 檢查 AR 與 MA 根
+
+```{r root-helpers}
+extract_roots <- function(fit) {
+  b <- coef(fit)
+  ar_coef <- b[grep("^ar[0-9]+$", names(b))]
+  ma_coef <- b[grep("^ma[0-9]+$", names(b))]
+
+  ar_roots <- if (length(ar_coef)) {
+    polyroot(c(1, -ar_coef))
+  } else {
+    complex()
+  }
+  ma_roots <- if (length(ma_coef)) {
+    polyroot(c(1, ma_coef))
+  } else {
+    complex()
+  }
+
+  rbind(
+    if (length(ar_roots)) data.frame(
+      part = "AR", root = ar_roots, modulus = Mod(ar_roots)
+    ),
+    if (length(ma_roots)) data.frame(
+      part = "MA", root = ma_roots, modulus = Mod(ma_roots)
+    )
+  )
+}
+
+root_results <- lapply(names(fits), function(nm) {
+  out <- extract_roots(fits[[nm]])
+  if (!is.null(out) && nrow(out)) out$model <- nm
+  out
+})
+root_results <- do.call(rbind, root_results)
+root_results[, c("model", "part", "root", "modulus")]
+stopifnot(all(root_results$modulus > 1))
+```
+
+AR 根大於 1 表示估計的定態表示；MA 根大於 1 表示可逆表示。根非常接近 1 時，即使形式上符合限制，有限樣本推論與遠期預測仍會不穩定。
+
+## 殘差與平方殘差診斷
+
+```{r diagnostics-table}
+diagnose_fit <- function(fit, lag = 20L) {
+  e <- residuals(fit)
+  e <- e[is.finite(e)]
+  fitted_parameters <- length(grep(
+    "^(ar|ma)[0-9]+$", names(coef(fit))
+  ))
+  q_mean <- Box.test(
+    e, lag = lag, type = "Ljung-Box",
+    fitdf = fitted_parameters
+  )
+  q_square <- Box.test(
+    e^2, lag = lag, type = "Ljung-Box"
+  )
+  c(
+    residual_sd = sd(e),
+    Q_mean = unname(q_mean$statistic),
+    p_mean = q_mean$p.value,
+    Q_square = unname(q_square$statistic),
+    p_square = q_square$p.value
+  )
+}
+
+diagnostic_table <- do.call(rbind, lapply(fits, diagnose_fit))
+round(diagnostic_table, 4)
+```
+
+殘差檢定應與圖形一起看。通過報酬殘差檢查只表示未留下明顯線性平均相依；平方殘差若相關，可能需要條件變異模型。
+
+```{r diagnostics-plots, fig.cap="AIC 最小模型的殘差、殘差 ACF 與平方殘差 ACF。"}
+selected_name <- model_table$model[which.min(model_table$AIC)]
+selected_fit <- fits[[selected_name]]
+selected_residual <- residuals(selected_fit)
+
+par(mfrow = c(1, 3))
+plot(
+  selected_residual, type = "l", col = "#173B57",
+  xlab = "訓練期", ylab = "殘差", main = selected_name
+)
+acf(selected_residual, lag.max = 30, main = "殘差 ACF")
+acf(selected_residual^2, lag.max = 30, main = "平方殘差 ACF")
+par(mfrow = c(1, 1))
+```
+
+## 多步預測與區間
+
+```{r multi-step-forecast}
+h <- length(y_test)
+forecast_object <- predict(selected_fit, n.ahead = h)
+forecast_table <- data.frame(
+  index = (train_end + 1L):n,
+  actual = y_test,
+  forecast = as.numeric(forecast_object$pred),
+  standard_error = as.numeric(forecast_object$se)
+)
+forecast_table$lower95 <- forecast_table$forecast -
+  1.96 * forecast_table$standard_error
+forecast_table$upper95 <- forecast_table$forecast +
+  1.96 * forecast_table$standard_error
+forecast_table$error <- forecast_table$actual - forecast_table$forecast
+
+head(forecast_table, 8)
+tail(forecast_table, 3)
+```
+
+```{r forecast-score}
+data.frame(
+  selected_model = selected_name,
+  test_RMSE = sqrt(mean(forecast_table$error^2)),
+  test_MAE = mean(abs(forecast_table$error)),
+  interval_coverage = mean(
+    forecast_table$actual >= forecast_table$lower95 &
+      forecast_table$actual <= forecast_table$upper95
+  ),
+  average_width = mean(
+    forecast_table$upper95 - forecast_table$lower95
+  )
+)
+```
+
+這裡的常態區間主要反映未來創新，對參數與模型選擇不確定性的處理有限。涵蓋率只是這一個固定測試路徑的描述，不是母體涵蓋率證明。
+
+```{r forecast-plot, fig.cap="訓練期末一次形成的多步預測與 95% 常態近似區間。"}
+plot(
+  forecast_table$index, forecast_table$actual,
+  type = "l", col = "gray35",
+  xlab = "時間索引", ylab = "數值"
+)
+polygon(
+  c(forecast_table$index, rev(forecast_table$index)),
+  c(forecast_table$lower95, rev(forecast_table$upper95)),
+  border = NA, col = adjustcolor("#9FC2D4", alpha.f = 0.45)
+)
+lines(
+  forecast_table$index, forecast_table$forecast,
+  col = "#A34045", lwd = 2
+)
+lines(forecast_table$index, forecast_table$actual, col = "gray35")
+legend(
+  "topright", c("實際值", "點預測", "95% 區間"),
+  col = c("gray35", "#A34045", "#9FC2D4"),
+  lty = c(1, 1, NA), pch = c(NA, NA, 15), bty = "n"
+)
+```
+
+## 手算核對 AR(1) 預測
+
+另建一個已知平均數的 AR(1) 教學例，核對
+\(\widehat Y_{T+h\mid T}=\mu+\phi^h(Y_T-\mu)\) 與
+\(\sigma_h^2=\sigma_a^2(1-\phi^{2h})/(1-\phi^2)\)。
+
+```{r manual-ar1-check}
+mu <- 2
+phi_check <- 0.6
+innovation_variance <- 4
+y_T <- 5
+h_check <- 1:5
+
+manual_check <- data.frame(
+  horizon = h_check,
+  point_forecast = mu + phi_check^h_check * (y_T - mu),
+  error_variance = innovation_variance *
+    (1 - phi_check^(2 * h_check)) / (1 - phi_check^2)
+)
+manual_check$standard_error <- sqrt(manual_check$error_variance)
+manual_check
+```
+
+## 建模紀錄
+
+正式分析至少保存資料版本、訓練截止日、候選集合、估計方法、截距參數化、AIC/BIC、根、殘差診斷、預測期距與區間假設。若後來改看測試結果再換模型，應把該期間重新歸類為驗證期。

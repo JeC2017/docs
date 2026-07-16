@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="《財務時間序列分析》R 線上附錄：R07：單根、差分與結構變動">
+  <title>R07：單根、差分與結構變動｜財務時間序列分析</title>
+  <link rel="stylesheet" href="assets/site.css">
+  <script>
+    window.MathJax = {
+      tex: {inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']]},
+      svg: {fontCache: 'local'},
+      options: {skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']}
+    };
+  </script>
+  <script defer src="assets/mathjax-loader.js"></script>
+  <script defer src="assets/site.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要內容</a>
+  <header class="site-header">
+    <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
+    <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
+    <a class="policy-link" href="data-policy.html">資料政策</a>
+  </header>
+  <div class="layout">
+    <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
+      <p class="sidebar-title">線上附錄</p>
+      <ol><li><a href="index.html">首頁</a></li>
+<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
+<li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
+<li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
+<li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與經驗特徵</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA 模擬</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html" aria-current="page" class="active">R07　單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html">R09　投資組合、CAPM 與財務因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
+<li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
+<li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
+    </nav>
+    <main id="main-content" class="content">
+      <div class="publication-note">
+        本網站提供作者執行後的教學內容與程式原始檔；未經確認可再散布的原始資料不隨網站發布。
+        詳見<a href="data-policy.html">資料與重現政策</a>。
+      </div>
+      <article>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R07：單根、差分與結構變動</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R07_unit_roots_differencing_breaks.Rmd">R Markdown 原始檔</a><a href="source/R07_unit_roots_differencing_breaks.md">執行後 Markdown</a></div></header>
+        <p>本附錄對應第 9--10 章。第一部分以固定種子比較定態 AR、隨機漫步與確定趨勢，手動建立 ADF 迴歸，並在完全指定的 i.i.d. 隨機漫步虛無下模擬有限樣本臨界值。第二部分核對已知平均數變動的平方和檢定、做回顧性未知日期搜尋，再以擴展與滾動平均示範不偷看未來的預測。</p>
+<pre><code class="language-r">knitr::opts_chunk$set(
+  echo = TRUE, message = FALSE, warning = FALSE,
+  fig.width = 7, fig.height = 4.5
+)
+set.seed(20260716)
+
+root_candidates &lt;- c(&quot;.&quot;, &quot;..&quot;)
+is_root &lt;- vapply(root_candidates, function(x) {
+  file.exists(file.path(x, &quot;main.tex&quot;))
+}, logical(1))
+stopifnot(any(is_root))
+project_root &lt;- root_candidates[which(is_root)[1]]
+project_path &lt;- function(...) file.path(project_root, ...)
+</code></pre>
+<h2 id="_1">三種看似持續的序列<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
+<pre><code class="language-r">n &lt;- 240L
+stationary_ar &lt;- as.numeric(arima.sim(
+  model = list(ar = 0.70), n = n, sd = 1
+))
+random_walk &lt;- cumsum(rnorm(n))
+trend_error &lt;- as.numeric(arima.sim(
+  model = list(ar = 0.50), n = n, sd = 1
+))
+trend_stationary &lt;- 0.03 * seq_len(n) + trend_error
+
+series_matrix &lt;- cbind(
+  stationary_ar = stationary_ar,
+  random_walk = random_walk,
+  trend_stationary = trend_stationary
+)
+</code></pre>
+<pre><code class="language-r">par(mfrow = c(2, 3))
+for (j in seq_len(ncol(series_matrix))) {
+  plot(
+    series_matrix[, j], type = &quot;l&quot;, col = &quot;#173B57&quot;,
+    main = colnames(series_matrix)[j],
+    xlab = &quot;期數&quot;, ylab = &quot;水準&quot;
+  )
+}
+for (j in seq_len(ncol(series_matrix))) {
+  plot(
+    diff(series_matrix[, j]), type = &quot;l&quot;, col = &quot;#A34045&quot;,
+    main = paste(&quot;差分&quot;, colnames(series_matrix)[j]),
+    xlab = &quot;期數&quot;, ylab = &quot;一階差分&quot;
+  )
+}
+</code></pre>
+<p><img alt="三種序列的水準與一階差分。" src="./R07_unit_roots_differencing_breaks_files/figure-gfm/level-difference-plots-1.png"></p>
+<pre><code class="language-r">par(mfrow = c(1, 1))
+</code></pre>
+<p>確定趨勢序列應去除時間趨勢後檢查誤差；隨機漫步則靠差分移除累積衝擊。只看水準圖不容易可靠區分。</p>
+<h2 id="adf">手動建立 ADF 迴歸<a class="headerlink" href="#adf" title="Permanent link">#</a></h2>
+<p>對每個設定估計
+\[
+\Delta Y_t=c+\beta t+\gamma Y_{t-1}
++\sum_{j=1}^{p}\delta_j\Delta Y_{t-j}+u_t.
+\]
+回傳的 statistic 是 \(\widehat\gamma\) 除以其 OLS 標準誤。它不能使用普通常態臨界值。</p>
+<pre><code class="language-r">adf_statistic &lt;- function(
+    y, lags = 0L,
+    deterministic = c(&quot;constant&quot;, &quot;trend&quot;, &quot;none&quot;)) {
+  deterministic &lt;- match.arg(deterministic)
+  y &lt;- as.numeric(y)
+  stopifnot(all(is.finite(y)), lags &gt;= 0L)
+
+  dy &lt;- diff(y)
+  idx &lt;- (lags + 1L):length(dy)
+  response &lt;- dy[idx]
+  X &lt;- matrix(numeric(0), nrow = length(idx), ncol = 0L)
+
+  if (deterministic %in% c(&quot;constant&quot;, &quot;trend&quot;)) {
+    X &lt;- cbind(intercept = 1, X)
+  }
+  if (deterministic == &quot;trend&quot;) {
+    X &lt;- cbind(X, trend = idx + 1L)
+  }
+  X &lt;- cbind(X, level_lag = y[idx])
+
+  if (lags &gt; 0L) {
+    lagged_differences &lt;- sapply(seq_len(lags), function(j) {
+      dy[idx - j]
+    })
+    if (lags == 1L) {
+      lagged_differences &lt;- matrix(lagged_differences, ncol = 1L)
+    }
+    colnames(lagged_differences) &lt;- paste0(&quot;diff_lag&quot;, seq_len(lags))
+    X &lt;- cbind(X, lagged_differences)
+  }
+
+  fit &lt;- lm.fit(X, response)
+  residual_df &lt;- length(response) - fit$rank
+  sigma2 &lt;- sum(fit$residuals^2) / residual_df
+  covariance &lt;- sigma2 * solve(crossprod(X))
+  standard_error &lt;- sqrt(diag(covariance))
+  gamma_index &lt;- match(&quot;level_lag&quot;, colnames(X))
+
+  list(
+    statistic = unname(fit$coefficients[gamma_index] /
+      standard_error[gamma_index]),
+    gamma = unname(fit$coefficients[gamma_index]),
+    residual_df = residual_df,
+    residuals = fit$residuals,
+    coefficients = fit$coefficients,
+    design = deterministic,
+    lags = lags
+  )
+}
+</code></pre>
+<h2 id="_2">以指定虛無模擬有限樣本臨界值<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
+<p>以下臨界值只對「樣本長度 240、指定確定項與落後階數、i.i.d. 常態隨機漫步」的教學設計有效。它不是一般資料庫，也不能取代正式單根套件的 MacKinnon \(p\) 值或符合實證誤差結構的重抽樣。</p>
+<pre><code class="language-r">simulate_adf_critical &lt;- function(
+    n, lags, deterministic, B = 499L, seed = 1L) {
+  set.seed(seed)
+  statistics &lt;- replicate(B, {
+    null_series &lt;- cumsum(rnorm(n))
+    adf_statistic(
+      null_series, lags = lags,
+      deterministic = deterministic
+    )$statistic
+  })
+  c(
+    critical_01 = unname(quantile(statistics, 0.01)),
+    critical_05 = unname(quantile(statistics, 0.05)),
+    critical_10 = unname(quantile(statistics, 0.10))
+  )
+}
+
+critical_constant &lt;- simulate_adf_critical(
+  n, lags = 2, deterministic = &quot;constant&quot;,
+  B = 499, seed = 20260718
+)
+critical_trend &lt;- simulate_adf_critical(
+  n, lags = 2, deterministic = &quot;trend&quot;,
+  B = 499, seed = 20260719
+)
+rbind(constant = critical_constant, trend = critical_trend)
+</code></pre>
+<pre><code>##          critical_01 critical_05 critical_10
+## constant   -3.479505   -2.875708   -2.572609
+## trend      -4.050249   -3.460097   -3.105985
+</code></pre>
+<pre><code class="language-r">adf_ar &lt;- adf_statistic(
+  stationary_ar, lags = 2, deterministic = &quot;constant&quot;
+)
+adf_rw &lt;- adf_statistic(
+  random_walk, lags = 2, deterministic = &quot;constant&quot;
+)
+adf_trend &lt;- adf_statistic(
+  trend_stationary, lags = 2, deterministic = &quot;trend&quot;
+)
+
+adf_table &lt;- data.frame(
+  series = c(&quot;stationary AR(1)&quot;, &quot;random walk&quot;, &quot;trend stationary&quot;),
+  deterministic = c(&quot;constant&quot;, &quot;constant&quot;, &quot;constant + trend&quot;),
+  statistic = c(
+    adf_ar$statistic, adf_rw$statistic, adf_trend$statistic
+  ),
+  simulated_critical_05 = c(
+    critical_constant[&quot;critical_05&quot;],
+    critical_constant[&quot;critical_05&quot;],
+    critical_trend[&quot;critical_05&quot;]
+  )
+)
+adf_table$reject_in_exact_teaching_design &lt;-
+  adf_table$statistic &lt; adf_table$simulated_critical_05
+adf_table
+</code></pre>
+<pre><code>##             series    deterministic statistic simulated_critical_05
+## 1 stationary AR(1)         constant -5.675289             -2.875708
+## 2      random walk         constant -1.155182             -2.875708
+## 3 trend stationary constant + trend -7.440159             -3.460097
+##   reject_in_exact_teaching_design
+## 1                            TRUE
+## 2                           FALSE
+## 3                            TRUE
+</code></pre>
+<p>模擬結果具有抽樣誤差；增加 B 可提高精度。ADF 未拒絕不等於證明有單根，拒絕也不排除結構變動或其他非定態。</p>
+<h2 id="_3">固定金融面板的水準與差分示範<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<p>把 89 檔股票的等權日簡單報酬 \(r_t\) 轉成
+\(\sum_{s\leq t}\log(1+r_s)\)，得到一條教學用累積對數財富路徑。它不是可交易指數，以下也不對它宣告正式單根結論。</p>
+<pre><code class="language-r">panel &lt;- read.csv(
+  project_path(
+    &quot;data&quot;, &quot;processed&quot;, &quot;sp500_returns_balanced_2013_2022.csv&quot;
+  ),
+  check.names = FALSE
+)
+panel_dates &lt;- as.Date(panel$date)
+panel_returns &lt;- as.matrix(
+  panel[, setdiff(names(panel), &quot;date&quot;)]
+)
+storage.mode(panel_returns) &lt;- &quot;double&quot;
+equal_weight_return &lt;- rowMeans(panel_returns)
+stopifnot(all(equal_weight_return &gt; -1))
+cumulative_log_wealth &lt;- cumsum(log1p(equal_weight_return))
+
+par(mfrow = c(1, 2))
+plot(
+  panel_dates, cumulative_log_wealth, type = &quot;l&quot;,
+  col = &quot;#173B57&quot;, xlab = &quot;日期&quot;, ylab = &quot;累積對數財富&quot;
+)
+plot(
+  panel_dates, c(NA, diff(cumulative_log_wealth)), type = &quot;l&quot;,
+  col = &quot;#A34045&quot;, xlab = &quot;日期&quot;, ylab = &quot;差分&quot;
+)
+</code></pre>
+<p><img alt="plot of chunk frozen-financial-series" src="./R07_unit_roots_differencing_breaks_files/figure-gfm/frozen-financial-series-1.png"></p>
+<pre><code class="language-r">par(mfrow = c(1, 1))
+</code></pre>
+<p>日報酬有厚尾與條件異質變異，前述 i.i.d. 隨機漫步模擬臨界值不適合直接套用。正式實證應使用明確版本的單根程序並報告確定項、落後階數與臨界值來源。</p>
+<h2 id="_4">先核對課文的已知變動點例<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
+<pre><code class="language-r">toy_break &lt;- c(-1, 0, 1, 1, 2, 3)
+toy_tau &lt;- 3L
+ssr_restricted &lt;- sum((toy_break - mean(toy_break))^2)
+ssr_unrestricted &lt;- sum(
+  (toy_break[1:toy_tau] - mean(toy_break[1:toy_tau]))^2
+) + sum(
+  (toy_break[(toy_tau + 1L):length(toy_break)] -
+     mean(toy_break[(toy_tau + 1L):length(toy_break)]))^2
+)
+toy_F &lt;- ((ssr_restricted - ssr_unrestricted) / 1) /
+  (ssr_unrestricted / (length(toy_break) - 2))
+
+c(
+  SSR_restricted = ssr_restricted,
+  SSR_unrestricted = ssr_unrestricted,
+  F = toy_F
+)
+</code></pre>
+<pre><code>##   SSR_restricted SSR_unrestricted                F 
+##               10                4                6
+</code></pre>
+<pre><code class="language-r">stopifnot(
+  ssr_restricted == 10,
+  ssr_unrestricted == 4,
+  toy_F == 6
+)
+</code></pre>
+<h2 id="_5">固定種子平均數變動<a class="headerlink" href="#_5" title="Permanent link">#</a></h2>
+<pre><code class="language-r">set.seed(20260720)
+n_break &lt;- 240L
+true_break &lt;- 120L
+break_series &lt;- c(
+  rnorm(true_break, mean = 0, sd = 1),
+  rnorm(n_break - true_break, mean = 2, sd = 1)
+)
+
+plot(
+  break_series, type = &quot;l&quot;, col = &quot;#173B57&quot;,
+  xlab = &quot;期數&quot;, ylab = &quot;數值&quot;
+)
+abline(v = true_break + 0.5, col = &quot;#A34045&quot;, lwd = 2, lty = 2)
+</code></pre>
+<p><img alt="plot of chunk simulate-break" src="./R07_unit_roots_differencing_breaks_files/figure-gfm/simulate-break-1.png"></p>
+<h3 id="_6">已知變動點<a class="headerlink" href="#_6" title="Permanent link">#</a></h3>
+<pre><code class="language-r">mean_before &lt;- mean(break_series[1:true_break])
+mean_after &lt;- mean(break_series[(true_break + 1L):n_break])
+ssr_R &lt;- sum((break_series - mean(break_series))^2)
+ssr_U &lt;- sum(
+  (break_series[1:true_break] - mean_before)^2
+) + sum(
+  (break_series[(true_break + 1L):n_break] - mean_after)^2
+)
+F_known &lt;- ((ssr_R - ssr_U) / 1) /
+  (ssr_U / (n_break - 2))
+
+c(
+  mean_before = mean_before,
+  mean_after = mean_after,
+  SSR_restricted = ssr_R,
+  SSR_unrestricted = ssr_U,
+  F_known = F_known
+)
+</code></pre>
+<pre><code>##      mean_before       mean_after   SSR_restricted SSR_unrestricted 
+##        0.1127998        1.8286988      406.3765272      229.7179464 
+##          F_known 
+##      183.0276776
+</code></pre>
+<p>這個 \(F\) 公式的經典參考分配需要固定變動點與等變異獨立常態誤差。這裡資料生成過程刻意符合簡化假設；金融資料通常需要更穩健的方法。</p>
+<h3 id="_7">未知日期的回顧性搜尋<a class="headerlink" href="#_7" title="Permanent link">#</a></h3>
+<p>每一側至少保留 40 筆，只在修剪後候選集合搜尋。最大統計量不能拿單一固定日期的普通 \(F\) 臨界值。</p>
+<pre><code class="language-r">break_F &lt;- function(y, tau) {
+  n &lt;- length(y)
+  ssr_r &lt;- sum((y - mean(y))^2)
+  ssr_u &lt;- sum((y[1:tau] - mean(y[1:tau]))^2) +
+    sum((y[(tau + 1L):n] - mean(y[(tau + 1L):n]))^2)
+  ((ssr_r - ssr_u) / 1) / (ssr_u / (n - 2))
+}
+
+candidate_dates &lt;- 40:(n_break - 40)
+F_path &lt;- vapply(
+  candidate_dates,
+  function(tau) break_F(break_series, tau),
+  numeric(1)
+)
+estimated_break &lt;- candidate_dates[which.max(F_path)]
+
+c(
+  true_break = true_break,
+  retrospective_estimate = estimated_break,
+  supremum_F = max(F_path)
+)
+</code></pre>
+<pre><code>##             true_break retrospective_estimate             supremum_F 
+##               120.0000               120.0000               183.0277
+</code></pre>
+<pre><code class="language-r">plot(
+  candidate_dates, F_path, type = &quot;l&quot;, lwd = 2,
+  col = &quot;#173B57&quot;, xlab = &quot;候選變動點&quot;, ylab = &quot;F(tau)&quot;
+)
+abline(v = true_break, col = &quot;#A34045&quot;, lty = 2, lwd = 2)
+</code></pre>
+<p><img alt="回顧性候選變動點統計量；紅線是真實模擬變動點。" src="./R07_unit_roots_differencing_breaks_files/figure-gfm/break-search-plot-1.png"></p>
+<h2 id="_8">不知道變動日的擬即時預測<a class="headerlink" href="#_8" title="Permanent link">#</a></h2>
+<p>以下預測器從第 60 期起，一個使用全部歷史平均，另一個使用最近 60 期平均。兩者都沒有讀取 true_break 或回顧性 estimated_break 來形成預測；真實變動日只在事後分組評分時使用。</p>
+<pre><code class="language-r">origins &lt;- 60:(n_break - 1L)
+online_results &lt;- do.call(rbind, lapply(origins, function(origin) {
+  data.frame(
+    origin = origin,
+    target = origin + 1L,
+    model = c(&quot;expanding_mean&quot;, &quot;rolling_60&quot;),
+    forecast = c(
+      mean(break_series[1:origin]),
+      mean(break_series[(origin - 59L):origin])
+    ),
+    actual = break_series[origin + 1L],
+    training_start = c(1L, origin - 59L),
+    training_end = origin
+  )
+}))
+online_results$error &lt;- online_results$actual - online_results$forecast
+online_results$period &lt;- ifelse(
+  online_results$target &lt;= true_break, &quot;pre_break&quot;, &quot;post_break&quot;
+)
+
+stopifnot(all(
+  online_results$training_end &lt; online_results$target
+))
+
+online_score &lt;- do.call(
+  rbind,
+  lapply(
+    split(
+      online_results,
+      list(online_results$model, online_results$period),
+      drop = TRUE
+    ),
+    function(z) c(
+      n = nrow(z),
+      RMSE = sqrt(mean(z$error^2)),
+      MAE = mean(abs(z$error))
+    )
+  )
+)
+round(online_score, 4)
+</code></pre>
+<pre><code>##                             n   RMSE    MAE
+## expanding_mean.post_break 120 1.5950 1.3402
+## rolling_60.post_break     120 1.2561 0.9857
+## expanding_mean.pre_break   60 0.9273 0.7755
+## rolling_60.pre_break       60 0.9291 0.7776
+</code></pre>
+<pre><code class="language-r">plot(
+  break_series, type = &quot;l&quot;, col = &quot;gray65&quot;,
+  xlab = &quot;期數&quot;, ylab = &quot;數值&quot;
+)
+for (nm in unique(online_results$model)) {
+  z &lt;- online_results[online_results$model == nm, ]
+  lines(
+    z$target, z$forecast,
+    col = if (nm == &quot;expanding_mean&quot;) &quot;#173B57&quot; else &quot;#A34045&quot;,
+    lwd = 2
+  )
+}
+abline(v = true_break + 0.5, lty = 2, col = &quot;black&quot;)
+legend(
+  &quot;topleft&quot;,
+  c(&quot;實際值&quot;, &quot;擴展平均&quot;, &quot;滾動 60 期&quot;),
+  col = c(&quot;gray65&quot;, &quot;#173B57&quot;, &quot;#A34045&quot;),
+  lty = 1, lwd = 2, bty = &quot;n&quot;
+)
+</code></pre>
+<p><img alt="擴展平均與 60 期滾動平均的一步預測。" src="./R07_unit_roots_differencing_breaks_files/figure-gfm/online-plot-1.png"></p>
+<p>滾動視窗可能較快適應新平均數，但在穩定期使用較少資料，估計變異較大。視窗 60 若要在真實研究中選擇，必須在獨立驗證期調校，不能依本例測試結果事後決定。</p>
+<h2 id="_9">最終檢核<a class="headerlink" href="#_9" title="Permanent link">#</a></h2>
+<ol>
+<li>ADF 的確定項與落後階數會改變臨界值與對立假設。</li>
+<li>普通 OLS 的 \(t\) 分配不適用於單根虛無。</li>
+<li>未知變動點搜尋的最大統計量需要專用臨界值。</li>
+<li>回顧性變動日可解釋歷史，不能偷偷放回更早的預測起點。</li>
+<li>結構變動分析應同時檢查平均數、動態與條件變異。</li>
+</ol>
+      </article>
+      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R06_leak_free_out_of_sample_evaluation.html">← 無資料洩漏的樣本外評估</a><a rel="next" href="R08_arch_garch_asymmetry_forecasting.html">ARCH、GARCH、非對稱波動與預測 →</a></nav>
+      <footer>© 陳釗而　《財務時間序列分析》</footer>
+    </main>
+    <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
+<ul>
+<li><a href="#_1">三種看似持續的序列</a></li>
+<li><a href="#adf">手動建立 ADF 迴歸</a></li>
+<li><a href="#_2">以指定虛無模擬有限樣本臨界值</a></li>
+<li><a href="#_3">固定金融面板的水準與差分示範</a></li>
+<li><a href="#_4">先核對課文的已知變動點例</a></li>
+<li><a href="#_5">固定種子平均數變動</a><ul>
+<li><a href="#_6">已知變動點</a></li>
+<li><a href="#_7">未知日期的回顧性搜尋</a></li>
+</ul>
+</li>
+<li><a href="#_8">不知道變動日的擬即時預測</a></li>
+<li><a href="#_9">最終檢核</a></li>
+</ul>
+</div>
+</aside>
+  </div>
+</body>
+</html>

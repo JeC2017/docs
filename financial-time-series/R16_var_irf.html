@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="《財務時間序列分析》R 線上附錄：R16：VAR、識別與衝擊反應函數">
+  <title>R16：VAR、識別與衝擊反應函數｜財務時間序列分析</title>
+  <link rel="stylesheet" href="assets/site.css">
+  <script>
+    window.MathJax = {
+      tex: {inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']]},
+      svg: {fontCache: 'local'},
+      options: {skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']}
+    };
+  </script>
+  <script defer src="assets/mathjax-loader.js"></script>
+  <script defer src="assets/site.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要內容</a>
+  <header class="site-header">
+    <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
+    <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
+    <a class="policy-link" href="data-policy.html">資料政策</a>
+  </header>
+  <div class="layout">
+    <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
+      <p class="sidebar-title">線上附錄</p>
+      <ol><li><a href="index.html">首頁</a></li>
+<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
+<li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
+<li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
+<li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與經驗特徵</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA 模擬</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html">R09　投資組合、CAPM 與財務因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R16_var_irf.html" aria-current="page" class="active">R16　VAR、識別與衝擊反應函數</a></li>
+<li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
+<li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
+    </nav>
+    <main id="main-content" class="content">
+      <div class="publication-note">
+        本網站提供作者執行後的教學內容與程式原始檔；未經確認可再散布的原始資料不隨網站發布。
+        詳見<a href="data-policy.html">資料與重現政策</a>。
+      </div>
+      <article>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R16：VAR、識別與衝擊反應函數</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R16_var_irf.Rmd">R Markdown 原始檔</a><a href="source/R16_var_irf.md">執行後 Markdown</a></div></header>
+        <p>本附錄對應第 21 章。第一部分使用已知結構的教學模擬核對 VAR、Cholesky 當期影響矩陣與 IRF；第二部分使用固定日本月資料示範縮減式落後階數選擇與排序敏感度。沒有額外外生資訊時，實證曲線不命名為已識別的政策衝擊。</p>
+<h2 id="_1">執行條件<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
+<ul>
+<li>base R 與 <code>knitr</code>；不安裝套件、不連線下載。</li>
+<li>固定實證資料：<code>data/processed/japan_monthly_2007_2018.csv</code>。</li>
+<li>模擬固定種子；所有矩陣與 IRF 函數明列如下。</li>
+</ul>
+<pre><code class="language-r">knitr::opts_chunk$set(
+  echo = TRUE, message = FALSE, warning = FALSE,
+  fig.width = 7, fig.height = 4.6
+)
+set.seed(20260716)
+</code></pre>
+<h2 id="var">VAR 工具函數<a class="headerlink" href="#var" title="Permanent link">#</a></h2>
+<pre><code class="language-r">lag_matrix &lt;- function(Y, p) {
+  Tn &lt;- nrow(Y)
+  stopifnot(p &gt;= 1L, Tn &gt; p)
+  X &lt;- matrix(NA_real_, nrow = Tn - p, ncol = ncol(Y) * p)
+  nm &lt;- character(ncol(X))
+  col &lt;- 1L
+  for (lag in seq_len(p)) {
+    block &lt;- Y[(p + 1L - lag):(Tn - lag), , drop = FALSE]
+    cols &lt;- col:(col + ncol(Y) - 1L)
+    X[, cols] &lt;- block
+    nm[cols] &lt;- paste0(colnames(Y), &quot;_L&quot;, lag)
+    col &lt;- col + ncol(Y)
+  }
+  colnames(X) &lt;- nm
+  X
+}
+
+fit_var &lt;- function(Y, p = 1L, include_const = TRUE) {
+  Y &lt;- as.matrix(Y)
+  Xlag &lt;- lag_matrix(Y, p)
+  Ydep &lt;- Y[(p + 1L):nrow(Y), , drop = FALSE]
+  X &lt;- if (include_const) cbind(Intercept = 1, Xlag) else Xlag
+  coef &lt;- qr.solve(X, Ydep)
+  resid &lt;- Ydep - X %*% coef
+  n_eff &lt;- nrow(resid)
+  K &lt;- ncol(Y)
+  sigma_ml &lt;- crossprod(resid) / n_eff
+  logdet &lt;- as.numeric(determinant(sigma_ml, logarithm = TRUE)$modulus)
+  n_parameters &lt;- K * ncol(X)
+  bic &lt;- logdet + log(n_eff) * n_parameters / n_eff
+
+  A &lt;- vector(&quot;list&quot;, p)
+  offset &lt;- if (include_const) 1L else 0L
+  for (lag in seq_len(p)) {
+    rows &lt;- offset + ((lag - 1L) * K + 1L):(lag * K)
+    A[[lag]] &lt;- t(coef[rows, , drop = FALSE])
+  }
+  list(
+    coef = coef, A = A, residuals = resid,
+    sigma = sigma_ml, bic = bic, p = p,
+    intercept = if (include_const) coef[1, ] else rep(0, K),
+    Y = Y
+  )
+}
+
+companion_matrix &lt;- function(A_list) {
+  p &lt;- length(A_list)
+  K &lt;- nrow(A_list[[1]])
+  F &lt;- matrix(0, K * p, K * p)
+  F[1:K, ] &lt;- do.call(cbind, A_list)
+  if (p &gt; 1L) F[(K + 1):(K * p), 1:(K * (p - 1L))] &lt;- diag(K * (p - 1L))
+  F
+}
+
+ma_coefficients &lt;- function(A_list, horizon) {
+  p &lt;- length(A_list)
+  K &lt;- nrow(A_list[[1]])
+  Phi &lt;- vector(&quot;list&quot;, horizon + 1L)
+  Phi[[1]] &lt;- diag(K)
+  if (horizon &gt;= 1L) {
+    for (h in seq_len(horizon)) {
+      value &lt;- matrix(0, K, K)
+      for (lag in seq_len(min(p, h))) {
+        value &lt;- value + A_list[[lag]] %*% Phi[[h - lag + 1L]]
+      }
+      Phi[[h + 1L]] &lt;- value
+    }
+  }
+  Phi
+}
+
+recursive_irf &lt;- function(fit, horizon = 12L) {
+  # R 的 chol 回傳上三角 R，且 t(R) %*% R = Sigma。
+  B &lt;- t(chol(fit$sigma))
+  Phi &lt;- ma_coefficients(fit$A, horizon)
+  Theta &lt;- lapply(Phi, function(P) P %*% B)
+  list(B = B, Phi = Phi, Theta = Theta)
+}
+</code></pre>
+<h2 id="var1">已知結構的 VAR(1) 模擬<a class="headerlink" href="#var1" title="Permanent link">#</a></h2>
+<pre><code class="language-r">A_true &lt;- matrix(c(0.50, 0.10,
+                   -0.20, 0.40), 2, 2, byrow = TRUE)
+B_true &lt;- matrix(c(2.0, 0.0,
+                   0.6, 0.8), 2, 2, byrow = TRUE)
+Sigma_true &lt;- B_true %*% t(B_true)
+eigen(A_true)$values
+</code></pre>
+<pre><code>## [1] 0.45+0.1322876i 0.45-0.1322876i
+</code></pre>
+<pre><code class="language-r">Sigma_true
+</code></pre>
+<pre><code>##      [,1] [,2]
+## [1,]  4.0  1.2
+## [2,]  1.2  1.0
+</code></pre>
+<pre><code class="language-r">burn &lt;- 200L
+Tn &lt;- 700L
+eps &lt;- matrix(rnorm((Tn + burn) * 2), ncol = 2)
+Y &lt;- matrix(0, Tn + burn, 2)
+for (t in 2:nrow(Y)) {
+  Y[t, ] &lt;- A_true %*% Y[t - 1, ] + B_true %*% eps[t, ]
+}
+Y &lt;- Y[(burn + 1):(burn + Tn), ]
+colnames(Y) &lt;- c(&quot;y1&quot;, &quot;y2&quot;)
+</code></pre>
+<pre><code class="language-r">fit_sim &lt;- fit_var(Y, p = 1)
+irf_sim &lt;- recursive_irf(fit_sim, horizon = 16)
+
+list(
+  A_true = A_true,
+  A_hat = fit_sim$A[[1]],
+  Sigma_true = Sigma_true,
+  Sigma_hat = fit_sim$sigma,
+  B_true = B_true,
+  B_hat = irf_sim$B,
+  companion_modulus = Mod(eigen(companion_matrix(fit_sim$A))$values)
+)
+</code></pre>
+<pre><code>## $A_true
+##      [,1] [,2]
+## [1,]  0.5  0.1
+## [2,] -0.2  0.4
+## 
+## $A_hat
+##         y1_L1       y2_L1
+## y1  0.4965446 -0.04780143
+## y2 -0.1823818  0.35551865
+## 
+## $Sigma_true
+##      [,1] [,2]
+## [1,]  4.0  1.2
+## [2,]  1.2  1.0
+## 
+## $Sigma_hat
+##          y1       y2
+## y1 4.290916 1.225577
+## y2 1.225577 1.011608
+## 
+## $B_true
+##      [,1] [,2]
+## [1,]  2.0  0.0
+## [2,]  0.6  0.8
+## 
+## $B_hat
+##           y1        y2
+## y1 2.0714525 0.0000000
+## y2 0.5916509 0.8133617
+## 
+## $companion_modulus
+## [1] 0.5430368 0.3090265
+</code></pre>
+<p>Base R 沒有矩陣次方運算子；為避免隱藏套件依賴，以下用遞迴函數計算真實 IRF。</p>
+<pre><code class="language-r">h &lt;- 0:16
+Phi_true &lt;- ma_coefficients(list(A_true), max(h))
+Theta_true &lt;- lapply(Phi_true, function(P) P %*% B_true)
+
+response &lt;- function(theta_list, response_index, shock_index) {
+  vapply(theta_list, function(M) M[response_index, shock_index], numeric(1))
+}
+
+plot(h, response(Theta_true, 1, 1), type = &quot;l&quot;, lwd = 2,
+     ylim = range(c(response(Theta_true, 1, 1),
+                    response(irf_sim$Theta, 1, 1))),
+     xlab = &quot;Horizon&quot;, ylab = &quot;Response of y1 to shock 1&quot;,
+     col = &quot;black&quot;)
+lines(h, response(irf_sim$Theta, 1, 1), lwd = 2, lty = 2,
+      col = &quot;#A34045&quot;)
+legend(&quot;topright&quot;, c(&quot;Truth&quot;, &quot;Estimated recursive IRF&quot;),
+       col = c(&quot;black&quot;, &quot;#A34045&quot;), lwd = 2, lty = c(1, 2), bty = &quot;n&quot;)
+</code></pre>
+<p><img alt="plot of chunk true-irf" src="./R16_var_irf_files/figure-gfm/true-irf-1.png"></p>
+<h2 id="pointwise-intervals">殘差拔靴法 pointwise intervals<a class="headerlink" href="#pointwise-intervals" title="Permanent link">#</a></h2>
+<p>這個教學 bootstrap 固定 lag 為 1，每次按「整個殘差向量」重抽，以保留同期跨方程共變動。它不處理條件異質變異。</p>
+<pre><code class="language-r">bootstrap_var_irf &lt;- function(fit, horizon = 12L, B_rep = 299L,
+                              seed = 20260716) {
+  set.seed(seed)
+  Y &lt;- fit$Y
+  Tn &lt;- nrow(Y)
+  K &lt;- ncol(Y)
+  U &lt;- sweep(fit$residuals, 2, colMeans(fit$residuals))
+  draws &lt;- array(NA_real_, dim = c(B_rep, horizon + 1L, K, K))
+
+  for (b in seq_len(B_rep)) {
+    Yb &lt;- matrix(0, Tn, K)
+    Yb[1, ] &lt;- Y[1, ]
+    sampled &lt;- U[sample(seq_len(nrow(U)), Tn - 1L, replace = TRUE), , drop = FALSE]
+    for (t in 2:Tn) {
+      Yb[t, ] &lt;- fit$intercept + fit$A[[1]] %*% Yb[t - 1, ] + sampled[t - 1L, ]
+    }
+    fb &lt;- fit_var(Yb, p = 1)
+    ib &lt;- recursive_irf(fb, horizon)
+    for (j in 0:horizon) draws[b, j + 1L, , ] &lt;- ib$Theta[[j + 1L]]
+  }
+  draws
+}
+
+boot &lt;- bootstrap_var_irf(fit_sim, horizon = 12, B_rep = 199)
+pointwise &lt;- apply(boot[, , 1, 1], 2, quantile, probs = c(0.025, 0.975))
+estimate &lt;- response(recursive_irf(fit_sim, 12)$Theta, 1, 1)
+truth &lt;- response(Theta_true[1:13], 1, 1)
+
+plot(0:12, estimate, type = &quot;l&quot;, lwd = 2, col = &quot;#173B57&quot;,
+     ylim = range(pointwise, truth), xlab = &quot;Horizon&quot;, ylab = &quot;IRF&quot;)
+polygon(c(0:12, 12:0), c(pointwise[1, ], rev(pointwise[2, ])),
+        col = adjustcolor(&quot;#173B57&quot;, alpha.f = 0.18), border = NA)
+lines(0:12, estimate, lwd = 2, col = &quot;#173B57&quot;)
+lines(0:12, truth, lwd = 2, lty = 2, col = &quot;black&quot;)
+legend(&quot;topright&quot;, c(&quot;Estimate&quot;, &quot;Pointwise bootstrap interval&quot;, &quot;Truth&quot;),
+       col = c(&quot;#173B57&quot;, adjustcolor(&quot;#173B57&quot;, 0.4), &quot;black&quot;),
+       lwd = c(2, 8, 2), lty = c(1, 1, 2), bty = &quot;n&quot;)
+</code></pre>
+<p><img alt="plot of chunk bootstrap-irf" src="./R16_var_irf_files/figure-gfm/bootstrap-irf-1.png"></p>
+<h2 id="reduced-form">固定日本月資料：reduced-form 示範<a class="headerlink" href="#reduced-form" title="Permanent link">#</a></h2>
+<p>使用 <code>return_j</code> 與 <code>yield_10_change</code>。兩者已是變動/報酬尺度，但是否定態仍須另做圖形與單根診斷。這裡只示範 VAR 程序。</p>
+<pre><code class="language-r">jp_path &lt;- &quot;data/processed/japan_monthly_2007_2018.csv&quot;
+jp &lt;- read.csv(jp_path, stringsAsFactors = FALSE)
+jp$date &lt;- as.Date(jp$date)
+jp &lt;- jp[order(jp$date), ]
+keep &lt;- complete.cases(jp[, c(&quot;return_j&quot;, &quot;yield_10_change&quot;)])
+Y_jp &lt;- as.matrix(jp[keep, c(&quot;yield_10_change&quot;, &quot;return_j&quot;)])
+dates_jp &lt;- jp$date[keep]
+colnames(Y_jp) &lt;- c(&quot;dYield10&quot;, &quot;StockReturn&quot;)
+
+matplot(dates_jp, Y_jp, type = &quot;l&quot;, lty = 1,
+        col = c(&quot;#173B57&quot;, &quot;#A34045&quot;),
+        xlab = &quot;Date&quot;, ylab = &quot;Observed scale&quot;)
+legend(&quot;topleft&quot;, colnames(Y_jp), col = c(&quot;#173B57&quot;, &quot;#A34045&quot;),
+       lty = 1, bty = &quot;n&quot;)
+</code></pre>
+<p><img alt="plot of chunk japan-data" src="./R16_var_irf_files/figure-gfm/japan-data-1.png"></p>
+<pre><code class="language-r">candidates &lt;- lapply(1:4, function(p) fit_var(Y_jp, p))
+bic_table &lt;- data.frame(
+  lag = 1:4,
+  BIC = vapply(candidates, function(x) x$bic, numeric(1)),
+  max_root = vapply(candidates, function(x) {
+    max(Mod(eigen(companion_matrix(x$A))$values))
+  }, numeric(1))
+)
+bic_table
+</code></pre>
+<pre><code>##   lag       BIC  max_root
+## 1   1  9.831048 0.2457373
+## 2   2  9.960418 0.4215238
+## 3   3 10.090121 0.5065380
+## 4   4 10.198418 0.7417764
+</code></pre>
+<pre><code class="language-r">p_selected &lt;- bic_table$lag[which.min(bic_table$BIC)]
+fit_jp &lt;- candidates[[p_selected]]
+</code></pre>
+<pre><code class="language-r">par(mfrow = c(2, 2))
+for (j in 1:2) {
+  acf(fit_jp$residuals[, j], main = paste(&quot;Residual ACF:&quot;, colnames(Y_jp)[j]))
+  acf(fit_jp$residuals[, j]^2,
+      main = paste(&quot;Squared residual ACF:&quot;, colnames(Y_jp)[j]))
+}
+</code></pre>
+<p><img alt="plot of chunk residual-diagnostics" src="./R16_var_irf_files/figure-gfm/residual-diagnostics-1.png"></p>
+<pre><code class="language-r">par(mfrow = c(1, 1))
+</code></pre>
+<h2 id="_2">排序敏感度<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
+<pre><code class="language-r">irf_order_1 &lt;- recursive_irf(fit_jp, 12)
+
+# 反轉變數、重估，再把 response/shock 索引轉回原順序。
+Y_rev &lt;- Y_jp[, 2:1]
+fit_rev &lt;- fit_var(Y_rev, p_selected)
+irf_rev &lt;- recursive_irf(fit_rev, 12)
+
+# 原順序：dYield10 第一，StockReturn 第二。
+response_order_1 &lt;- response(irf_order_1$Theta, 2, 1)
+# 反順序：StockReturn 第一、dYield10 第二；目標改為 shock 2 對 response 1。
+response_order_2 &lt;- response(irf_rev$Theta, 1, 2)
+
+plot(0:12, response_order_1, type = &quot;l&quot;, lwd = 2,
+     ylim = range(response_order_1, response_order_2),
+     xlab = &quot;Horizon&quot;, ylab = &quot;Stock-return response&quot;,
+     col = &quot;#173B57&quot;)
+lines(0:12, response_order_2, lwd = 2, lty = 2, col = &quot;#A34045&quot;)
+abline(h = 0, lty = 3)
+legend(&quot;topright&quot;,
+       c(&quot;dYield10 ordered first&quot;, &quot;StockReturn ordered first&quot;),
+       col = c(&quot;#173B57&quot;, &quot;#A34045&quot;), lwd = 2, lty = c(1, 2), bty = &quot;n&quot;)
+</code></pre>
+<p><img alt="plot of chunk ordering-sensitivity" src="./R16_var_irf_files/figure-gfm/ordering-sensitivity-1.png"></p>
+<p>兩條曲線只是在不同遞迴限制下得到的正交化創新項反應。沒有外部工具、制度時點或高頻識別，不能只因第一條較符合敘事就稱為政策衝擊。</p>
+<h2 id="_3">最低報告清單<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<ol>
+<li>變數轉換、順序、樣本期與 lag rule。</li>
+<li>companion roots、殘差及平方殘差 ACF。</li>
+<li>當期影響矩陣 \(B\) 與衝擊正規化。</li>
+<li>至少一個合理替代 ordering。</li>
+<li>interval 是 pointwise 或 simultaneous；bootstrap 是否適合條件異質變異。</li>
+<li>若識別理由不足，退回縮減式或正交化創新項的語言。</li>
+</ol>
+<pre><code class="language-r">sessionInfo()
+</code></pre>
+<pre><code>## R version 4.5.2 (2025-10-31)
+## Platform: aarch64-apple-darwin20
+## Running under: macOS Tahoe 26.5.1
+## 
+## Matrix products: default
+## BLAS:   /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib 
+## LAPACK: /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.1
+## 
+## locale:
+## [1] C.UTF-8/C.UTF-8/C.UTF-8/C/C.UTF-8/C.UTF-8
+## 
+## time zone: Asia/Tokyo
+## tzcode source: internal
+## 
+## attached base packages:
+## [1] stats     graphics  grDevices utils     datasets  methods   base     
+## 
+## other attached packages:
+## [1] tibble_3.3.0 dplyr_1.2.1 
+## 
+## loaded via a namespace (and not attached):
+##  [1] vctrs_0.7.2        cli_3.6.5          knitr_1.51         rlang_1.1.7       
+##  [5] xfun_0.57          otel_0.2.0         MatrixModels_0.5-4 generics_0.1.4    
+##  [9] glue_1.8.0         grid_4.5.2         evaluate_1.0.5     SparseM_1.84-2    
+## [13] MASS_7.3-65        lifecycle_1.0.5    compiler_4.5.2     pkgconfig_2.0.3   
+## [17] quantreg_6.1       lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1  
+## [21] utf8_1.2.6         splines_4.5.2      pillar_1.11.1      magrittr_2.0.4    
+## [25] Matrix_1.7-4       tools_4.5.2        withr_3.0.2        survival_3.8-3
+</code></pre>
+      </article>
+      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R15_double_selection_dml.html">← 雙重選擇、正交化與 DML</a><a rel="next" href="R17_cointegration_vecm.html">共整合、Johansen 檢定與 VECM →</a></nav>
+      <footer>© 陳釗而　《財務時間序列分析》</footer>
+    </main>
+    <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
+<ul>
+<li><a href="#_1">執行條件</a></li>
+<li><a href="#var">VAR 工具函數</a></li>
+<li><a href="#var1">已知結構的 VAR(1) 模擬</a></li>
+<li><a href="#pointwise-intervals">殘差拔靴法 pointwise intervals</a></li>
+<li><a href="#reduced-form">固定日本月資料：reduced-form 示範</a></li>
+<li><a href="#_2">排序敏感度</a></li>
+<li><a href="#_3">最低報告清單</a></li>
+</ul>
+</div>
+</aside>
+  </div>
+</body>
+</html>

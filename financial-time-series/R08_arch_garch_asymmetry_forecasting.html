@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="《財務時間序列分析》R 線上附錄：R08：ARCH、GARCH、非對稱波動與預測">
+  <title>R08：ARCH、GARCH、非對稱波動與預測｜財務時間序列分析</title>
+  <link rel="stylesheet" href="assets/site.css">
+  <script>
+    window.MathJax = {
+      tex: {inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']]},
+      svg: {fontCache: 'local'},
+      options: {skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']}
+    };
+  </script>
+  <script defer src="assets/mathjax-loader.js"></script>
+  <script defer src="assets/site.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要內容</a>
+  <header class="site-header">
+    <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
+    <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
+    <a class="policy-link" href="data-policy.html">資料政策</a>
+  </header>
+  <div class="layout">
+    <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
+      <p class="sidebar-title">線上附錄</p>
+      <ol><li><a href="index.html">首頁</a></li>
+<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
+<li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
+<li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
+<li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與經驗特徵</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA 模擬</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html" aria-current="page" class="active">R08　ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html">R09　投資組合、CAPM 與財務因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
+<li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
+<li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
+    </nav>
+    <main id="main-content" class="content">
+      <div class="publication-note">
+        本網站提供作者執行後的教學內容與程式原始檔；未經確認可再散布的原始資料不隨網站發布。
+        詳見<a href="data-policy.html">資料與重現政策</a>。
+      </div>
+      <article>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R08：ARCH、GARCH、非對稱波動與預測</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R08_arch_garch_asymmetry_forecasting.Rmd">R Markdown 原始檔</a><a href="source/R08_arch_garch_asymmetry_forecasting.md">執行後 Markdown</a></div></header>
+        <p>本附錄對應第 11--12 章。所有資料均由固定亂數種子模擬，不安裝套件、不下載即時資料，也不更改工作目錄。模擬只用來驗證程式、符號與有限樣本行為，不構成理論證明。</p>
+<pre><code class="language-r">knitr::opts_chunk$set(
+  echo = TRUE, message = FALSE, warning = FALSE,
+  fig.width = 7, fig.height = 4
+)
+
+required_r &lt;- &quot;4.3.0&quot;
+stopifnot(getRversion() &gt;= required_r)
+set.seed(808)
+</code></pre>
+<h2 id="1">1. 軟體與重現規格<a class="headerlink" href="#1" title="Permanent link">#</a></h2>
+<p>本檔只使用 R 內建的 <code>stats</code>、<code>graphics</code> 與 <code>utils</code>。主要函數是
+<code>optim()</code>、<code>lm()</code>、<code>acf()</code>、<code>Box.test()</code>。結果應記錄 R 版本與亂數種子；不同 R 版本的最佳化器可能在最後幾位略有差異。</p>
+<pre><code class="language-r">data.frame(
+  component = c(&quot;R&quot;, &quot;stats&quot;, &quot;graphics&quot;),
+  version = c(
+    R.version.string,
+    as.character(packageVersion(&quot;stats&quot;)),
+    as.character(packageVersion(&quot;graphics&quot;))
+  )
+)
+</code></pre>
+<pre><code>##   component                      version
+## 1         R R version 4.5.2 (2025-10-31)
+## 2     stats                        4.5.2
+## 3  graphics                        4.5.2
+</code></pre>
+<h2 id="2-gjr-garch">2. 模擬 GJR--GARCH<a class="headerlink" href="#2-gjr-garch" title="Permanent link">#</a></h2>
+<p>本附錄固定使用</p>
+<p>\[
+h_t=\omega+\alpha a_{t-1}^2+
+\gamma\mathbf 1(a_{t-1}&lt;0)a_{t-1}^2+\beta h_{t-1}.
+\]</p>
+<p>因此同幅度負面衝擊的係數是 \(\alpha+\gamma\)。在對稱標準常態新衝擊下，二階持續性為
+\(\alpha+\beta+\gamma/2\)。</p>
+<pre><code class="language-r">simulate_gjr &lt;- function(n, omega, alpha, beta, gamma = 0,
+                         burn = 500, seed = 808) {
+  persistence &lt;- alpha + beta + gamma / 2
+  stopifnot(
+    n &gt; 20, burn &gt;= 0, omega &gt; 0,
+    alpha &gt;= 0, beta &gt;= 0, alpha + gamma &gt;= 0,
+    persistence &lt; 1
+  )
+
+  set.seed(seed)
+  total &lt;- n + burn
+  z &lt;- rnorm(total)
+  a &lt;- numeric(total)
+  h &lt;- numeric(total)
+  h[1] &lt;- omega / (1 - persistence)
+  a[1] &lt;- sqrt(h[1]) * z[1]
+
+  for (t in 2:total) {
+    negative &lt;- as.numeric(a[t - 1] &lt; 0)
+    h[t] &lt;- omega +
+      alpha * a[t - 1]^2 +
+      gamma * negative * a[t - 1]^2 +
+      beta * h[t - 1]
+    a[t] &lt;- sqrt(h[t]) * z[t]
+  }
+
+  keep &lt;- (burn + 1):total
+  data.frame(
+    time = seq_len(n),
+    a = a[keep],
+    h = h[keep],
+    z = z[keep]
+  )
+}
+
+truth &lt;- c(omega = 2e-6, alpha = 0.05, beta = 0.88, gamma = 0.08)
+sim &lt;- simulate_gjr(
+  n = 1800,
+  omega = truth[&quot;omega&quot;],
+  alpha = truth[&quot;alpha&quot;],
+  beta = truth[&quot;beta&quot;],
+  gamma = truth[&quot;gamma&quot;]
+)
+
+truth_persistence &lt;- with(
+  as.list(truth),
+  alpha + beta + gamma / 2
+)
+truth_persistence
+</code></pre>
+<pre><code>## [1] 0.97
+</code></pre>
+<pre><code class="language-r">old_par &lt;- par(mfrow = c(2, 1), mar = c(3, 4, 2, 1))
+plot(sim$time, 100 * sim$a, type = &quot;l&quot;, col = &quot;#173B57&quot;,
+     xlab = &quot;時間&quot;, ylab = &quot;報酬（%）&quot;,
+     main = &quot;模擬報酬&quot;)
+plot(sim$time, 100 * sqrt(sim$h), type = &quot;l&quot;, col = &quot;#A34045&quot;,
+     xlab = &quot;時間&quot;, ylab = &quot;條件標準差（%）&quot;,
+     main = &quot;真實條件波動&quot;)
+</code></pre>
+<p><img alt="plot of chunk simulated-series" src="./R08_arch_garch_asymmetry_forecasting_files/figure-gfm/simulated-series-1.png"></p>
+<pre><code class="language-r">par(old_par)
+</code></pre>
+<p>報酬方向可以幾乎不相關，平方報酬仍有明顯記憶。</p>
+<pre><code class="language-r">old_par &lt;- par(mfrow = c(1, 2))
+acf(sim$a, lag.max = 30, main = &quot;報酬 ACF&quot;)
+acf(sim$a^2, lag.max = 30, main = &quot;平方報酬 ACF&quot;)
+</code></pre>
+<p><img alt="plot of chunk acf-comparison" src="./R08_arch_garch_asymmetry_forecasting_files/figure-gfm/acf-comparison-1.png"></p>
+<pre><code class="language-r">par(old_par)
+</code></pre>
+<h2 id="3-arch-lm">3. ARCH--LM 輔助迴歸<a class="headerlink" href="#3-arch-lm" title="Permanent link">#</a></h2>
+<p>這裡模擬平均數為零，所以直接使用 <code>a</code>。實際資料應先配適平均數方程，再把平均數殘差送入檢定。</p>
+<pre><code class="language-r">arch_lm &lt;- function(residual, lags = 10) {
+  stopifnot(lags &gt;= 1, length(residual) &gt; 5 * lags)
+  x2 &lt;- residual^2
+  n &lt;- length(x2)
+  y &lt;- x2[(lags + 1):n]
+  X &lt;- sapply(seq_len(lags), function(j) {
+    x2[(lags + 1 - j):(n - j)]
+  })
+  colnames(X) &lt;- paste0(&quot;lag&quot;, seq_len(lags))
+  fit &lt;- lm(y ~ X)
+  statistic &lt;- nobs(fit) * summary(fit)$r.squared
+  data.frame(
+    lags = lags,
+    statistic = statistic,
+    p_value = pchisq(statistic, df = lags, lower.tail = FALSE)
+  )
+}
+
+arch_lm(sim$a, lags = 10)
+</code></pre>
+<pre><code>##   lags statistic      p_value
+## 1   10   249.865 5.794492e-48
+</code></pre>
+<h2 id="4">4. 手動常態準最大概似<a class="headerlink" href="#4" title="Permanent link">#</a></h2>
+<h3 id="41">4.1 參數轉換<a class="headerlink" href="#41" title="Permanent link">#</a></h3>
+<p>直接最佳化 \((\omega,\alpha,\beta,\gamma)\) 容易跑到負變異數或非定態區。本例以指數確保 \(\omega&gt;0\)，並以類似 softmax 的轉換確保：</p>
+<ul>
+<li>GARCH：\(\alpha+\beta&lt;0.999\)；</li>
+<li>GJR：\(\alpha+\beta+\gamma/2&lt;0.999\)。</li>
+</ul>
+<pre><code class="language-r">map_garch &lt;- function(eta) {
+  raw &lt;- exp(eta[2:3])
+  denom &lt;- 1 + sum(raw)
+  c(
+    omega = exp(eta[1]),
+    alpha = 0.999 * raw[1] / denom,
+    beta = 0.999 * raw[2] / denom,
+    gamma = 0
+  )
+}
+
+map_gjr &lt;- function(eta) {
+  raw &lt;- exp(eta[2:4])
+  denom &lt;- 1 + sum(raw)
+  c(
+    omega = exp(eta[1]),
+    alpha = 0.999 * raw[1] / denom,
+    beta = 0.999 * raw[2] / denom,
+    gamma = 2 * 0.999 * raw[3] / denom
+  )
+}
+
+filter_variance &lt;- function(a, par) {
+  n &lt;- length(a)
+  h &lt;- numeric(n)
+  h[1] &lt;- var(a)
+  for (t in 2:n) {
+    negative &lt;- as.numeric(a[t - 1] &lt; 0)
+    h[t] &lt;- par[&quot;omega&quot;] +
+      par[&quot;alpha&quot;] * a[t - 1]^2 +
+      par[&quot;gamma&quot;] * negative * a[t - 1]^2 +
+      par[&quot;beta&quot;] * h[t - 1]
+  }
+  h
+}
+
+gaussian_nll &lt;- function(eta, a, model = c(&quot;garch&quot;, &quot;gjr&quot;)) {
+  model &lt;- match.arg(model)
+  par &lt;- if (model == &quot;garch&quot;) map_garch(eta) else map_gjr(eta)
+  h &lt;- filter_variance(a, par)
+  if (any(!is.finite(h)) || any(h &lt;= 0)) return(1e100)
+  0.5 * sum(log(2 * pi) + log(h[-1]) + a[-1]^2 / h[-1])
+}
+</code></pre>
+<h3 id="42">4.2 鎖定訓練期<a class="headerlink" href="#42" title="Permanent link">#</a></h3>
+<p>最後 500 期保留作測試；任何參數、初始尺度與模型比較都不能使用這 500 期。</p>
+<pre><code class="language-r">train_end &lt;- 1300
+train &lt;- sim$a[seq_len(train_end)]
+test &lt;- sim$a[(train_end + 1):nrow(sim)]
+
+garch_start &lt;- c(
+  log(var(train) * 0.05),
+  log(0.08 / (0.999 - 0.93)),
+  log(0.85 / (0.999 - 0.93))
+)
+gjr_start &lt;- c(
+  log(var(train) * 0.03),
+  log(0.05 / (0.999 - 0.97)),
+  log(0.88 / (0.999 - 0.97)),
+  log(0.04 / (0.999 - 0.97))
+)
+
+fit_garch &lt;- optim(
+  garch_start, gaussian_nll, a = train, model = &quot;garch&quot;,
+  method = &quot;BFGS&quot;, control = list(maxit = 1500)
+)
+fit_gjr &lt;- optim(
+  gjr_start, gaussian_nll, a = train, model = &quot;gjr&quot;,
+  method = &quot;BFGS&quot;, control = list(maxit = 2000)
+)
+
+stopifnot(fit_garch$convergence == 0, fit_gjr$convergence == 0)
+par_garch &lt;- map_garch(fit_garch$par)
+par_gjr &lt;- map_gjr(fit_gjr$par)
+
+rbind(
+  truth = truth,
+  GARCH = par_garch,
+  GJR = par_gjr
+)
+</code></pre>
+<pre><code>##              omega      alpha      beta      gamma
+## truth 2.000000e-06 0.05000000 0.8800000 0.08000000
+## GARCH 3.239830e-06 0.10553700 0.8303668 0.00000000
+## GJR   2.724313e-06 0.05161365 0.8528328 0.09608839
+</code></pre>
+<p>有限樣本估計不必精確等於真值；GARCH 遺漏不對稱後，其他參數也可能吸收部分效果。</p>
+<h3 id="43">4.3 標準化殘差診斷<a class="headerlink" href="#43" title="Permanent link">#</a></h3>
+<pre><code class="language-r">h_train_gjr &lt;- filter_variance(train, par_gjr)
+z_train_gjr &lt;- train / sqrt(h_train_gjr)
+
+rbind(
+  standardized = unlist(Box.test(
+    z_train_gjr, lag = 20, type = &quot;Ljung-Box&quot;
+  )[c(&quot;statistic&quot;, &quot;p.value&quot;)]),
+  squared_standardized = unlist(Box.test(
+    z_train_gjr^2, lag = 20, type = &quot;Ljung-Box&quot;
+  )[c(&quot;statistic&quot;, &quot;p.value&quot;)])
+)
+</code></pre>
+<pre><code>##                      statistic.X-squared   p.value
+## standardized                    20.27926 0.4405871
+## squared_standardized            15.68202 0.7361450
+</code></pre>
+<p>Ljung--Box 結果是診斷線索，不是模型正確的證明。還應檢查尾部、符號不對稱與參數邊界。</p>
+<h2 id="5-gjr">5. GJR 負面衝擊方向的單元式檢查<a class="headerlink" href="#5-gjr" title="Permanent link">#</a></h2>
+<p>令正負衝擊幅度皆為 2%，保持前一期 \(h\) 相同。若 <code>gamma &gt; 0</code>，負面衝擊的下一期變異數必須較大。</p>
+<pre><code class="language-r">one_step_h &lt;- function(previous_a, previous_h, par) {
+  par[&quot;omega&quot;] +
+    par[&quot;alpha&quot;] * previous_a^2 +
+    par[&quot;gamma&quot;] * as.numeric(previous_a &lt; 0) * previous_a^2 +
+    par[&quot;beta&quot;] * previous_h
+}
+
+h_reference &lt;- var(train)
+sign_check &lt;- data.frame(
+  shock = c(&quot;positive&quot;, &quot;negative&quot;),
+  a_previous = c(0.02, -0.02)
+)
+sign_check$h_next &lt;- vapply(
+  sign_check$a_previous,
+  one_step_h,
+  numeric(1),
+  previous_h = h_reference,
+  par = par_gjr
+)
+sign_check
+</code></pre>
+<pre><code>##      shock a_previous       h_next
+## 1 positive       0.02 6.704031e-05
+## 2 negative      -0.02 1.054757e-04
+</code></pre>
+<pre><code class="language-r">stopifnot(
+  sign_check$h_next[sign_check$shock == &quot;negative&quot;] &gt;
+    sign_check$h_next[sign_check$shock == &quot;positive&quot;]
+)
+</code></pre>
+<p>這個 <code>stopifnot()</code> 是重要防線：若把指示函數誤寫成 <code>a &gt; 0</code>，文件會在執行時失敗。</p>
+<h2 id="6">6. 無資料洩漏的一步波動預測<a class="headerlink" href="#6" title="Permanent link">#</a></h2>
+<p>參數固定在訓練期估計值。測試期每一步先用上一期已知報酬產生預測，等本期報酬實現後才更新遞迴。</p>
+<pre><code class="language-r">forecast_locked &lt;- function(train, test, par) {
+  h_train &lt;- filter_variance(train, par)
+  previous_a &lt;- tail(train, 1)
+  previous_h &lt;- tail(h_train, 1)
+  forecast &lt;- numeric(length(test))
+
+  for (j in seq_along(test)) {
+    forecast[j] &lt;- one_step_h(previous_a, previous_h, par)
+    # test[j] 在 forecast[j] 形成後才進入下一期狀態。
+    previous_a &lt;- test[j]
+    previous_h &lt;- forecast[j]
+  }
+  forecast
+}
+
+hhat_garch &lt;- forecast_locked(train, test, par_garch)
+hhat_gjr &lt;- forecast_locked(train, test, par_gjr)
+
+# 60 期歷史變異數基準；每一期只使用它以前的觀察。
+all_a &lt;- c(train, test)
+hhat_hist &lt;- numeric(length(test))
+for (j in seq_along(test)) {
+  t_index &lt;- train_end + j
+  past_index &lt;- (t_index - 60):(t_index - 1)
+  hhat_hist[j] &lt;- var(all_a[past_index])
+}
+
+stopifnot(
+  all(hhat_garch &gt; 0),
+  all(hhat_gjr &gt; 0),
+  all(hhat_hist &gt; 0)
+)
+</code></pre>
+<h3 id="61-qlike">6.1 QLIKE 與平方損失<a class="headerlink" href="#61-qlike" title="Permanent link">#</a></h3>
+<pre><code class="language-r">qlike &lt;- function(realized_square, variance_forecast) {
+  log(variance_forecast) + realized_square / variance_forecast
+}
+
+loss_table &lt;- rbind(
+  Historical60 = c(
+    QLIKE = mean(qlike(test^2, hhat_hist)),
+    SquaredLoss = mean((test^2 - hhat_hist)^2)
+  ),
+  GARCH = c(
+    QLIKE = mean(qlike(test^2, hhat_garch)),
+    SquaredLoss = mean((test^2 - hhat_garch)^2)
+  ),
+  GJR = c(
+    QLIKE = mean(qlike(test^2, hhat_gjr)),
+    SquaredLoss = mean((test^2 - hhat_gjr)^2)
+  )
+)
+loss_table
+</code></pre>
+<pre><code>##                  QLIKE  SquaredLoss
+## Historical60 -8.970089 4.504735e-09
+## GARCH        -9.026728 4.165587e-09
+## GJR          -9.023314 4.166342e-09
+</code></pre>
+<p><code>test^2</code> 只是不可觀察條件變異數的高雜訊代理。若有由高頻資料建構且授權清楚的實現波動，可另行替換，但評估時間邊界不變。</p>
+<pre><code class="language-r">plot(
+  seq_along(test), 100 * sqrt(hhat_gjr), type = &quot;l&quot;,
+  col = &quot;#A34045&quot;, lwd = 1.2,
+  xlab = &quot;測試期&quot;, ylab = &quot;預測條件標準差（%）&quot;,
+  main = &quot;鎖定訓練期參數的一步預測&quot;
+)
+lines(100 * sqrt(hhat_garch), col = &quot;#173B57&quot;)
+lines(100 * sqrt(hhat_hist), col = &quot;#3F7158&quot;)
+legend(
+  &quot;topright&quot;,
+  legend = c(&quot;GJR&quot;, &quot;GARCH&quot;, &quot;歷史 60 期&quot;),
+  col = c(&quot;#A34045&quot;, &quot;#173B57&quot;, &quot;#3F7158&quot;),
+  lty = 1, bty = &quot;n&quot;
+)
+</code></pre>
+<p><img alt="plot of chunk forecast-plot" src="./R08_arch_garch_asymmetry_forecasting_files/figure-gfm/forecast-plot-1.png"></p>
+<h2 id="7-garch">7. GARCH 多步預測<a class="headerlink" href="#7-garch" title="Permanent link">#</a></h2>
+<p>對對稱 GARCH(1,1)，</p>
+<p>\[
+h_{t+s\mid t}=\bar h+(\alpha+\beta)^{s-1}
+(h_{t+1\mid t}-\bar h).
+\]</p>
+<pre><code class="language-r">garch_multistep &lt;- function(h_one, par, horizon = 20) {
+  persistence &lt;- par[&quot;alpha&quot;] + par[&quot;beta&quot;]
+  long_run &lt;- par[&quot;omega&quot;] / (1 - persistence)
+  s &lt;- seq_len(horizon)
+  long_run + persistence^(s - 1) * (h_one - long_run)
+}
+
+# tail(hhat_garch, 1) 是最後一筆測試報酬實現以前形成的
+# h_{T|T-1}；先以 a_T 更新，才得到樣本末真正的 h_{T+1|T}。
+h_one &lt;- one_step_h(
+  previous_a = tail(test, 1),
+  previous_h = tail(hhat_garch, 1),
+  par = par_garch
+)
+multi &lt;- garch_multistep(h_one, par_garch, horizon = 20)
+data.frame(
+  horizon = seq_along(multi),
+  variance = multi,
+  standard_deviation_percent = 100 * sqrt(multi)
+)
+</code></pre>
+<pre><code>##    horizon     variance standard_deviation_percent
+## 1        1 4.277827e-05                  0.6540510
+## 2        2 4.327617e-05                  0.6578463
+## 3        3 4.374216e-05                  0.6613786
+## 4        4 4.417828e-05                  0.6646675
+## 5        5 4.458645e-05                  0.6677309
+## 6        6 4.496846e-05                  0.6705852
+## 7        7 4.532598e-05                  0.6732457
+## 8        8 4.566058e-05                  0.6757261
+## 9        9 4.597374e-05                  0.6780394
+## 10      10 4.626683e-05                  0.6801972
+## 11      11 4.654113e-05                  0.6822106
+## 12      12 4.679785e-05                  0.6840895
+## 13      13 4.703811e-05                  0.6858434
+## 14      14 4.726297e-05                  0.6874807
+## 15      15 4.747343e-05                  0.6890096
+## 16      16 4.767039e-05                  0.6904374
+## 17      17 4.785472e-05                  0.6917711
+## 18      18 4.802725e-05                  0.6930169
+## 19      19 4.818871e-05                  0.6941809
+## 20      20 4.833983e-05                  0.6952685
+</code></pre>
+<p>表中的 <code>horizon = 1</code> 因而確實是最後一筆樣本已觀察後形成的下一期預測，而不是最後一筆樣本本身的一步預測。</p>
+<p>GJR 的多步解析式還涉及負半軸截尾二階動差；若不確定創新分配，可用參數式模擬，但模擬路徑只能從預測起點向前產生。</p>
+<h2 id="8">8. 可重現結論<a class="headerlink" href="#8" title="Permanent link">#</a></h2>
+<p>本附錄驗證了四件事：</p>
+<ol>
+<li>報酬平方可在報酬方向幾乎不相關時保持明顯相關；</li>
+<li>受限制參數轉換能讓每次波動遞迴保持正值且二階定態；</li>
+<li>在明確的 <code>a &lt; 0</code> 慣例下，正 <code>gamma</code> 使負面衝擊提高更多波動；</li>
+<li>測試期的每一個預測都在觀察當期報酬以前形成。</li>
+</ol>
+<pre><code class="language-r">sessionInfo()
+</code></pre>
+<pre><code>## R version 4.5.2 (2025-10-31)
+## Platform: aarch64-apple-darwin20
+## Running under: macOS Tahoe 26.5.1
+## 
+## Matrix products: default
+## BLAS:   /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib 
+## LAPACK: /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.1
+## 
+## locale:
+## [1] C.UTF-8/C.UTF-8/C.UTF-8/C/C.UTF-8/C.UTF-8
+## 
+## time zone: Asia/Tokyo
+## tzcode source: internal
+## 
+## attached base packages:
+## [1] stats     graphics  grDevices utils     datasets  methods   base     
+## 
+## other attached packages:
+## [1] tibble_3.3.0 dplyr_1.2.1 
+## 
+## loaded via a namespace (and not attached):
+##  [1] utf8_1.2.6       R6_2.6.1         tidyselect_1.2.1 xfun_0.57       
+##  [5] magrittr_2.0.4   glue_1.8.0       knitr_1.51       pkgconfig_2.0.3 
+##  [9] generics_0.1.4   lifecycle_1.0.5  cli_3.6.5        vctrs_0.7.2     
+## [13] withr_3.0.2      compiler_4.5.2   tools_4.5.2      evaluate_1.0.5  
+## [17] pillar_1.11.1    otel_0.2.0       rlang_1.1.7
+</code></pre>
+      </article>
+      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R07_unit_roots_differencing_breaks.html">← 單根、差分與結構變動</a><a rel="next" href="R09_portfolio_capm_factors.html">投資組合、CAPM 與財務因子 →</a></nav>
+      <footer>© 陳釗而　《財務時間序列分析》</footer>
+    </main>
+    <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
+<ul>
+<li><a href="#1">1. 軟體與重現規格</a></li>
+<li><a href="#2-gjr-garch">2. 模擬 GJR--GARCH</a></li>
+<li><a href="#3-arch-lm">3. ARCH--LM 輔助迴歸</a></li>
+<li><a href="#4">4. 手動常態準最大概似</a><ul>
+<li><a href="#41">4.1 參數轉換</a></li>
+<li><a href="#42">4.2 鎖定訓練期</a></li>
+<li><a href="#43">4.3 標準化殘差診斷</a></li>
+</ul>
+</li>
+<li><a href="#5-gjr">5. GJR 負面衝擊方向的單元式檢查</a></li>
+<li><a href="#6">6. 無資料洩漏的一步波動預測</a><ul>
+<li><a href="#61-qlike">6.1 QLIKE 與平方損失</a></li>
+</ul>
+</li>
+<li><a href="#7-garch">7. GARCH 多步預測</a></li>
+<li><a href="#8">8. 可重現結論</a></li>
+</ul>
+</div>
+</aside>
+  </div>
+</body>
+</html>

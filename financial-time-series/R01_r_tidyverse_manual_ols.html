@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="《財務時間序列分析》R 線上附錄：R01：R、tidyverse 與手動 OLS">
+  <title>R01：R、tidyverse 與手動 OLS｜財務時間序列分析</title>
+  <link rel="stylesheet" href="assets/site.css">
+  <script>
+    window.MathJax = {
+      tex: {inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']]},
+      svg: {fontCache: 'local'},
+      options: {skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']}
+    };
+  </script>
+  <script defer src="assets/mathjax-loader.js"></script>
+  <script defer src="assets/site.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要內容</a>
+  <header class="site-header">
+    <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
+    <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
+    <a class="policy-link" href="data-policy.html">資料政策</a>
+  </header>
+  <div class="layout">
+    <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
+      <p class="sidebar-title">線上附錄</p>
+      <ol><li><a href="index.html">首頁</a></li>
+<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
+<li><a href="R01_r_tidyverse_manual_ols.html" aria-current="page" class="active">R01　R、tidyverse 與手動 OLS</a></li>
+<li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
+<li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與經驗特徵</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA 模擬</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html">R09　投資組合、CAPM 與財務因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
+<li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
+<li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
+    </nav>
+    <main id="main-content" class="content">
+      <div class="publication-note">
+        本網站提供作者執行後的教學內容與程式原始檔；未經確認可再散布的原始資料不隨網站發布。
+        詳見<a href="data-policy.html">資料與重現政策</a>。
+      </div>
+      <article>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R01：R、tidyverse 與手動 OLS</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R01_r_tidyverse_manual_ols.Rmd">R Markdown 原始檔</a><a href="source/R01_r_tidyverse_manual_ols.md">執行後 Markdown</a></div></header>
+        <p>本附錄對應第 1 章，使用固定的 S\&amp;P 500 日報酬面板練習 R 物件、dplyr 資料處理與手動 OLS。例子把 AAPL 當日報酬對 MSFT、NVDA 的等權平均當日報酬做線性投影，只用來核對矩陣代數；它不是即時預測，也不具有因果解讀。</p>
+<pre><code class="language-r">knitr::opts_chunk$set(
+  echo = TRUE, message = FALSE, warning = FALSE,
+  fig.width = 7, fig.height = 4.5
+)
+stopifnot(requireNamespace(&quot;dplyr&quot;, quietly = TRUE))
+stopifnot(requireNamespace(&quot;tibble&quot;, quietly = TRUE))
+library(dplyr)
+</code></pre>
+<pre><code>## 
+## Attaching package: 'dplyr'
+</code></pre>
+<pre><code>## The following objects are masked from 'package:stats':
+## 
+##     filter, lag
+</code></pre>
+<pre><code>## The following objects are masked from 'package:base':
+## 
+##     intersect, setdiff, setequal, union
+</code></pre>
+<pre><code class="language-r">library(tibble)
+
+root_candidates &lt;- c(&quot;.&quot;, &quot;..&quot;)
+is_root &lt;- vapply(root_candidates, function(x) {
+  file.exists(file.path(x, &quot;main.tex&quot;))
+}, logical(1))
+stopifnot(any(is_root))
+project_root &lt;- root_candidates[which(is_root)[1]]
+project_path &lt;- function(...) file.path(project_root, ...)
+</code></pre>
+<h2 id="_1">讀取、選欄與資料契約<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
+<pre><code class="language-r">data_path &lt;- project_path(
+  &quot;data&quot;, &quot;processed&quot;, &quot;sp500_returns_balanced_2013_2022.csv&quot;
+)
+manifest_path &lt;- project_path(&quot;data&quot;, &quot;processed&quot;, &quot;manifest.csv&quot;)
+stopifnot(file.exists(data_path), file.exists(manifest_path))
+
+raw &lt;- read.csv(data_path, check.names = FALSE)
+returns &lt;- raw |&gt;
+  transmute(
+    date = as.Date(date),
+    AAPL = as.numeric(AAPL),
+    MSFT = as.numeric(MSFT),
+    NVDA = as.numeric(NVDA)
+  ) |&gt;
+  arrange(date)
+
+stopifnot(!anyNA(returns), !anyDuplicated(returns$date))
+stopifnot(all(diff(returns$date) &gt; 0))
+glimpse(returns)
+</code></pre>
+<pre><code>## Rows: 2,384
+## Columns: 4
+## $ date &lt;date&gt; 2013-01-03, 2013-01-04, 2013-01-07, 2013-01-08, 2013-01-09, 2013…
+## $ AAPL &lt;dbl&gt; -0.012622072, -0.027854471, -0.005882822, 0.002691439, -0.0156289…
+## $ MSFT &lt;dbl&gt; -0.0133961372, -0.0187154612, -0.0018699229, -0.0052453126, 0.005…
+## $ NVDA &lt;dbl&gt; 0.0007860068, 0.0329928166, -0.0288975086, -0.0219260948, -0.0224…
+</code></pre>
+<p>資料是作者工作版價格檔建立的固定版本。依 <code>data/DATA_SOURCES.md</code> 的已決定政策，公開網站提供程式與執行結果，但不再散布這份凍結資料。</p>
+<h2 id="_2">向量、資料框與管線<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
+<pre><code class="language-r">first_five &lt;- returns$AAPL[1:5]
+object_summary &lt;- tibble(
+  object = c(&quot;first_five&quot;, &quot;returns&quot;),
+  class = c(class(first_five)[1], class(returns)[1]),
+  length_or_rows = c(length(first_five), nrow(returns))
+)
+object_summary
+</code></pre>
+<pre><code>## # A tibble: 2 × 3
+##   object     class      length_or_rows
+##   &lt;chr&gt;      &lt;chr&gt;               &lt;int&gt;
+## 1 first_five numeric                 5
+## 2 returns    data.frame           2384
+</code></pre>
+<p>用 mutate 建立兩檔股票的等權平均，並用 summarise 依年度描述 AAPL。因原檔已是簡單報酬，平均數仍以小數表示。</p>
+<pre><code class="language-r">analysis_df &lt;- returns |&gt;
+  mutate(
+    tech_equal = (MSFT + NVDA) / 2,
+    year = as.integer(format(date, &quot;%Y&quot;))
+  )
+
+annual_summary &lt;- analysis_df |&gt;
+  group_by(year) |&gt;
+  summarise(
+    observations = n(),
+    mean_aapl = mean(AAPL),
+    sd_aapl = sd(AAPL),
+    .groups = &quot;drop&quot;
+  )
+annual_summary
+</code></pre>
+<pre><code>## # A tibble: 10 × 4
+##     year observations  mean_aapl sd_aapl
+##    &lt;int&gt;        &lt;int&gt;      &lt;dbl&gt;   &lt;dbl&gt;
+##  1  2013          251  0.000347   0.0179
+##  2  2014          252  0.00145    0.0136
+##  3  2015          252  0.0000199  0.0168
+##  4  2016          252  0.000575   0.0147
+##  5  2017          251  0.00164    0.0111
+##  6  2018          251 -0.0000573  0.0181
+##  7  2019          252  0.00266    0.0165
+##  8  2020          253  0.00281    0.0294
+##  9  2021          252  0.00131    0.0158
+## 10  2022          118 -0.00202    0.0227
+</code></pre>
+<h2 id="ols">手動 OLS<a class="headerlink" href="#ols" title="Permanent link">#</a></h2>
+<p>令 \(y\) 為 AAPL 當日報酬，\(x\) 為 MSFT、NVDA 的等權平均當日報酬。設計矩陣第一欄是截距。</p>
+<pre><code class="language-r">y &lt;- analysis_df$AAPL
+X &lt;- cbind(Intercept = 1, tech_equal = analysis_df$tech_equal)
+
+stopifnot(nrow(X) == length(y), qr(X)$rank == ncol(X))
+
+beta_manual &lt;- solve(crossprod(X), crossprod(X, y))
+fitted_manual &lt;- as.numeric(X %*% beta_manual)
+residual_manual &lt;- y - fitted_manual
+
+tibble(
+  term = rownames(beta_manual),
+  estimate = as.numeric(beta_manual)
+)
+</code></pre>
+<pre><code>## # A tibble: 2 × 2
+##   term       estimate
+##   &lt;chr&gt;         &lt;dbl&gt;
+## 1 Intercept  0.000124
+## 2 tech_equal 0.569
+</code></pre>
+<p>crossprod(X) 等於 \(X^\top X\)，crossprod(X, y) 等於
+\(X^\top y\)。正式計算通常偏好 QR 分解，因為直接求逆在近共線時較不穩定；這裡使用公式是為了對照課文。</p>
+<h2 id="lmqr">與 lm、QR 解核對<a class="headerlink" href="#lmqr" title="Permanent link">#</a></h2>
+<pre><code class="language-r">fit_lm &lt;- lm(AAPL ~ tech_equal, data = analysis_df)
+beta_qr &lt;- qr.solve(X, y)
+
+comparison &lt;- tibble(
+  term = names(coef(fit_lm)),
+  manual = as.numeric(beta_manual),
+  qr = as.numeric(beta_qr),
+  lm = as.numeric(coef(fit_lm))
+)
+comparison
+</code></pre>
+<pre><code>## # A tibble: 2 × 4
+##   term          manual       qr       lm
+##   &lt;chr&gt;          &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;
+## 1 (Intercept) 0.000124 0.000124 0.000124
+## 2 tech_equal  0.569    0.569    0.569
+</code></pre>
+<pre><code class="language-r">stopifnot(
+  isTRUE(all.equal(as.numeric(beta_manual), as.numeric(beta_qr))),
+  isTRUE(all.equal(as.numeric(beta_manual), as.numeric(coef(fit_lm))))
+)
+</code></pre>
+<h2 id="_3">正規方程式與配適分解<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<p>含截距 OLS 殘差應與設計矩陣每欄正交。</p>
+<pre><code class="language-r">orthogonality &lt;- as.numeric(crossprod(X, residual_manual))
+names(orthogonality) &lt;- colnames(X)
+orthogonality
+</code></pre>
+<pre><code>##    Intercept   tech_equal 
+## 5.342948e-16 2.107689e-16
+</code></pre>
+<pre><code class="language-r">stopifnot(max(abs(orthogonality)) &lt; 1e-10)
+
+sst &lt;- sum((y - mean(y))^2)
+sse &lt;- sum(residual_manual^2)
+ssr &lt;- sum((fitted_manual - mean(y))^2)
+c(SST = sst, explained = ssr, SSE = sse, difference = sst - ssr - sse)
+</code></pre>
+<pre><code>##           SST     explained           SSE    difference 
+##  7.771318e-01  2.989755e-01  4.781562e-01 -4.996004e-16
+</code></pre>
+<h2 id="_4">缺值政策必須明寫<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
+<p>以下函數預設遇到缺值就停止；只有呼叫者明確要求時才刪除完整列。這比把 na.rm = TRUE 散落在每個統計量中更容易審核。</p>
+<pre><code class="language-r">prepare_complete &lt;- function(data, columns, allow_drop = FALSE) {
+  stopifnot(all(columns %in% names(data)))
+  ok &lt;- complete.cases(data[, columns, drop = FALSE])
+  if (!all(ok) &amp;&amp; !allow_drop) {
+    stop(&quot;指定欄位含缺值；請決定刪除、填補或修正來源。&quot;)
+  }
+  data[ok, , drop = FALSE]
+}
+
+toy &lt;- tibble(y = c(1, 2, NA), x = c(0, 1, 2))
+expected_error &lt;- try(
+  prepare_complete(toy, c(&quot;y&quot;, &quot;x&quot;)),
+  silent = TRUE
+)
+inherits(expected_error, &quot;try-error&quot;)
+</code></pre>
+<pre><code>## [1] TRUE
+</code></pre>
+<pre><code class="language-r">prepare_complete(toy, c(&quot;y&quot;, &quot;x&quot;), allow_drop = TRUE)
+</code></pre>
+<pre><code>## # A tibble: 2 × 2
+##       y     x
+##   &lt;dbl&gt; &lt;dbl&gt;
+## 1     1     0
+## 2     2     1
+</code></pre>
+<h2 id="_5">診斷圖<a class="headerlink" href="#_5" title="Permanent link">#</a></h2>
+<pre><code class="language-r">par(mfrow = c(1, 2))
+plot(
+  fitted_manual, residual_manual,
+  xlab = &quot;配適值&quot;, ylab = &quot;殘差&quot;,
+  pch = 16, cex = 0.45, col = &quot;#173B57&quot;
+)
+abline(h = 0, lty = 2, col = &quot;#A34045&quot;)
+qqnorm(residual_manual, pch = 16, cex = 0.45, col = &quot;#173B57&quot;)
+qqline(residual_manual, col = &quot;#A34045&quot;, lwd = 2)
+</code></pre>
+<p><img alt="OLS 殘差與配適值；此圖只診斷線性投影，不代表預測或因果。" src="./R01_r_tidyverse_manual_ols_files/figure-gfm/diagnostics-1.png"></p>
+<pre><code class="language-r">par(mfrow = c(1, 1))
+</code></pre>
+<p>日報酬殘差常有厚尾與波動群聚；普通 OLS 係數的代數仍成立，但推論需要檢查時間相依與異質變異。若改成預測問題，所有解釋變數還必須在預測起點可得，並依第 8 章做時間排序的樣本外評估。</p>
+      </article>
+      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R00_environment_reproducibility.html">← 環境、專案與可重現研究</a><a rel="next" href="R02_prices_dates_returns.html">價格、日期與報酬率 →</a></nav>
+      <footer>© 陳釗而　《財務時間序列分析》</footer>
+    </main>
+    <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
+<ul>
+<li><a href="#_1">讀取、選欄與資料契約</a></li>
+<li><a href="#_2">向量、資料框與管線</a></li>
+<li><a href="#ols">手動 OLS</a></li>
+<li><a href="#lmqr">與 lm、QR 解核對</a></li>
+<li><a href="#_3">正規方程式與配適分解</a></li>
+<li><a href="#_4">缺值政策必須明寫</a></li>
+<li><a href="#_5">診斷圖</a></li>
+</ul>
+</div>
+</aside>
+  </div>
+</body>
+</html>

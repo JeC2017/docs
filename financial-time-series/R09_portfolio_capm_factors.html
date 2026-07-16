@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="《財務時間序列分析》R 線上附錄：R09：投資組合、CAPM 與財務因子">
+  <title>R09：投資組合、CAPM 與財務因子｜財務時間序列分析</title>
+  <link rel="stylesheet" href="assets/site.css">
+  <script>
+    window.MathJax = {
+      tex: {inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']]},
+      svg: {fontCache: 'local'},
+      options: {skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']}
+    };
+  </script>
+  <script defer src="assets/mathjax-loader.js"></script>
+  <script defer src="assets/site.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要內容</a>
+  <header class="site-header">
+    <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
+    <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
+    <a class="policy-link" href="data-policy.html">資料政策</a>
+  </header>
+  <div class="layout">
+    <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
+      <p class="sidebar-title">線上附錄</p>
+      <ol><li><a href="index.html">首頁</a></li>
+<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
+<li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
+<li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
+<li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與經驗特徵</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA 模擬</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html" aria-current="page" class="active">R09　投資組合、CAPM 與財務因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
+<li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
+<li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
+    </nav>
+    <main id="main-content" class="content">
+      <div class="publication-note">
+        本網站提供作者執行後的教學內容與程式原始檔；未經確認可再散布的原始資料不隨網站發布。
+        詳見<a href="data-policy.html">資料與重現政策</a>。
+      </div>
+      <article>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R09：投資組合、CAPM 與財務因子</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R09_portfolio_capm_factors.Rmd">R Markdown 原始檔</a><a href="source/R09_portfolio_capm_factors.md">執行後 Markdown</a></div></header>
+        <p>本附錄對應第 13--14 章，以固定種子的合成月資料示範投資組合、CAPM 與多因子迴歸。所有報酬都是教學模擬，不代表任何市場或基金；程式不安裝套件、不下載資料，也不使用 <code>setwd()</code>。</p>
+<pre><code class="language-r">knitr::opts_chunk$set(
+  echo = TRUE, message = FALSE, warning = FALSE,
+  fig.width = 7, fig.height = 4
+)
+stopifnot(getRversion() &gt;= &quot;4.3.0&quot;)
+set.seed(909)
+</code></pre>
+<h2 id="1">1. 軟體與資訊時點<a class="headerlink" href="#1" title="Permanent link">#</a></h2>
+<p>只使用 R 內建套件。時間切分固定為：</p>
+<ul>
+<li>前 480 月：訓練；</li>
+<li>接續 120 月：驗證；</li>
+<li>最後 120 月：測試。</li>
+</ul>
+<p>任何平均數、共變異數、beta 與投資組合權重都只能由訓練期估計。驗證與測試期的同期因子若用於重建同期資產報酬，會明確稱為「條件重建」，不稱為事前預測。</p>
+<pre><code class="language-r">data.frame(
+  component = c(&quot;R&quot;, &quot;stats&quot;, &quot;graphics&quot;),
+  version = c(
+    R.version.string,
+    as.character(packageVersion(&quot;stats&quot;)),
+    as.character(packageVersion(&quot;graphics&quot;))
+  )
+)
+</code></pre>
+<pre><code>##   component                      version
+## 1         R R version 4.5.2 (2025-10-31)
+## 2     stats                        4.5.2
+## 3  graphics                        4.5.2
+</code></pre>
+<h2 id="2-smb-hml">2. 建構方向正確的 SMB 與 HML<a class="headerlink" href="#2-smb-hml" title="Permanent link">#</a></h2>
+<p>以六個規模 \(S/B\) 與帳面市值比 \(L/M/H\) 投資組合建立因子：</p>
+<p>\[
+\begin{aligned}
+SMB&amp;=(S_L+S_M+S_H)/3-(B_L+B_M+B_H)/3,\\
+HML&amp;=(S_H+B_H)/2-(S_L+B_L)/2.
+\end{aligned}
+\]</p>
+<pre><code class="language-r">n_total &lt;- 720
+portfolio_names &lt;- c(&quot;SL&quot;, &quot;SM&quot;, &quot;SH&quot;, &quot;BL&quot;, &quot;BM&quot;, &quot;BH&quot;)
+
+# 共同擾動讓六個基礎投資組合有合理的正相關。
+common &lt;- arima.sim(
+  model = list(ar = 0.10),
+  n = n_total, sd = 0.025
+)
+style_noise &lt;- matrix(
+  rnorm(n_total * length(portfolio_names), sd = 0.018),
+  nrow = n_total,
+  dimnames = list(NULL, portfolio_names)
+)
+base_portfolios &lt;- sweep(style_noise, 1, common, &quot;+&quot;)
+
+# 加入小型平均規模與價值溢酬；數值純屬模擬設計。
+base_portfolios[, c(&quot;SL&quot;, &quot;SM&quot;, &quot;SH&quot;)] &lt;-
+  base_portfolios[, c(&quot;SL&quot;, &quot;SM&quot;, &quot;SH&quot;)] + 0.0015
+base_portfolios[, c(&quot;SH&quot;, &quot;BH&quot;)] &lt;-
+  base_portfolios[, c(&quot;SH&quot;, &quot;BH&quot;)] + 0.0020
+
+SMB &lt;- rowMeans(base_portfolios[, c(&quot;SL&quot;, &quot;SM&quot;, &quot;SH&quot;)]) -
+  rowMeans(base_portfolios[, c(&quot;BL&quot;, &quot;BM&quot;, &quot;BH&quot;)])
+HML &lt;- rowMeans(base_portfolios[, c(&quot;SH&quot;, &quot;BH&quot;)]) -
+  rowMeans(base_portfolios[, c(&quot;SL&quot;, &quot;BL&quot;)])
+
+# 市場因子另行模擬；MKT 已是市場超額報酬。
+MKT &lt;- as.numeric(arima.sim(
+  model = list(ar = 0.12),
+  n = n_total, sd = 0.035
+)) + 0.004
+
+factors &lt;- data.frame(
+  month = seq_len(n_total),
+  MKT = MKT,
+  SMB = SMB,
+  HML = HML
+)
+head(factors)
+</code></pre>
+<pre><code>##   month          MKT          SMB          HML
+## 1     1 -0.009539671 -0.007736603 -0.007997446
+## 2     2 -0.029083750 -0.002171098 -0.036089712
+## 3     3 -0.045304436  0.014443442  0.004514239
+## 4     4 -0.003159349  0.001501598  0.013537953
+## 5     5 -0.042868669  0.015459097 -0.017965287
+## 6     6  0.007852383  0.018886008  0.014791961
+</code></pre>
+<h3 id="21-hml">2.1 HML 符號單元測試<a class="headerlink" href="#21-hml" title="Permanent link">#</a></h3>
+<p>若所有高帳面市值比投資組合各增加一個單位，HML 必須增加一個單位；若低比率投資組合各增加一個單位，HML 必須下降一個單位。</p>
+<pre><code class="language-r">make_hml &lt;- function(x) {
+  rowMeans(x[, c(&quot;SH&quot;, &quot;BH&quot;), drop = FALSE]) -
+    rowMeans(x[, c(&quot;SL&quot;, &quot;BL&quot;), drop = FALSE])
+}
+
+toy &lt;- base_portfolios[1:5, , drop = FALSE]
+high_up &lt;- toy
+high_up[, c(&quot;SH&quot;, &quot;BH&quot;)] &lt;- high_up[, c(&quot;SH&quot;, &quot;BH&quot;)] + 1
+low_up &lt;- toy
+low_up[, c(&quot;SL&quot;, &quot;BL&quot;)] &lt;- low_up[, c(&quot;SL&quot;, &quot;BL&quot;)] + 1
+
+stopifnot(
+  isTRUE(all.equal(make_hml(high_up) - make_hml(toy), rep(1, 5))),
+  isTRUE(all.equal(make_hml(low_up) - make_hml(toy), rep(-1, 5)))
+)
+
+data.frame(
+  change = c(&quot;高 B/M 組合 +1&quot;, &quot;低 B/M 組合 +1&quot;),
+  HML_change = c(
+    mean(make_hml(high_up) - make_hml(toy)),
+    mean(make_hml(low_up) - make_hml(toy))
+  )
+)
+</code></pre>
+<pre><code>##           change HML_change
+## 1 高 B/M 組合 +1          1
+## 2 低 B/M 組合 +1         -1
+</code></pre>
+<h2 id="3">3. 模擬六個資產報酬<a class="headerlink" href="#3" title="Permanent link">#</a></h2>
+<p>令資產超額報酬由三因子曝險加上個別新衝擊產生。</p>
+<pre><code class="language-r">beta_true &lt;- rbind(
+  Asset1 = c(MKT = 1.10, SMB = 0.40, HML = -0.20),
+  Asset2 = c(MKT = 0.75, SMB = -0.15, HML = 0.60),
+  Asset3 = c(MKT = 1.30, SMB = 0.70, HML = 0.20),
+  Asset4 = c(MKT = 0.55, SMB = -0.30, HML = -0.40),
+  Asset5 = c(MKT = 1.00, SMB = 0.10, HML = 0.80),
+  Asset6 = c(MKT = 0.90, SMB = 0.55, HML = -0.55)
+)
+alpha_true &lt;- c(0.0000, 0.0005, 0.0000, -0.0003, 0.0000, 0.0002)
+
+factor_matrix &lt;- as.matrix(factors[, c(&quot;MKT&quot;, &quot;SMB&quot;, &quot;HML&quot;)])
+idiosyncratic &lt;- matrix(
+  rnorm(n_total * nrow(beta_true), sd = 0.025),
+  nrow = n_total
+)
+excess_return &lt;- factor_matrix %*% t(beta_true) +
+  matrix(alpha_true, nrow = n_total, ncol = nrow(beta_true),
+         byrow = TRUE) +
+  idiosyncratic
+colnames(excess_return) &lt;- rownames(beta_true)
+
+rf_monthly &lt;- 0.001
+total_return &lt;- excess_return + rf_monthly
+
+train_id &lt;- 1:480
+valid_id &lt;- 481:600
+test_id &lt;- 601:720
+stopifnot(max(train_id) &lt; min(valid_id), max(valid_id) &lt; min(test_id))
+</code></pre>
+<h2 id="4">4. 投資組合代數<a class="headerlink" href="#4" title="Permanent link">#</a></h2>
+<h3 id="41">4.1 由訓練期估計平均數與共變異數<a class="headerlink" href="#41" title="Permanent link">#</a></h3>
+<pre><code class="language-r">mu_train &lt;- colMeans(total_return[train_id, , drop = FALSE])
+Sigma_train &lt;- cov(total_return[train_id, , drop = FALSE])
+
+portfolio_moments &lt;- function(w, mu, Sigma) {
+  stopifnot(length(w) == length(mu), abs(sum(w) - 1) &lt; 1e-8)
+  c(
+    expected_return = drop(crossprod(w, mu)),
+    variance = drop(t(w) %*% Sigma %*% w),
+    standard_deviation = sqrt(drop(t(w) %*% Sigma %*% w))
+  )
+}
+</code></pre>
+<h3 id="42-gmv-gmv">4.2 等權重、GMV 與穩定化 GMV<a class="headerlink" href="#42-gmv-gmv" title="Permanent link">#</a></h3>
+<pre><code class="language-r">n_asset &lt;- ncol(total_return)
+w_equal &lt;- rep(1 / n_asset, n_asset)
+
+gmv_weights &lt;- function(Sigma) {
+  one &lt;- rep(1, nrow(Sigma))
+  raw &lt;- solve(Sigma, one)
+  drop(raw / sum(raw))
+}
+
+w_gmv &lt;- gmv_weights(Sigma_train)
+
+# 向對角矩陣收縮，降低小特徵值造成的極端權重。
+shrinkage &lt;- 0.25
+Sigma_shrunk &lt;- (1 - shrinkage) * Sigma_train +
+  shrinkage * diag(diag(Sigma_train))
+w_gmv_shrunk &lt;- gmv_weights(Sigma_shrunk)
+
+weights &lt;- rbind(
+  Equal = w_equal,
+  GMV = w_gmv,
+  Shrunk_GMV = w_gmv_shrunk
+)
+colnames(weights) &lt;- colnames(total_return)
+round(weights, 4)
+</code></pre>
+<pre><code>##             Asset1 Asset2  Asset3 Asset4 Asset5 Asset6
+## Equal       0.1667 0.1667  0.1667 0.1667 0.1667 0.1667
+## GMV        -0.0654 0.3320 -0.1576 0.6078 0.0745 0.2086
+## Shrunk_GMV -0.0013 0.2767 -0.0543 0.5405 0.0719 0.1665
+</code></pre>
+<pre><code class="language-r">t(apply(weights, 1, portfolio_moments,
+        mu = mu_train, Sigma = Sigma_train))
+</code></pre>
+<pre><code>##            expected_return     variance standard_deviation
+## Equal          0.006693737 0.0012141421         0.03484454
+## GMV            0.003314328 0.0007166275         0.02676990
+## Shrunk_GMV     0.003896037 0.0007451363         0.02729718
+</code></pre>
+<h3 id="43">4.3 真正向前的測試期績效<a class="headerlink" href="#43" title="Permanent link">#</a></h3>
+<p>權重在進入測試期前即鎖定。以下績效只使用測試期實現報酬；這是可行的靜態保留期評估。</p>
+<pre><code class="language-r">portfolio_path &lt;- function(return_matrix, w) {
+  drop(return_matrix %*% w)
+}
+
+max_drawdown &lt;- function(r) {
+  wealth &lt;- cumprod(1 + r)
+  drawdown &lt;- wealth / cummax(c(1, wealth))[-1] - 1
+  min(drawdown)
+}
+
+performance &lt;- t(apply(weights, 1, function(w) {
+  r &lt;- portfolio_path(total_return[test_id, , drop = FALSE], w)
+  c(
+    mean_monthly = mean(r),
+    sd_monthly = sd(r),
+    sharpe_monthly = mean(r - rf_monthly) / sd(r - rf_monthly),
+    max_drawdown = max_drawdown(r)
+  )
+}))
+performance
+</code></pre>
+<pre><code>##            mean_monthly sd_monthly sharpe_monthly max_drawdown
+## Equal       0.009111001 0.03694560      0.2195390   -0.1311641
+## GMV         0.004536931 0.02942022      0.1202211   -0.1683296
+## Shrunk_GMV  0.005601164 0.03019659      0.1523736   -0.1494338
+</code></pre>
+<pre><code class="language-r">wealth &lt;- sapply(seq_len(nrow(weights)), function(j) {
+  cumprod(1 + portfolio_path(
+    total_return[test_id, , drop = FALSE],
+    weights[j, ]
+  ))
+})
+matplot(
+  wealth, type = &quot;l&quot;, lty = 1, lwd = 1.2,
+  col = c(&quot;#173B57&quot;, &quot;#A34045&quot;, &quot;#3F7158&quot;),
+  xlab = &quot;測試期月份&quot;, ylab = &quot;累積財富&quot;,
+  main = &quot;只用訓練期權重的保留期績效&quot;
+)
+legend(
+  &quot;topleft&quot;, legend = rownames(weights),
+  col = c(&quot;#173B57&quot;, &quot;#A34045&quot;, &quot;#3F7158&quot;),
+  lty = 1, bty = &quot;n&quot;
+)
+</code></pre>
+<p><img alt="plot of chunk wealth-plot" src="./R09_portfolio_capm_factors_files/figure-gfm/wealth-plot-1.png"></p>
+<p>模擬中的勝負不是一般結論；重點是權重估計與績效期間已分離。</p>
+<h2 id="5-capm">5. CAPM 與三因子迴歸<a class="headerlink" href="#5-capm" title="Permanent link">#</a></h2>
+<h3 id="51">5.1 只用訓練期估計<a class="headerlink" href="#51" title="Permanent link">#</a></h3>
+<pre><code class="language-r">reg_data &lt;- data.frame(
+  y = excess_return[, &quot;Asset1&quot;],
+  factors[, c(&quot;MKT&quot;, &quot;SMB&quot;, &quot;HML&quot;)]
+)
+
+fit_capm &lt;- lm(y ~ MKT, data = reg_data, subset = train_id)
+fit_three &lt;- lm(y ~ MKT + SMB + HML,
+                data = reg_data, subset = train_id)
+
+rbind(
+  truth = c(
+    `(Intercept)` = alpha_true[1],
+    MKT = beta_true[&quot;Asset1&quot;, &quot;MKT&quot;],
+    SMB = beta_true[&quot;Asset1&quot;, &quot;SMB&quot;],
+    HML = beta_true[&quot;Asset1&quot;, &quot;HML&quot;]
+  ),
+  CAPM = c(coef(fit_capm), SMB = NA, HML = NA),
+  ThreeFactor = coef(fit_three)
+)
+</code></pre>
+<pre><code>##              (Intercept)      MKT      SMB        HML
+## truth       0.0000000000 1.100000 0.400000 -0.2000000
+## CAPM        0.0007645363 1.152039       NA         NA
+## ThreeFactor 0.0007656593 1.155590 0.456667 -0.1836672
+</code></pre>
+<p>CAPM 遺漏 SMB 與 HML 時，市場 beta 與 alpha 可能吸收相關的共同變動。即使三因子模型接近資料生成式，有限樣本估計仍不會等於真值。</p>
+<h3 id="52-r-newey-west-hac">5.2 基礎 R 的 Newey--West 型 HAC 共變異數<a class="headerlink" href="#52-r-newey-west-hac" title="Permanent link">#</a></h3>
+<pre><code class="language-r">newey_west_vcov &lt;- function(model, lag = 6) {
+  X &lt;- model.matrix(model)
+  e &lt;- residuals(model)
+  n &lt;- nrow(X)
+  stopifnot(lag &gt;= 0, lag &lt; n)
+
+  Xe &lt;- X * as.numeric(e)
+  meat &lt;- crossprod(Xe)
+  if (lag &gt; 0) {
+    for (ell in seq_len(lag)) {
+      weight &lt;- 1 - ell / (lag + 1)
+      Gamma &lt;- crossprod(
+        Xe[(ell + 1):n, , drop = FALSE],
+        Xe[1:(n - ell), , drop = FALSE]
+      )
+      meat &lt;- meat + weight * (Gamma + t(Gamma))
+    }
+  }
+  bread &lt;- solve(crossprod(X))
+  bread %*% meat %*% bread
+}
+
+V_hac &lt;- newey_west_vcov(fit_three, lag = 6)
+data.frame(
+  estimate = coef(fit_three),
+  HAC_se = sqrt(diag(V_hac)),
+  row.names = names(coef(fit_three))
+)
+</code></pre>
+<pre><code>##                  estimate      HAC_se
+## (Intercept)  0.0007656593 0.001254279
+## MKT          1.1555902572 0.035825092
+## SMB          0.4566670111 0.077520367
+## HML         -0.1836672223 0.066937074
+</code></pre>
+<p>這是教學實作；正式分析還要依資料頻率、重疊報酬與條件異質變異選擇落後期數及有限樣本修正。</p>
+<h2 id="6-hml">6. HML 反向會發生什麼？<a class="headerlink" href="#6-hml" title="Permanent link">#</a></h2>
+<p>若錯把 HML 寫成 low minus high，整列因子乘以 \(-1\)。迴歸配適值可以完全相同，但 HML beta 反號，經濟解讀也必須反向。</p>
+<pre><code class="language-r">reg_wrong &lt;- transform(reg_data, HML_wrong = -HML)
+fit_wrong &lt;- lm(
+  y ~ MKT + SMB + HML_wrong,
+  data = reg_wrong, subset = train_id
+)
+
+c(
+  correct_HML_beta = coef(fit_three)[&quot;HML&quot;],
+  reversed_HML_beta = coef(fit_wrong)[&quot;HML_wrong&quot;],
+  maximum_fitted_difference = max(abs(
+    fitted(fit_three) - fitted(fit_wrong)
+  ))
+)
+</code></pre>
+<pre><code>##        correct_HML_beta.HML reversed_HML_beta.HML_wrong 
+##                  -0.1836672                   0.1836672 
+##   maximum_fitted_difference 
+##                   0.0000000
+</code></pre>
+<pre><code class="language-r">stopifnot(
+  isTRUE(all.equal(
+    unname(coef(fit_three)[&quot;HML&quot;]),
+    -unname(coef(fit_wrong)[&quot;HML_wrong&quot;]),
+    tolerance = 1e-10
+  ))
+)
+</code></pre>
+<h2 id="7">7. 條件重建，不冒充事前預測<a class="headerlink" href="#7" title="Permanent link">#</a></h2>
+<p>用訓練期係數與驗證／測試期「同期已實現」因子重建同期資產報酬。這可比較因子集合的條件解釋能力，但因子在月初尚未實現，所以不是可交易的月初預測。</p>
+<pre><code class="language-r">reconstruction_error &lt;- function(model, newdata, actual) {
+  predicted &lt;- predict(model, newdata = newdata)
+  c(
+    RMSE = sqrt(mean((actual - predicted)^2)),
+    MAE = mean(abs(actual - predicted))
+  )
+}
+
+reconstruction &lt;- rbind(
+  CAPM_validation = reconstruction_error(
+    fit_capm, reg_data[valid_id, ],
+    reg_data$y[valid_id]
+  ),
+  ThreeFactor_validation = reconstruction_error(
+    fit_three, reg_data[valid_id, ],
+    reg_data$y[valid_id]
+  ),
+  CAPM_test = reconstruction_error(
+    fit_capm, reg_data[test_id, ],
+    reg_data$y[test_id]
+  ),
+  ThreeFactor_test = reconstruction_error(
+    fit_three, reg_data[test_id, ],
+    reg_data$y[test_id]
+  )
+)
+reconstruction
+</code></pre>
+<pre><code>##                              RMSE        MAE
+## CAPM_validation        0.02543935 0.02078985
+## ThreeFactor_validation 0.02442712 0.01957688
+## CAPM_test              0.02422435 0.01913302
+## ThreeFactor_test       0.02442523 0.01974323
+</code></pre>
+<p>若要做真正事前預測，必須在每個預測起點另行預測 MKT、SMB 與 HML，或建立直接預測資產報酬的模型；該因子預測也只能使用當時資訊。</p>
+<h2 id="8">8. 可重現結論<a class="headerlink" href="#8" title="Permanent link">#</a></h2>
+<p>本附錄建立了以下防線：</p>
+<ol>
+<li>HML 由函數與單元測試固定為 high minus low；</li>
+<li>投資組合權重只由訓練期平均數與共變異數決定；</li>
+<li>CAPM 與三因子 beta 只在訓練期估計；</li>
+<li>使用同期測試因子的結果只稱為條件重建；</li>
+<li>所有資料皆為明確標示的合成教學資料。</li>
+</ol>
+<pre><code class="language-r">sessionInfo()
+</code></pre>
+<pre><code>## R version 4.5.2 (2025-10-31)
+## Platform: aarch64-apple-darwin20
+## Running under: macOS Tahoe 26.5.1
+## 
+## Matrix products: default
+## BLAS:   /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib 
+## LAPACK: /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.1
+## 
+## locale:
+## [1] C.UTF-8/C.UTF-8/C.UTF-8/C/C.UTF-8/C.UTF-8
+## 
+## time zone: Asia/Tokyo
+## tzcode source: internal
+## 
+## attached base packages:
+## [1] stats     graphics  grDevices utils     datasets  methods   base     
+## 
+## other attached packages:
+## [1] tibble_3.3.0 dplyr_1.2.1 
+## 
+## loaded via a namespace (and not attached):
+##  [1] utf8_1.2.6       R6_2.6.1         tidyselect_1.2.1 xfun_0.57       
+##  [5] magrittr_2.0.4   glue_1.8.0       knitr_1.51       pkgconfig_2.0.3 
+##  [9] generics_0.1.4   lifecycle_1.0.5  cli_3.6.5        vctrs_0.7.2     
+## [13] withr_3.0.2      compiler_4.5.2   tools_4.5.2      evaluate_1.0.5  
+## [17] pillar_1.11.1    otel_0.2.0       rlang_1.1.7
+</code></pre>
+      </article>
+      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R08_arch_garch_asymmetry_forecasting.html">← ARCH、GARCH、非對稱波動與預測</a><a rel="next" href="R10_pca_factor_analysis.html">PCA 與因子分析 →</a></nav>
+      <footer>© 陳釗而　《財務時間序列分析》</footer>
+    </main>
+    <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
+<ul>
+<li><a href="#1">1. 軟體與資訊時點</a></li>
+<li><a href="#2-smb-hml">2. 建構方向正確的 SMB 與 HML</a><ul>
+<li><a href="#21-hml">2.1 HML 符號單元測試</a></li>
+</ul>
+</li>
+<li><a href="#3">3. 模擬六個資產報酬</a></li>
+<li><a href="#4">4. 投資組合代數</a><ul>
+<li><a href="#41">4.1 由訓練期估計平均數與共變異數</a></li>
+<li><a href="#42-gmv-gmv">4.2 等權重、GMV 與穩定化 GMV</a></li>
+<li><a href="#43">4.3 真正向前的測試期績效</a></li>
+</ul>
+</li>
+<li><a href="#5-capm">5. CAPM 與三因子迴歸</a><ul>
+<li><a href="#51">5.1 只用訓練期估計</a></li>
+<li><a href="#52-r-newey-west-hac">5.2 基礎 R 的 Newey--West 型 HAC 共變異數</a></li>
+</ul>
+</li>
+<li><a href="#6-hml">6. HML 反向會發生什麼？</a></li>
+<li><a href="#7">7. 條件重建，不冒充事前預測</a></li>
+<li><a href="#8">8. 可重現結論</a></li>
+</ul>
+</div>
+</aside>
+  </div>
+</body>
+</html>

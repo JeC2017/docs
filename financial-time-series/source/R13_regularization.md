@@ -1,0 +1,490 @@
+---
+title: "R13：Ridge、LASSO、Elastic Net 與 post-LASSO"
+output:
+  github_document:
+    toc: true
+    toc_depth: 3
+---
+
+本附錄對應第 17--18 章。目標是以日本月資料預測下一期日本股市報酬，並比較 OLS、Ridge、LASSO、Elastic Net 與 post-LASSO。所有資料均來自專案的固定檔，不安裝套件、不改工作目錄，也不連線下載。
+
+## 執行環境與資料
+
+- R 4.1 以上；除 `knitr` 負責轉檔外，只使用 base R。
+- 資料：`data/processed/japan_monthly_2007_2018.csv`。
+- 建置紀錄與 MD5：`data/processed/manifest.csv`。
+- 從教科書專案根目錄 knit；路徑均為相對路徑。
+
+
+``` r
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 7,
+  fig.height = 4.5
+)
+set.seed(20260716)
+```
+
+
+``` r
+data_path <- "data/processed/japan_monthly_2007_2018.csv"
+manifest_path <- "data/processed/manifest.csv"
+stopifnot(file.exists(data_path), file.exists(manifest_path))
+
+manifest <- read.csv(manifest_path, stringsAsFactors = FALSE)
+jp <- read.csv(data_path, stringsAsFactors = FALSE, check.names = FALSE)
+jp$date <- as.Date(jp$date)
+jp <- jp[order(jp$date), ]
+
+stopifnot(nrow(jp) == 133L, ncol(jp) == 30L)
+manifest[grepl("japan_monthly", manifest$file), ]
+```
+
+```
+##                                         file rows columns
+## 2 data/processed/japan_monthly_2007_2018.csv  133      30
+##                                md5                built_at
+## 2 3fd45a6a7a8d26e29d48f1c2f1497ad8 2026-07-16 07:35:23 UTC
+```
+
+## 建立可實現的下一期 target
+
+第 \(t\) 月的預測變數只能預測第 \(t+1\) 月的 `return_j`。日期、當期目標與下一期才會知道的值不進入預測變數矩陣。缺值列在完成時間對齊後一次處理。
+
+
+``` r
+jp$target_next <- c(jp$return_j[-1], NA_real_)
+predictor_names <- setdiff(
+  names(jp),
+  c("date", "return_j", "target_next")
+)
+
+model_df <- jp[, c("date", "target_next", predictor_names)]
+model_df <- model_df[complete.cases(model_df), ]
+X_raw <- as.matrix(model_df[, predictor_names])
+storage.mode(X_raw) <- "double"
+y <- model_df$target_next
+dates <- model_df$date
+
+c(observations = length(y), predictors = ncol(X_raw))
+```
+
+```
+## observations   predictors 
+##          131           28
+```
+
+``` r
+head(data.frame(predictor_month = dates, target_next = y), 3)
+```
+
+```
+##   predictor_month target_next
+## 1      2007-11-01   0.1385835
+## 2      2007-12-01  -4.5285968
+## 3      2008-01-01  -1.0026484
+```
+
+## 只由訓練資料估計前處理
+
+
+``` r
+prep_x <- function(X_train, X_new = NULL) {
+  mu <- colMeans(X_train)
+  s <- apply(X_train, 2, sd)
+  keep <- is.finite(s) & s > 1e-10
+  X_train_s <- sweep(sweep(X_train[, keep, drop = FALSE], 2, mu[keep]),
+                       2, s[keep], "/")
+  ans <- list(
+    train = X_train_s,
+    mean = mu[keep],
+    sd = s[keep],
+    keep = keep
+  )
+  if (!is.null(X_new)) {
+    ans$new <- sweep(sweep(X_new[, keep, drop = FALSE], 2, mu[keep]),
+                     2, s[keep], "/")
+  }
+  ans
+}
+
+soft_threshold <- function(z, penalty) {
+  sign(z) * pmax(abs(z) - penalty, 0)
+}
+```
+
+## 三種正則化估計器
+
+以下目標函數均為
+
+\[
+\frac{1}{2n}\lVert y-Xb\rVert_2^2+
+\lambda\left\{\alpha\lVert b\rVert_1+
+\frac{1-\alpha}{2}\lVert b\rVert_2^2\right\}.
+\]
+
+
+``` r
+fit_ridge <- function(X, y_centered, lambda) {
+  p <- ncol(X)
+  solve(crossprod(X) / nrow(X) + lambda * diag(p),
+        crossprod(X, y_centered) / nrow(X))[, 1]
+}
+
+fit_enet_cd <- function(X, y_centered, lambda, alpha = 1,
+                        max_iter = 5000L, tol = 1e-8) {
+  n <- nrow(X)
+  p <- ncol(X)
+  beta <- numeric(p)
+  residual <- y_centered
+  x2 <- colSums(X^2) / n
+
+  for (iter in seq_len(max_iter)) {
+    beta_old <- beta
+    for (j in seq_len(p)) {
+      residual <- residual + X[, j] * beta[j]
+      z <- sum(X[, j] * residual) / n
+      beta[j] <- soft_threshold(z, lambda * alpha) /
+        (x2[j] + lambda * (1 - alpha))
+      residual <- residual - X[, j] * beta[j]
+    }
+    if (max(abs(beta - beta_old)) < tol) break
+  }
+  attr(beta, "iterations") <- iter
+  beta
+}
+
+predict_scaled <- function(X_train, y_train, X_new,
+                           lambda, method, alpha = 1) {
+  pp <- prep_x(X_train, X_new)
+  y_bar <- mean(y_train)
+  yc <- y_train - y_bar
+  beta <- switch(
+    method,
+    ridge = fit_ridge(pp$train, yc, lambda),
+    enet = fit_enet_cd(pp$train, yc, lambda, alpha)
+  )
+  list(
+    pred = as.numeric(y_bar + pp$new %*% beta),
+    beta = beta,
+    names = colnames(pp$train),
+    y_bar = y_bar,
+    prep = pp
+  )
+}
+```
+
+## 依時間排序的驗證折
+
+最末 25% 留作最終測試集。前 75% 內使用展開視窗；沒有任何月份被隨機洗牌。
+
+
+``` r
+n <- length(y)
+test_start <- floor(0.75 * n) + 1L
+idx_tv <- seq_len(test_start - 1L)
+idx_test <- test_start:n
+
+validation_size <- 8L
+first_train <- max(45L, floor(0.55 * length(idx_tv)))
+train_ends <- unique(as.integer(seq(
+  first_train,
+  length(idx_tv) - validation_size,
+  length.out = 4
+)))
+
+folds <- lapply(train_ends, function(e) {
+  list(train = seq_len(e), validation = (e + 1L):(e + validation_size))
+})
+
+data.frame(
+  train_end = dates[vapply(folds, function(z) max(z$train), integer(1))],
+  validation_start = dates[vapply(folds, function(z) min(z$validation), integer(1))],
+  validation_end = dates[vapply(folds, function(z) max(z$validation), integer(1))]
+)
+```
+
+```
+##    train_end validation_start validation_end
+## 1 2012-03-01       2012-04-01     2012-11-01
+## 2 2013-03-01       2013-04-01     2013-11-01
+## 3 2014-03-01       2014-04-01     2014-11-01
+## 4 2015-04-01       2015-05-01     2015-12-01
+```
+
+## 調校 \(\lambda\) 與 \(\alpha\)
+
+LASSO/Elastic Net 的網格以第一個訓練折的 `lambda_max` 為尺度；Ridge 使用較寬的正值網格。每一折都重新估計中心與尺度。
+
+
+``` r
+pp0 <- prep_x(X_raw[folds[[1]]$train, , drop = FALSE])
+y0 <- y[folds[[1]]$train]
+lambda_max <- max(abs(crossprod(pp0$train, y0 - mean(y0)))) /
+  length(y0)
+lambda_enet <- exp(seq(log(lambda_max), log(lambda_max * 0.01), length.out = 24))
+lambda_ridge <- exp(seq(log(1e-4), log(10), length.out = 24))
+
+cv_loss <- function(lambda_grid, method, alpha = 1) {
+  out <- matrix(NA_real_, nrow = length(folds), ncol = length(lambda_grid))
+  for (v in seq_along(folds)) {
+    tr <- folds[[v]]$train
+    va <- folds[[v]]$validation
+    for (j in seq_along(lambda_grid)) {
+      fit <- predict_scaled(
+        X_raw[tr, , drop = FALSE], y[tr],
+        X_raw[va, , drop = FALSE],
+        lambda = lambda_grid[j], method = method, alpha = alpha
+      )
+      out[v, j] <- mean((y[va] - fit$pred)^2)
+    }
+  }
+  colMeans(out)
+}
+
+loss_ridge <- cv_loss(lambda_ridge, "ridge")
+loss_lasso <- cv_loss(lambda_enet, "enet", alpha = 1)
+loss_enet <- cv_loss(lambda_enet, "enet", alpha = 0.5)
+
+best_ridge <- lambda_ridge[which.min(loss_ridge)]
+best_lasso <- lambda_enet[which.min(loss_lasso)]
+best_enet <- lambda_enet[which.min(loss_enet)]
+
+data.frame(
+  model = c("Ridge", "LASSO", "Elastic Net"),
+  lambda = c(best_ridge, best_lasso, best_enet),
+  validation_mse = c(min(loss_ridge), min(loss_lasso), min(loss_enet))
+)
+```
+
+```
+##         model     lambda validation_mse
+## 1       Ridge 10.0000000       5.043338
+## 2       LASSO  0.9337265       5.265368
+## 3 Elastic Net  0.9337265       6.010483
+```
+
+
+``` r
+plot(log(lambda_ridge), loss_ridge, type = "l", lwd = 2,
+     xlab = "log(lambda)", ylab = "Validation MSE", col = "#173B57")
+lines(log(lambda_enet), loss_lasso, lwd = 2, col = "#A34045")
+lines(log(lambda_enet), loss_enet, lwd = 2, col = "#1D6D73")
+legend("topleft", c("Ridge", "LASSO", "Elastic Net"),
+       col = c("#173B57", "#A34045", "#1D6D73"), lwd = 2, bty = "n")
+```
+
+![Expanding-window validation MSE。](./R13_regularization_files/figure-gfm/validation-plot-1.png)
+
+## 在完全未見的測試期間比較模型
+
+
+``` r
+X_tv <- X_raw[idx_tv, , drop = FALSE]
+y_tv <- y[idx_tv]
+X_test <- X_raw[idx_test, , drop = FALSE]
+y_test <- y[idx_test]
+
+ridge <- predict_scaled(X_tv, y_tv, X_test, best_ridge, "ridge")
+lasso <- predict_scaled(X_tv, y_tv, X_test, best_lasso, "enet", alpha = 1)
+enet <- predict_scaled(X_tv, y_tv, X_test, best_enet, "enet", alpha = 0.5)
+
+# 以 QR pivot 選出線性獨立欄，再估計一個明確、可重現的降秩 OLS。
+# 在秩虧設計下，完整係數向量不唯一；此基準不作結構性係數解讀。
+rank_reduced_ols_predict <- function(X_train, y_train, X_new,
+                                     tolerance = 1e-8) {
+  X_train <- cbind(Intercept = 1, as.matrix(X_train))
+  X_new <- cbind(Intercept = 1, as.matrix(X_new))
+  qrx <- qr(X_train, tol = tolerance, LAPACK = FALSE)
+  keep <- sort(qrx$pivot[seq_len(qrx$rank)])
+  fit <- lm.fit(X_train[, keep, drop = FALSE], y_train)
+  prediction <- as.numeric(
+    X_new[, keep, drop = FALSE] %*% fit$coefficients
+  )
+  stopifnot(all(is.finite(prediction)))
+  list(
+    pred = prediction,
+    rank = qrx$rank,
+    columns = ncol(X_train),
+    kept = colnames(X_train)[keep],
+    dropped = setdiff(colnames(X_train), colnames(X_train)[keep])
+  )
+}
+
+ols <- rank_reduced_ols_predict(X_tv, y_tv, X_test)
+ols_pred <- ols$pred
+data.frame(
+  benchmark = "QR rank-reduced OLS",
+  design_columns = ols$columns,
+  numerical_rank = ols$rank,
+  dropped_columns = length(ols$dropped)
+)
+```
+
+```
+##             benchmark design_columns numerical_rank dropped_columns
+## 1 QR rank-reduced OLS             29             28               1
+```
+
+``` r
+# post-LASSO：先選，再在相同 training+validation 上重新 OLS。
+selected <- which(abs(lasso$beta) > 1e-8)
+if (length(selected) == 0L) {
+  post_pred <- rep(mean(y_tv), length(y_test))
+  post_rank <- 1L
+} else {
+  pp_final <- lasso$prep
+  post_fit <- rank_reduced_ols_predict(
+    pp_final$train[, selected, drop = FALSE],
+    y_tv,
+    pp_final$new[, selected, drop = FALSE]
+  )
+  post_pred <- post_fit$pred
+  post_rank <- post_fit$rank
+}
+
+pred <- data.frame(
+  date = dates[idx_test],
+  actual = y_test,
+  HistoricalMean = rep(mean(y_tv), length(y_test)),
+  OLS_QR = ols_pred,
+  Ridge = ridge$pred,
+  LASSO = lasso$pred,
+  ElasticNet = enet$pred,
+  PostLASSO = post_pred
+)
+
+stopifnot(all(vapply(
+  pred[setdiff(names(pred), "date")],
+  function(x) all(is.finite(x)),
+  logical(1)
+)))
+```
+
+
+``` r
+score <- function(actual, forecast, baseline) {
+  mse <- mean((actual - forecast)^2)
+  c(
+    MSE = mse,
+    MAE = mean(abs(actual - forecast)),
+    OOS_R2 = 1 - mse / mean((actual - baseline)^2)
+  )
+}
+
+model_names <- setdiff(names(pred), c("date", "actual", "HistoricalMean"))
+metrics <- t(vapply(
+  model_names,
+  function(nm) score(pred$actual, pred[[nm]], pred$HistoricalMean),
+  numeric(3)
+))
+stopifnot(all(is.finite(metrics)))
+round(metrics, 4)
+```
+
+```
+##                MSE    MAE  OOS_R2
+## OLS_QR     14.4723 3.3798 -6.8969
+## Ridge       1.7155 0.9942  0.0639
+## LASSO       1.8327 1.0738  0.0000
+## ElasticNet  1.7736 1.0383  0.0322
+## PostLASSO   1.8327 1.0738  0.0000
+```
+
+
+``` r
+coef_table <- data.frame(
+  predictor = lasso$names,
+  lasso = lasso$beta,
+  elastic_net = enet$beta
+)
+coef_table <- coef_table[order(abs(coef_table$lasso), decreasing = TRUE), ]
+head(coef_table, 12)
+```
+
+```
+##     predictor lasso  elastic_net
+## 1         spj     0  0.000000000
+## 2         rer     0  0.000000000
+## 3  rer_change     0  0.000000000
+## 4         ipi     0 -0.008832594
+## 5  ipi_change     0  0.000000000
+## 6         inr     0 -0.167632041
+## 7  inr_change     0  0.000000000
+## 8         spf     0  0.000000000
+## 9    return_f     0  0.019628847
+## 10        unr     0  0.000000000
+## 11 unr_change     0  0.000000000
+## 12        cpi     0  0.000000000
+```
+
+``` r
+cat("LASSO nonzero predictors:", sum(abs(lasso$beta) > 1e-8), "\n")
+```
+
+```
+## LASSO nonzero predictors: 0
+```
+
+
+``` r
+matplot(
+  pred$date,
+  pred[, c("actual", "Ridge", "LASSO", "ElasticNet")],
+  type = "l", lty = c(1, 2, 3, 4), lwd = c(2, 1.5, 1.5, 1.5),
+  col = c("black", "#173B57", "#A34045", "#1D6D73"),
+  xlab = "Predictor month", ylab = "Next-month return"
+)
+legend(
+  "topleft", c("Actual", "Ridge", "LASSO", "Elastic Net"),
+  lty = c(1, 2, 3, 4), lwd = c(2, 1.5, 1.5, 1.5),
+  col = c("black", "#173B57", "#A34045", "#1D6D73"), bty = "n"
+)
+```
+
+![最終 test period：實現值與正則化預測。](./R13_regularization_files/figure-gfm/test-plot-1.png)
+
+## 解讀限制
+
+1. 這是小樣本預測示範，不是日本股市風險溢酬的結構估計。
+2. `return_j` 的單位沿用凍結檔；不可與未核對單位的外部報酬直接合併。
+3. 非零 LASSO 係數表示在這個字典、切割與損失下被使用，不等於顯著或因果。
+4. 測試集沒有參與調校；若看完測試結果後改模型，必須另留新的測試期。
+
+
+``` r
+sessionInfo()
+```
+
+```
+## R version 4.5.2 (2025-10-31)
+## Platform: aarch64-apple-darwin20
+## Running under: macOS Tahoe 26.5.1
+## 
+## Matrix products: default
+## BLAS:   /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib 
+## LAPACK: /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.1
+## 
+## locale:
+## [1] C.UTF-8/C.UTF-8/C.UTF-8/C/C.UTF-8/C.UTF-8
+## 
+## time zone: Asia/Tokyo
+## tzcode source: internal
+## 
+## attached base packages:
+## [1] stats     graphics  grDevices utils     datasets  methods   base     
+## 
+## other attached packages:
+## [1] tibble_3.3.0 dplyr_1.2.1 
+## 
+## loaded via a namespace (and not attached):
+##  [1] vctrs_0.7.2        cli_3.6.5          knitr_1.51         rlang_1.1.7       
+##  [5] xfun_0.57          otel_0.2.0         MatrixModels_0.5-4 generics_0.1.4    
+##  [9] glue_1.8.0         grid_4.5.2         evaluate_1.0.5     SparseM_1.84-2    
+## [13] MASS_7.3-65        lifecycle_1.0.5    compiler_4.5.2     pkgconfig_2.0.3   
+## [17] quantreg_6.1       lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1  
+## [21] utf8_1.2.6         splines_4.5.2      pillar_1.11.1      magrittr_2.0.4    
+## [25] Matrix_1.7-4       tools_4.5.2        withr_3.0.2        survival_3.8-3
+```

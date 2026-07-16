@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="《財務時間序列分析》R 線上附錄：R13：Ridge、LASSO、Elastic Net 與 post-LASSO">
+  <title>R13：Ridge、LASSO、Elastic Net 與 post-LASSO｜財務時間序列分析</title>
+  <link rel="stylesheet" href="assets/site.css">
+  <script>
+    window.MathJax = {
+      tex: {inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']]},
+      svg: {fontCache: 'local'},
+      options: {skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']}
+    };
+  </script>
+  <script defer src="assets/mathjax-loader.js"></script>
+  <script defer src="assets/site.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要內容</a>
+  <header class="site-header">
+    <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
+    <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
+    <a class="policy-link" href="data-policy.html">資料政策</a>
+  </header>
+  <div class="layout">
+    <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
+      <p class="sidebar-title">線上附錄</p>
+      <ol><li><a href="index.html">首頁</a></li>
+<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
+<li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
+<li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
+<li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與經驗特徵</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA 模擬</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html">R09　投資組合、CAPM 與財務因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R13_regularization.html" aria-current="page" class="active">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
+<li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
+<li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
+    </nav>
+    <main id="main-content" class="content">
+      <div class="publication-note">
+        本網站提供作者執行後的教學內容與程式原始檔；未經確認可再散布的原始資料不隨網站發布。
+        詳見<a href="data-policy.html">資料與重現政策</a>。
+      </div>
+      <article>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R13：Ridge、LASSO、Elastic Net 與 post-LASSO</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R13_regularization.Rmd">R Markdown 原始檔</a><a href="source/R13_regularization.md">執行後 Markdown</a></div></header>
+        <p>本附錄對應第 17--18 章。目標是以日本月資料預測下一期日本股市報酬，並比較 OLS、Ridge、LASSO、Elastic Net 與 post-LASSO。所有資料均來自專案的固定檔，不安裝套件、不改工作目錄，也不連線下載。</p>
+<h2 id="_1">執行環境與資料<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
+<ul>
+<li>R 4.1 以上；除 <code>knitr</code> 負責轉檔外，只使用 base R。</li>
+<li>資料：<code>data/processed/japan_monthly_2007_2018.csv</code>。</li>
+<li>建置紀錄與 MD5：<code>data/processed/manifest.csv</code>。</li>
+<li>從教科書專案根目錄 knit；路徑均為相對路徑。</li>
+</ul>
+<pre><code class="language-r">knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 7,
+  fig.height = 4.5
+)
+set.seed(20260716)
+</code></pre>
+<pre><code class="language-r">data_path &lt;- &quot;data/processed/japan_monthly_2007_2018.csv&quot;
+manifest_path &lt;- &quot;data/processed/manifest.csv&quot;
+stopifnot(file.exists(data_path), file.exists(manifest_path))
+
+manifest &lt;- read.csv(manifest_path, stringsAsFactors = FALSE)
+jp &lt;- read.csv(data_path, stringsAsFactors = FALSE, check.names = FALSE)
+jp$date &lt;- as.Date(jp$date)
+jp &lt;- jp[order(jp$date), ]
+
+stopifnot(nrow(jp) == 133L, ncol(jp) == 30L)
+manifest[grepl(&quot;japan_monthly&quot;, manifest$file), ]
+</code></pre>
+<pre><code>##                                         file rows columns
+## 2 data/processed/japan_monthly_2007_2018.csv  133      30
+##                                md5                built_at
+## 2 3fd45a6a7a8d26e29d48f1c2f1497ad8 2026-07-16 07:35:23 UTC
+</code></pre>
+<h2 id="target">建立可實現的下一期 target<a class="headerlink" href="#target" title="Permanent link">#</a></h2>
+<p>第 \(t\) 月的預測變數只能預測第 \(t+1\) 月的 <code>return_j</code>。日期、當期目標與下一期才會知道的值不進入預測變數矩陣。缺值列在完成時間對齊後一次處理。</p>
+<pre><code class="language-r">jp$target_next &lt;- c(jp$return_j[-1], NA_real_)
+predictor_names &lt;- setdiff(
+  names(jp),
+  c(&quot;date&quot;, &quot;return_j&quot;, &quot;target_next&quot;)
+)
+
+model_df &lt;- jp[, c(&quot;date&quot;, &quot;target_next&quot;, predictor_names)]
+model_df &lt;- model_df[complete.cases(model_df), ]
+X_raw &lt;- as.matrix(model_df[, predictor_names])
+storage.mode(X_raw) &lt;- &quot;double&quot;
+y &lt;- model_df$target_next
+dates &lt;- model_df$date
+
+c(observations = length(y), predictors = ncol(X_raw))
+</code></pre>
+<pre><code>## observations   predictors 
+##          131           28
+</code></pre>
+<pre><code class="language-r">head(data.frame(predictor_month = dates, target_next = y), 3)
+</code></pre>
+<pre><code>##   predictor_month target_next
+## 1      2007-11-01   0.1385835
+## 2      2007-12-01  -4.5285968
+## 3      2008-01-01  -1.0026484
+</code></pre>
+<h2 id="_2">只由訓練資料估計前處理<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
+<pre><code class="language-r">prep_x &lt;- function(X_train, X_new = NULL) {
+  mu &lt;- colMeans(X_train)
+  s &lt;- apply(X_train, 2, sd)
+  keep &lt;- is.finite(s) &amp; s &gt; 1e-10
+  X_train_s &lt;- sweep(sweep(X_train[, keep, drop = FALSE], 2, mu[keep]),
+                       2, s[keep], &quot;/&quot;)
+  ans &lt;- list(
+    train = X_train_s,
+    mean = mu[keep],
+    sd = s[keep],
+    keep = keep
+  )
+  if (!is.null(X_new)) {
+    ans$new &lt;- sweep(sweep(X_new[, keep, drop = FALSE], 2, mu[keep]),
+                     2, s[keep], &quot;/&quot;)
+  }
+  ans
+}
+
+soft_threshold &lt;- function(z, penalty) {
+  sign(z) * pmax(abs(z) - penalty, 0)
+}
+</code></pre>
+<h2 id="_3">三種正則化估計器<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<p>以下目標函數均為</p>
+<p>\[
+\frac{1}{2n}\lVert y-Xb\rVert_2^2+
+\lambda\left\{\alpha\lVert b\rVert_1+
+\frac{1-\alpha}{2}\lVert b\rVert_2^2\right\}.
+\]</p>
+<pre><code class="language-r">fit_ridge &lt;- function(X, y_centered, lambda) {
+  p &lt;- ncol(X)
+  solve(crossprod(X) / nrow(X) + lambda * diag(p),
+        crossprod(X, y_centered) / nrow(X))[, 1]
+}
+
+fit_enet_cd &lt;- function(X, y_centered, lambda, alpha = 1,
+                        max_iter = 5000L, tol = 1e-8) {
+  n &lt;- nrow(X)
+  p &lt;- ncol(X)
+  beta &lt;- numeric(p)
+  residual &lt;- y_centered
+  x2 &lt;- colSums(X^2) / n
+
+  for (iter in seq_len(max_iter)) {
+    beta_old &lt;- beta
+    for (j in seq_len(p)) {
+      residual &lt;- residual + X[, j] * beta[j]
+      z &lt;- sum(X[, j] * residual) / n
+      beta[j] &lt;- soft_threshold(z, lambda * alpha) /
+        (x2[j] + lambda * (1 - alpha))
+      residual &lt;- residual - X[, j] * beta[j]
+    }
+    if (max(abs(beta - beta_old)) &lt; tol) break
+  }
+  attr(beta, &quot;iterations&quot;) &lt;- iter
+  beta
+}
+
+predict_scaled &lt;- function(X_train, y_train, X_new,
+                           lambda, method, alpha = 1) {
+  pp &lt;- prep_x(X_train, X_new)
+  y_bar &lt;- mean(y_train)
+  yc &lt;- y_train - y_bar
+  beta &lt;- switch(
+    method,
+    ridge = fit_ridge(pp$train, yc, lambda),
+    enet = fit_enet_cd(pp$train, yc, lambda, alpha)
+  )
+  list(
+    pred = as.numeric(y_bar + pp$new %*% beta),
+    beta = beta,
+    names = colnames(pp$train),
+    y_bar = y_bar,
+    prep = pp
+  )
+}
+</code></pre>
+<h2 id="_4">依時間排序的驗證折<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
+<p>最末 25% 留作最終測試集。前 75% 內使用展開視窗；沒有任何月份被隨機洗牌。</p>
+<pre><code class="language-r">n &lt;- length(y)
+test_start &lt;- floor(0.75 * n) + 1L
+idx_tv &lt;- seq_len(test_start - 1L)
+idx_test &lt;- test_start:n
+
+validation_size &lt;- 8L
+first_train &lt;- max(45L, floor(0.55 * length(idx_tv)))
+train_ends &lt;- unique(as.integer(seq(
+  first_train,
+  length(idx_tv) - validation_size,
+  length.out = 4
+)))
+
+folds &lt;- lapply(train_ends, function(e) {
+  list(train = seq_len(e), validation = (e + 1L):(e + validation_size))
+})
+
+data.frame(
+  train_end = dates[vapply(folds, function(z) max(z$train), integer(1))],
+  validation_start = dates[vapply(folds, function(z) min(z$validation), integer(1))],
+  validation_end = dates[vapply(folds, function(z) max(z$validation), integer(1))]
+)
+</code></pre>
+<pre><code>##    train_end validation_start validation_end
+## 1 2012-03-01       2012-04-01     2012-11-01
+## 2 2013-03-01       2013-04-01     2013-11-01
+## 3 2014-03-01       2014-04-01     2014-11-01
+## 4 2015-04-01       2015-05-01     2015-12-01
+</code></pre>
+<h2 id="ftsmathtoken00003zz-ftsmathtoken00004zz">調校 \(\lambda\) 與 \(\alpha\)<a class="headerlink" href="#ftsmathtoken00003zz-ftsmathtoken00004zz" title="Permanent link">#</a></h2>
+<p>LASSO/Elastic Net 的網格以第一個訓練折的 <code>lambda_max</code> 為尺度；Ridge 使用較寬的正值網格。每一折都重新估計中心與尺度。</p>
+<pre><code class="language-r">pp0 &lt;- prep_x(X_raw[folds[[1]]$train, , drop = FALSE])
+y0 &lt;- y[folds[[1]]$train]
+lambda_max &lt;- max(abs(crossprod(pp0$train, y0 - mean(y0)))) /
+  length(y0)
+lambda_enet &lt;- exp(seq(log(lambda_max), log(lambda_max * 0.01), length.out = 24))
+lambda_ridge &lt;- exp(seq(log(1e-4), log(10), length.out = 24))
+
+cv_loss &lt;- function(lambda_grid, method, alpha = 1) {
+  out &lt;- matrix(NA_real_, nrow = length(folds), ncol = length(lambda_grid))
+  for (v in seq_along(folds)) {
+    tr &lt;- folds[[v]]$train
+    va &lt;- folds[[v]]$validation
+    for (j in seq_along(lambda_grid)) {
+      fit &lt;- predict_scaled(
+        X_raw[tr, , drop = FALSE], y[tr],
+        X_raw[va, , drop = FALSE],
+        lambda = lambda_grid[j], method = method, alpha = alpha
+      )
+      out[v, j] &lt;- mean((y[va] - fit$pred)^2)
+    }
+  }
+  colMeans(out)
+}
+
+loss_ridge &lt;- cv_loss(lambda_ridge, &quot;ridge&quot;)
+loss_lasso &lt;- cv_loss(lambda_enet, &quot;enet&quot;, alpha = 1)
+loss_enet &lt;- cv_loss(lambda_enet, &quot;enet&quot;, alpha = 0.5)
+
+best_ridge &lt;- lambda_ridge[which.min(loss_ridge)]
+best_lasso &lt;- lambda_enet[which.min(loss_lasso)]
+best_enet &lt;- lambda_enet[which.min(loss_enet)]
+
+data.frame(
+  model = c(&quot;Ridge&quot;, &quot;LASSO&quot;, &quot;Elastic Net&quot;),
+  lambda = c(best_ridge, best_lasso, best_enet),
+  validation_mse = c(min(loss_ridge), min(loss_lasso), min(loss_enet))
+)
+</code></pre>
+<pre><code>##         model     lambda validation_mse
+## 1       Ridge 10.0000000       5.043338
+## 2       LASSO  0.9337265       5.265368
+## 3 Elastic Net  0.9337265       6.010483
+</code></pre>
+<pre><code class="language-r">plot(log(lambda_ridge), loss_ridge, type = &quot;l&quot;, lwd = 2,
+     xlab = &quot;log(lambda)&quot;, ylab = &quot;Validation MSE&quot;, col = &quot;#173B57&quot;)
+lines(log(lambda_enet), loss_lasso, lwd = 2, col = &quot;#A34045&quot;)
+lines(log(lambda_enet), loss_enet, lwd = 2, col = &quot;#1D6D73&quot;)
+legend(&quot;topleft&quot;, c(&quot;Ridge&quot;, &quot;LASSO&quot;, &quot;Elastic Net&quot;),
+       col = c(&quot;#173B57&quot;, &quot;#A34045&quot;, &quot;#1D6D73&quot;), lwd = 2, bty = &quot;n&quot;)
+</code></pre>
+<p><img alt="Expanding-window validation MSE。" src="./R13_regularization_files/figure-gfm/validation-plot-1.png"></p>
+<h2 id="_5">在完全未見的測試期間比較模型<a class="headerlink" href="#_5" title="Permanent link">#</a></h2>
+<pre><code class="language-r">X_tv &lt;- X_raw[idx_tv, , drop = FALSE]
+y_tv &lt;- y[idx_tv]
+X_test &lt;- X_raw[idx_test, , drop = FALSE]
+y_test &lt;- y[idx_test]
+
+ridge &lt;- predict_scaled(X_tv, y_tv, X_test, best_ridge, &quot;ridge&quot;)
+lasso &lt;- predict_scaled(X_tv, y_tv, X_test, best_lasso, &quot;enet&quot;, alpha = 1)
+enet &lt;- predict_scaled(X_tv, y_tv, X_test, best_enet, &quot;enet&quot;, alpha = 0.5)
+
+# 以 QR pivot 選出線性獨立欄，再估計一個明確、可重現的降秩 OLS。
+# 在秩虧設計下，完整係數向量不唯一；此基準不作結構性係數解讀。
+rank_reduced_ols_predict &lt;- function(X_train, y_train, X_new,
+                                     tolerance = 1e-8) {
+  X_train &lt;- cbind(Intercept = 1, as.matrix(X_train))
+  X_new &lt;- cbind(Intercept = 1, as.matrix(X_new))
+  qrx &lt;- qr(X_train, tol = tolerance, LAPACK = FALSE)
+  keep &lt;- sort(qrx$pivot[seq_len(qrx$rank)])
+  fit &lt;- lm.fit(X_train[, keep, drop = FALSE], y_train)
+  prediction &lt;- as.numeric(
+    X_new[, keep, drop = FALSE] %*% fit$coefficients
+  )
+  stopifnot(all(is.finite(prediction)))
+  list(
+    pred = prediction,
+    rank = qrx$rank,
+    columns = ncol(X_train),
+    kept = colnames(X_train)[keep],
+    dropped = setdiff(colnames(X_train), colnames(X_train)[keep])
+  )
+}
+
+ols &lt;- rank_reduced_ols_predict(X_tv, y_tv, X_test)
+ols_pred &lt;- ols$pred
+data.frame(
+  benchmark = &quot;QR rank-reduced OLS&quot;,
+  design_columns = ols$columns,
+  numerical_rank = ols$rank,
+  dropped_columns = length(ols$dropped)
+)
+</code></pre>
+<pre><code>##             benchmark design_columns numerical_rank dropped_columns
+## 1 QR rank-reduced OLS             29             28               1
+</code></pre>
+<pre><code class="language-r"># post-LASSO：先選，再在相同 training+validation 上重新 OLS。
+selected &lt;- which(abs(lasso$beta) &gt; 1e-8)
+if (length(selected) == 0L) {
+  post_pred &lt;- rep(mean(y_tv), length(y_test))
+  post_rank &lt;- 1L
+} else {
+  pp_final &lt;- lasso$prep
+  post_fit &lt;- rank_reduced_ols_predict(
+    pp_final$train[, selected, drop = FALSE],
+    y_tv,
+    pp_final$new[, selected, drop = FALSE]
+  )
+  post_pred &lt;- post_fit$pred
+  post_rank &lt;- post_fit$rank
+}
+
+pred &lt;- data.frame(
+  date = dates[idx_test],
+  actual = y_test,
+  HistoricalMean = rep(mean(y_tv), length(y_test)),
+  OLS_QR = ols_pred,
+  Ridge = ridge$pred,
+  LASSO = lasso$pred,
+  ElasticNet = enet$pred,
+  PostLASSO = post_pred
+)
+
+stopifnot(all(vapply(
+  pred[setdiff(names(pred), &quot;date&quot;)],
+  function(x) all(is.finite(x)),
+  logical(1)
+)))
+</code></pre>
+<pre><code class="language-r">score &lt;- function(actual, forecast, baseline) {
+  mse &lt;- mean((actual - forecast)^2)
+  c(
+    MSE = mse,
+    MAE = mean(abs(actual - forecast)),
+    OOS_R2 = 1 - mse / mean((actual - baseline)^2)
+  )
+}
+
+model_names &lt;- setdiff(names(pred), c(&quot;date&quot;, &quot;actual&quot;, &quot;HistoricalMean&quot;))
+metrics &lt;- t(vapply(
+  model_names,
+  function(nm) score(pred$actual, pred[[nm]], pred$HistoricalMean),
+  numeric(3)
+))
+stopifnot(all(is.finite(metrics)))
+round(metrics, 4)
+</code></pre>
+<pre><code>##                MSE    MAE  OOS_R2
+## OLS_QR     14.4723 3.3798 -6.8969
+## Ridge       1.7155 0.9942  0.0639
+## LASSO       1.8327 1.0738  0.0000
+## ElasticNet  1.7736 1.0383  0.0322
+## PostLASSO   1.8327 1.0738  0.0000
+</code></pre>
+<pre><code class="language-r">coef_table &lt;- data.frame(
+  predictor = lasso$names,
+  lasso = lasso$beta,
+  elastic_net = enet$beta
+)
+coef_table &lt;- coef_table[order(abs(coef_table$lasso), decreasing = TRUE), ]
+head(coef_table, 12)
+</code></pre>
+<pre><code>##     predictor lasso  elastic_net
+## 1         spj     0  0.000000000
+## 2         rer     0  0.000000000
+## 3  rer_change     0  0.000000000
+## 4         ipi     0 -0.008832594
+## 5  ipi_change     0  0.000000000
+## 6         inr     0 -0.167632041
+## 7  inr_change     0  0.000000000
+## 8         spf     0  0.000000000
+## 9    return_f     0  0.019628847
+## 10        unr     0  0.000000000
+## 11 unr_change     0  0.000000000
+## 12        cpi     0  0.000000000
+</code></pre>
+<pre><code class="language-r">cat(&quot;LASSO nonzero predictors:&quot;, sum(abs(lasso$beta) &gt; 1e-8), &quot;\n&quot;)
+</code></pre>
+<pre><code>## LASSO nonzero predictors: 0
+</code></pre>
+<pre><code class="language-r">matplot(
+  pred$date,
+  pred[, c(&quot;actual&quot;, &quot;Ridge&quot;, &quot;LASSO&quot;, &quot;ElasticNet&quot;)],
+  type = &quot;l&quot;, lty = c(1, 2, 3, 4), lwd = c(2, 1.5, 1.5, 1.5),
+  col = c(&quot;black&quot;, &quot;#173B57&quot;, &quot;#A34045&quot;, &quot;#1D6D73&quot;),
+  xlab = &quot;Predictor month&quot;, ylab = &quot;Next-month return&quot;
+)
+legend(
+  &quot;topleft&quot;, c(&quot;Actual&quot;, &quot;Ridge&quot;, &quot;LASSO&quot;, &quot;Elastic Net&quot;),
+  lty = c(1, 2, 3, 4), lwd = c(2, 1.5, 1.5, 1.5),
+  col = c(&quot;black&quot;, &quot;#173B57&quot;, &quot;#A34045&quot;, &quot;#1D6D73&quot;), bty = &quot;n&quot;
+)
+</code></pre>
+<p><img alt="最終 test period：實現值與正則化預測。" src="./R13_regularization_files/figure-gfm/test-plot-1.png"></p>
+<h2 id="_6">解讀限制<a class="headerlink" href="#_6" title="Permanent link">#</a></h2>
+<ol>
+<li>這是小樣本預測示範，不是日本股市風險溢酬的結構估計。</li>
+<li><code>return_j</code> 的單位沿用凍結檔；不可與未核對單位的外部報酬直接合併。</li>
+<li>非零 LASSO 係數表示在這個字典、切割與損失下被使用，不等於顯著或因果。</li>
+<li>測試集沒有參與調校；若看完測試結果後改模型，必須另留新的測試期。</li>
+</ol>
+<pre><code class="language-r">sessionInfo()
+</code></pre>
+<pre><code>## R version 4.5.2 (2025-10-31)
+## Platform: aarch64-apple-darwin20
+## Running under: macOS Tahoe 26.5.1
+## 
+## Matrix products: default
+## BLAS:   /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib 
+## LAPACK: /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.1
+## 
+## locale:
+## [1] C.UTF-8/C.UTF-8/C.UTF-8/C/C.UTF-8/C.UTF-8
+## 
+## time zone: Asia/Tokyo
+## tzcode source: internal
+## 
+## attached base packages:
+## [1] stats     graphics  grDevices utils     datasets  methods   base     
+## 
+## other attached packages:
+## [1] tibble_3.3.0 dplyr_1.2.1 
+## 
+## loaded via a namespace (and not attached):
+##  [1] vctrs_0.7.2        cli_3.6.5          knitr_1.51         rlang_1.1.7       
+##  [5] xfun_0.57          otel_0.2.0         MatrixModels_0.5-4 generics_0.1.4    
+##  [9] glue_1.8.0         grid_4.5.2         evaluate_1.0.5     SparseM_1.84-2    
+## [13] MASS_7.3-65        lifecycle_1.0.5    compiler_4.5.2     pkgconfig_2.0.3   
+## [17] quantreg_6.1       lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1  
+## [21] utf8_1.2.6         splines_4.5.2      pillar_1.11.1      magrittr_2.0.4    
+## [25] Matrix_1.7-4       tools_4.5.2        withr_3.0.2        survival_3.8-3
+</code></pre>
+      </article>
+      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R12_taiwan_dcc_icapm_case_study.html">← 臺灣 DCC／ICAPM 案例</a><a rel="next" href="R14_financial_factor_selection.html">金融因子選擇 →</a></nav>
+      <footer>© 陳釗而　《財務時間序列分析》</footer>
+    </main>
+    <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
+<ul>
+<li><a href="#_1">執行環境與資料</a></li>
+<li><a href="#target">建立可實現的下一期 target</a></li>
+<li><a href="#_2">只由訓練資料估計前處理</a></li>
+<li><a href="#_3">三種正則化估計器</a></li>
+<li><a href="#_4">依時間排序的驗證折</a></li>
+<li><a href="#ftsmathtoken00003zz-ftsmathtoken00004zz">調校 \(\lambda\) 與 \(\alpha\)</a></li>
+<li><a href="#_5">在完全未見的測試期間比較模型</a></li>
+<li><a href="#_6">解讀限制</a></li>
+</ul>
+</div>
+</aside>
+  </div>
+</body>
+</html>

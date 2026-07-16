@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="《財務時間序列分析》R 線上附錄：R04：AR、MA 與 ARMA 模擬">
+  <title>R04：AR、MA 與 ARMA 模擬｜財務時間序列分析</title>
+  <link rel="stylesheet" href="assets/site.css">
+  <script>
+    window.MathJax = {
+      tex: {inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']]},
+      svg: {fontCache: 'local'},
+      options: {skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']}
+    };
+  </script>
+  <script defer src="assets/mathjax-loader.js"></script>
+  <script defer src="assets/site.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要內容</a>
+  <header class="site-header">
+    <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
+    <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
+    <a class="policy-link" href="data-policy.html">資料政策</a>
+  </header>
+  <div class="layout">
+    <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
+      <p class="sidebar-title">線上附錄</p>
+      <ol><li><a href="index.html">首頁</a></li>
+<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
+<li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
+<li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
+<li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與經驗特徵</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html" aria-current="page" class="active">R04　AR、MA 與 ARMA 模擬</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html">R09　投資組合、CAPM 與財務因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
+<li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
+<li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
+    </nav>
+    <main id="main-content" class="content">
+      <div class="publication-note">
+        本網站提供作者執行後的教學內容與程式原始檔；未經確認可再散布的原始資料不隨網站發布。
+        詳見<a href="data-policy.html">資料與重現政策</a>。
+      </div>
+      <article>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R04：AR、MA 與 ARMA 模擬</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R04_ar_ma_arma_simulation.Rmd">R Markdown 原始檔</a><a href="source/R04_ar_ma_arma_simulation.md">執行後 Markdown</a></div></header>
+        <p>本附錄對應第 4--6 章。以固定種子模擬 AR(1)、MA(1) 與 ARMA(1,1)，把已知參數、理論 ACF、樣本 ACF、特徵根與衝擊反應放在同一處核對。最後用重疊十二期報酬展示機械性 MA(11) 相依。</p>
+<pre><code class="language-r">knitr::opts_chunk$set(
+  echo = TRUE, message = FALSE, warning = FALSE,
+  fig.width = 7, fig.height = 4.5
+)
+set.seed(20260716)
+</code></pre>
+<h2 id="_1">三個資料生成過程<a class="headerlink" href="#_1" title="Permanent link">#</a></h2>
+<p>為降低初始值影響，arima.sim 會自動使用前置模擬。所有序列平均數設為零、創新標準差設為 1。</p>
+<pre><code class="language-r">n &lt;- 1200L
+phi &lt;- 0.70
+theta &lt;- 0.60
+phi_arma &lt;- 0.50
+theta_arma &lt;- 0.40
+
+ar1 &lt;- as.numeric(arima.sim(
+  model = list(ar = phi), n = n, sd = 1
+))
+ma1 &lt;- as.numeric(arima.sim(
+  model = list(ma = theta), n = n, sd = 1
+))
+arma11 &lt;- as.numeric(arima.sim(
+  model = list(ar = phi_arma, ma = theta_arma), n = n, sd = 1
+))
+
+summary_table &lt;- rbind(
+  AR1 = c(mean = mean(ar1), variance = var(ar1)),
+  MA1 = c(mean = mean(ma1), variance = var(ma1)),
+  ARMA11 = c(mean = mean(arma11), variance = var(arma11))
+)
+round(summary_table, 3)
+</code></pre>
+<pre><code>##          mean variance
+## AR1    -0.024    2.066
+## MA1     0.128    1.341
+## ARMA11  0.036    2.049
+</code></pre>
+<p>理論上 AR(1) 變異數是 \(1/(1-\phi^2)\)，MA(1) 是
+\(1+\theta^2\)，ARMA(1,1) 是
+\[
+1+\frac{(\phi+\theta)^2}{1-\phi^2}.
+\]</p>
+<pre><code class="language-r">c(
+  AR1 = 1 / (1 - phi^2),
+  MA1 = 1 + theta^2,
+  ARMA11 = 1 + (phi_arma + theta_arma)^2 / (1 - phi_arma^2)
+)
+</code></pre>
+<pre><code>##      AR1      MA1   ARMA11 
+## 1.960784 1.360000 2.080000
+</code></pre>
+<h2 id="_2">時間圖與平均數回復<a class="headerlink" href="#_2" title="Permanent link">#</a></h2>
+<pre><code class="language-r">matplot(
+  1:200,
+  cbind(ar1[1:200], ma1[1:200], arma11[1:200]),
+  type = &quot;l&quot;, lty = 1, lwd = 1,
+  col = c(&quot;#173B57&quot;, &quot;#A34045&quot;, &quot;#1D6D73&quot;),
+  xlab = &quot;期數&quot;, ylab = &quot;數值&quot;
+)
+legend(
+  &quot;topright&quot;, c(&quot;AR(1)&quot;, &quot;MA(1)&quot;, &quot;ARMA(1,1)&quot;),
+  col = c(&quot;#173B57&quot;, &quot;#A34045&quot;, &quot;#1D6D73&quot;),
+  lty = 1, bty = &quot;n&quot;
+)
+</code></pre>
+<p><img alt="三個固定種子模擬序列的前 200 期。" src="./R04_ar_ma_arma_simulation_files/figure-gfm/series-plots-1.png"></p>
+<p>AR(1) 的條件平均路徑由 \(\phi^h x_0\) 給出。它是預期路徑，不代表每次模擬都會平滑回到零。</p>
+<pre><code class="language-r">h &lt;- 0:20
+initial_deviation &lt;- 3
+mean_path &lt;- initial_deviation * phi^h
+data.frame(horizon = h, conditional_mean_deviation = mean_path)
+</code></pre>
+<pre><code>##    horizon conditional_mean_deviation
+## 1        0                3.000000000
+## 2        1                2.100000000
+## 3        2                1.470000000
+## 4        3                1.029000000
+## 5        4                0.720300000
+## 6        5                0.504210000
+## 7        6                0.352947000
+## 8        7                0.247062900
+## 9        8                0.172944030
+## 10       9                0.121060821
+## 11      10                0.084742575
+## 12      11                0.059319802
+## 13      12                0.041523862
+## 14      13                0.029066703
+## 15      14                0.020346692
+## 16      15                0.014242685
+## 17      16                0.009969879
+## 18      17                0.006978915
+## 19      18                0.004885241
+## 20      19                0.003419669
+## 21      20                0.002393768
+</code></pre>
+<h2 id="acf-acf">理論 ACF 對照樣本 ACF<a class="headerlink" href="#acf-acf" title="Permanent link">#</a></h2>
+<pre><code class="language-r">lag_max &lt;- 20L
+series_list &lt;- list(AR1 = ar1, MA1 = ma1, ARMA11 = arma11)
+theory_list &lt;- list(
+  AR1 = ARMAacf(ar = phi, lag.max = lag_max),
+  MA1 = ARMAacf(ma = theta, lag.max = lag_max),
+  ARMA11 = ARMAacf(
+    ar = phi_arma, ma = theta_arma, lag.max = lag_max
+  )
+)
+
+par(mfrow = c(1, 3))
+for (nm in names(series_list)) {
+  sample_acf &lt;- acf(
+    series_list[[nm]], lag.max = lag_max,
+    plot = FALSE
+  )$acf[, , 1]
+  plot(
+    0:lag_max, sample_acf, type = &quot;h&quot;, lwd = 2,
+    ylim = c(-0.25, 1), xlab = &quot;落後階數&quot;,
+    ylab = &quot;ACF&quot;, main = nm
+  )
+  points(0:lag_max, theory_list[[nm]], pch = 16, col = &quot;#A34045&quot;)
+  abline(h = 0, col = &quot;gray60&quot;)
+}
+</code></pre>
+<p><img alt="實線為樣本 ACF，紅點為已知參數下的理論 ACF。" src="./R04_ar_ma_arma_simulation_files/figure-gfm/acf-comparison-1.png"></p>
+<pre><code class="language-r">par(mfrow = c(1, 1))
+</code></pre>
+<p>MA(1) 的母體 ACF 在一階後為零；圖上後續樣本柱形仍會因抽樣誤差偏離零。AR 與 ARMA 的 ACF 則通常拖尾。</p>
+<h2 id="_3">定態根與可逆根<a class="headerlink" href="#_3" title="Permanent link">#</a></h2>
+<pre><code class="language-r">ar_root &lt;- polyroot(c(1, -phi))
+ma_root &lt;- polyroot(c(1, theta))
+arma_ar_root &lt;- polyroot(c(1, -phi_arma))
+arma_ma_root &lt;- polyroot(c(1, theta_arma))
+
+root_table &lt;- data.frame(
+  model_part = c(&quot;AR(1) AR&quot;, &quot;MA(1) MA&quot;, &quot;ARMA AR&quot;, &quot;ARMA MA&quot;),
+  real = Re(c(ar_root, ma_root, arma_ar_root, arma_ma_root)),
+  imaginary = Im(c(ar_root, ma_root, arma_ar_root, arma_ma_root)),
+  modulus = Mod(c(ar_root, ma_root, arma_ar_root, arma_ma_root))
+)
+root_table
+</code></pre>
+<pre><code>##   model_part      real imaginary  modulus
+## 1   AR(1) AR  1.428571         0 1.428571
+## 2   MA(1) MA -1.666667         0 1.666667
+## 3    ARMA AR  2.000000         0 2.000000
+## 4    ARMA MA -2.500000         0 2.500000
+</code></pre>
+<pre><code class="language-r">stopifnot(all(root_table$modulus &gt; 1))
+</code></pre>
+<p>AR 根在單位圓外對應因果定態表示；MA 根在單位圓外對應可逆表示。兩者必須分開檢查。</p>
+<h2 id="arma11">ARMA(1,1) 的衝擊反應<a class="headerlink" href="#arma11" title="Permanent link">#</a></h2>
+<p>依課文，\(\psi_0=1\)，且 \(j\geq1\) 時
+\(\psi_j=(\phi+\theta)\phi^{j-1}\)。</p>
+<pre><code class="language-r">j &lt;- 0:12
+psi_manual &lt;- c(
+  1,
+  (phi_arma + theta_arma) * phi_arma^(0:11)
+)
+psi_r &lt;- ARMAtoMA(
+  ar = phi_arma, ma = theta_arma, lag.max = 12
+)
+psi_r &lt;- c(1, psi_r)
+
+data.frame(j, manual = psi_manual, R = psi_r)
+</code></pre>
+<pre><code>##     j       manual            R
+## 1   0 1.0000000000 1.0000000000
+## 2   1 0.9000000000 0.9000000000
+## 3   2 0.4500000000 0.4500000000
+## 4   3 0.2250000000 0.2250000000
+## 5   4 0.1125000000 0.1125000000
+## 6   5 0.0562500000 0.0562500000
+## 7   6 0.0281250000 0.0281250000
+## 8   7 0.0140625000 0.0140625000
+## 9   8 0.0070312500 0.0070312500
+## 10  9 0.0035156250 0.0035156250
+## 11 10 0.0017578125 0.0017578125
+## 12 11 0.0008789063 0.0008789063
+## 13 12 0.0004394531 0.0004394531
+</code></pre>
+<pre><code class="language-r">stopifnot(isTRUE(all.equal(psi_manual, psi_r)))
+</code></pre>
+<h2 id="_4">重疊十二期報酬<a class="headerlink" href="#_4" title="Permanent link">#</a></h2>
+<p>先模擬互不相關的單期報酬，再形成每期更新的十二期加總。相鄰加總共享十一個創新，因此理論 ACF 在 \(h=0,\ldots,11\) 為 \((12-h)/12\)。</p>
+<pre><code class="language-r">set.seed(20260717)
+one_period &lt;- rnorm(2500, sd = 0.04)
+overlap_12 &lt;- as.numeric(stats::filter(
+  one_period, filter = rep(1, 12), sides = 1
+))
+overlap_12 &lt;- overlap_12[is.finite(overlap_12)]
+
+sample_overlap_acf &lt;- acf(
+  overlap_12, lag.max = 16, plot = FALSE
+)$acf[, , 1]
+theory_overlap_acf &lt;- c((12:1) / 12, rep(0, 5))
+
+data.frame(
+  lag = 0:16,
+  sample_acf = sample_overlap_acf,
+  theoretical_acf = theory_overlap_acf
+)
+</code></pre>
+<pre><code>##    lag sample_acf theoretical_acf
+## 1    0 1.00000000      1.00000000
+## 2    1 0.92320550      0.91666667
+## 3    2 0.84353001      0.83333333
+## 4    3 0.76179393      0.75000000
+## 5    4 0.67751415      0.66666667
+## 6    5 0.59333316      0.58333333
+## 7    6 0.50868637      0.50000000
+## 8    7 0.42843837      0.41666667
+## 9    8 0.35158682      0.33333333
+## 10   9 0.27114755      0.25000000
+## 11  10 0.19695959      0.16666667
+## 12  11 0.12104410      0.08333333
+## 13  12 0.05081934      0.00000000
+## 14  13 0.05569498      0.00000000
+## 15  14 0.06172075      0.00000000
+## 16  15 0.07309509      0.00000000
+## 17  16 0.08294749      0.00000000
+</code></pre>
+<pre><code class="language-r">plot(
+  0:16, sample_overlap_acf, type = &quot;h&quot;, lwd = 2,
+  xlab = &quot;落後階數&quot;, ylab = &quot;ACF&quot;, ylim = c(-0.15, 1)
+)
+points(0:16, theory_overlap_acf, pch = 16, col = &quot;#A34045&quot;)
+abline(h = 0, col = &quot;gray60&quot;)
+</code></pre>
+<p><img alt="重疊十二期報酬的樣本與理論 ACF。" src="./R04_ar_ma_arma_simulation_files/figure-gfm/overlap-plot-1.png"></p>
+<p>這個高度相關完全由重疊建構產生，不能解讀為原始單期報酬可預測。若把重疊報酬放進迴歸，推論也必須處理其序列相依。</p>
+<h2 id="_5">模擬檢核<a class="headerlink" href="#_5" title="Permanent link">#</a></h2>
+<ol>
+<li>增加樣本長度後，樣本 ACF 應更接近理論 ACF。</li>
+<li>把 AR 參數改成負值，ACF 會正負交替。</li>
+<li>把 MA 參數改成倒數並調整創新變異，可看到相同二階動差但不可逆的表示。</li>
+<li>任何參數改動後都重新檢查根，而不是只看係數是否小於 1。</li>
+</ol>
+      </article>
+      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R03_distributions_heavy_tails.html">← 分配、厚尾與經驗特徵</a><a rel="next" href="R05_arma_estimation_diagnostics_forecasting.html">ARMA 估計、診斷與多步預測 →</a></nav>
+      <footer>© 陳釗而　《財務時間序列分析》</footer>
+    </main>
+    <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
+<ul>
+<li><a href="#_1">三個資料生成過程</a></li>
+<li><a href="#_2">時間圖與平均數回復</a></li>
+<li><a href="#acf-acf">理論 ACF 對照樣本 ACF</a></li>
+<li><a href="#_3">定態根與可逆根</a></li>
+<li><a href="#arma11">ARMA(1,1) 的衝擊反應</a></li>
+<li><a href="#_4">重疊十二期報酬</a></li>
+<li><a href="#_5">模擬檢核</a></li>
+</ul>
+</div>
+</aside>
+  </div>
+</body>
+</html>

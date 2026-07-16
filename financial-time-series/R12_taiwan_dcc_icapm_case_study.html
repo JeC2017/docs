@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="《財務時間序列分析》R 線上附錄：R12：臺灣 DCC／ICAPM 案例">
+  <title>R12：臺灣 DCC／ICAPM 案例｜財務時間序列分析</title>
+  <link rel="stylesheet" href="assets/site.css">
+  <script>
+    window.MathJax = {
+      tex: {inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']]},
+      svg: {fontCache: 'local'},
+      options: {skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']}
+    };
+  </script>
+  <script defer src="assets/mathjax-loader.js"></script>
+  <script defer src="assets/site.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要內容</a>
+  <header class="site-header">
+    <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
+    <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
+    <a class="policy-link" href="data-policy.html">資料政策</a>
+  </header>
+  <div class="layout">
+    <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
+      <p class="sidebar-title">線上附錄</p>
+      <ol><li><a href="index.html">首頁</a></li>
+<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
+<li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
+<li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
+<li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與經驗特徵</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA 模擬</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html">R09　投資組合、CAPM 與財務因子</a></li>
+<li><a href="R10_pca_factor_analysis.html">R10　PCA 與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html" aria-current="page" class="active">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
+<li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
+<li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
+    </nav>
+    <main id="main-content" class="content">
+      <div class="publication-note">
+        本網站提供作者執行後的教學內容與程式原始檔；未經確認可再散布的原始資料不隨網站發布。
+        詳見<a href="data-policy.html">資料與重現政策</a>。
+      </div>
+      <article>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R12：臺灣 DCC／ICAPM 案例</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R12_taiwan_dcc_icapm_case_study.Rmd">R Markdown 原始檔</a><a href="source/R12_taiwan_dcc_icapm_case_study.md">執行後 Markdown</a></div></header>
+        <p>本附錄對應第 16 章。可重現的範圍只有兩部分：</p>
+<ol>
+<li>用固定種子的合成標準化新衝擊，核對 DCC 遞迴、相關矩陣正規化與正定性；</li>
+<li>用專案內凍結的 (47\times497) 第二階段追蹤資料，示範時間切分、固定效果 within 估計與保留期診斷。</li>
+</ol>
+<p><strong>這是局部個案研究，不是原論文或原課堂實證的完整複製。</strong> 現有檔案沒有從原始價格與狀態變數開始的清理流程、第一階段 GARCH／DCC 估計結果、完整懲罰式追蹤資料分量迴歸（PQRFE）調校，以及相依資料的完整拔靴推論。第二階段的共變異數欄位是已生成的解釋變數；本附錄不能回溯驗證它們在每一天的第一階段資訊集合。</p>
+<pre><code class="language-r">knitr::opts_chunk$set(
+  echo = TRUE, message = FALSE, warning = FALSE,
+  fig.width = 7, fig.height = 4
+)
+stopifnot(getRversion() &gt;= &quot;4.3.0&quot;)
+set.seed(1212)
+</code></pre>
+<h2 id="1">1. 軟體、資料與可重現邊界<a class="headerlink" href="#1" title="Permanent link">#</a></h2>
+<p>本檔不使用 <code>setwd()</code>、不安裝套件，也不下載即時資料。基本結果只依賴 R 內建函數；最後的中位數迴歸敏感度分析只有在本機已安裝 <code>quantreg</code> 時才執行。</p>
+<pre><code class="language-r">version_table &lt;- data.frame(
+  component = c(&quot;R&quot;, &quot;stats&quot;, &quot;quantreg&quot;),
+  version = c(
+    R.version.string,
+    as.character(packageVersion(&quot;stats&quot;)),
+    if (requireNamespace(&quot;quantreg&quot;, quietly = TRUE)) {
+      as.character(packageVersion(&quot;quantreg&quot;))
+    } else {
+      &quot;未安裝；跳過選擇性敏感度分析&quot;
+    }
+  )
+)
+version_table
+</code></pre>
+<pre><code>##   component                      version
+## 1         R R version 4.5.2 (2025-10-31)
+## 2     stats                        4.5.2
+## 3  quantreg                          6.1
+</code></pre>
+<pre><code class="language-r">locate_project_file &lt;- function(relative_path) {
+  candidates &lt;- c(
+    relative_path,
+    file.path(&quot;..&quot;, relative_path),
+    file.path(&quot;../..&quot;, relative_path)
+  )
+  hit &lt;- candidates[file.exists(candidates)]
+  if (length(hit) == 0L) {
+    stop(&quot;找不到專案檔案：&quot;, relative_path)
+  }
+  normalizePath(hit[1], mustWork = TRUE)
+}
+
+panel_file &lt;- locate_project_file(
+  &quot;data/processed/taiwan_icapm_second_stage_47x497.csv&quot;
+)
+manifest_file &lt;- locate_project_file(&quot;data/processed/manifest.csv&quot;)
+</code></pre>
+<p>依 <code>data/DATA_SOURCES.md</code> 的已決定政策，公開網站不再散布這份衍生資料。MD5 檢查只能確認作者工作版本一致，不能證明來源正確或授權完備。</p>
+<h2 id="2-dcc">2. DCC 教學遞迴：只驗證演算法，不估計真實模型<a class="headerlink" href="#2-dcc" title="Permanent link">#</a></h2>
+<h3 id="21">2.1 產生三變量標準化新衝擊<a class="headerlink" href="#21" title="Permanent link">#</a></h3>
+<p>先產生 800 期、三條序列的相關常態新衝擊。前 500 期是估計期；後 300 期是保留期。估計期平均數、標準差與相關矩陣一旦算出，保留期不再重新估計。</p>
+<pre><code class="language-r">T_dcc &lt;- 800L
+N_dcc &lt;- 3L
+dcc_train_id &lt;- 1:500
+dcc_test_id &lt;- 501:800
+
+R_population &lt;- matrix(
+  c(
+    1.00, 0.45, 0.20,
+    0.45, 1.00, 0.30,
+    0.20, 0.30, 1.00
+  ),
+  nrow = N_dcc,
+  byrow = TRUE
+)
+stopifnot(min(eigen(R_population, symmetric = TRUE)$values) &gt; 0)
+
+innovation_raw &lt;- matrix(rnorm(T_dcc * N_dcc), ncol = N_dcc) %*%
+  chol(R_population)
+colnames(innovation_raw) &lt;- c(&quot;market&quot;, &quot;volatility_state&quot;, &quot;liquidity_state&quot;)
+
+training_center &lt;- colMeans(innovation_raw[dcc_train_id, , drop = FALSE])
+training_scale &lt;- apply(innovation_raw[dcc_train_id, , drop = FALSE], 2, sd)
+epsilon &lt;- scale(
+  innovation_raw,
+  center = training_center,
+  scale = training_scale
+)
+
+Q_bar &lt;- cor(epsilon[dcc_train_id, , drop = FALSE])
+round(Q_bar, 3)
+</code></pre>
+<pre><code>##                  market volatility_state liquidity_state
+## market            1.000            0.485           0.206
+## volatility_state  0.485            1.000           0.337
+## liquidity_state   0.206            0.337           1.000
+</code></pre>
+<h3 id="22-dcc11">2.2 DCC(1,1) 濾波器<a class="headerlink" href="#22-dcc11" title="Permanent link">#</a></h3>
+<p>指定 (a=0.03)、(b=0.94)，所以 (a+b=0.97&lt;1)。這兩個數字不是由臺灣資料估計而來，只用於核對</p>
+<p>\[
+Q_t=(1-a-b)\bar Q+a\varepsilon_{t-1}\varepsilon_{t-1}^\top+bQ_{t-1}
+\]</p>
+<p>以及 (R_t=Q_t^{<em>-1/2}Q_tQ_t^{</em>-1/2}) 的程式。</p>
+<pre><code class="language-r">dcc_filter &lt;- function(standardized_innovation, a, b, Q_bar) {
+  stopifnot(
+    is.matrix(standardized_innovation),
+    a &gt;= 0, b &gt;= 0, a + b &lt; 1,
+    nrow(Q_bar) == ncol(standardized_innovation),
+    ncol(Q_bar) == ncol(standardized_innovation),
+    min(eigen(Q_bar, symmetric = TRUE)$values) &gt; 0
+  )
+
+  TT &lt;- nrow(standardized_innovation)
+  NN &lt;- ncol(standardized_innovation)
+  Q_array &lt;- array(NA_real_, dim = c(NN, NN, TT))
+  R_array &lt;- array(NA_real_, dim = c(NN, NN, TT))
+
+  normalize_to_correlation &lt;- function(Q) {
+    d &lt;- sqrt(diag(Q))
+    Q / outer(d, d)
+  }
+
+  Q_array[, , 1] &lt;- Q_bar
+  R_array[, , 1] &lt;- normalize_to_correlation(Q_bar)
+
+  for (t in 2:TT) {
+    previous_outer &lt;- tcrossprod(standardized_innovation[t - 1, ])
+    Q_array[, , t] &lt;-
+      (1 - a - b) * Q_bar +
+      a * previous_outer +
+      b * Q_array[, , t - 1]
+    R_array[, , t] &lt;- normalize_to_correlation(Q_array[, , t])
+  }
+
+  list(Q = Q_array, R = R_array)
+}
+
+dcc_a &lt;- 0.03
+dcc_b &lt;- 0.94
+dcc_result &lt;- dcc_filter(epsilon, dcc_a, dcc_b, Q_bar)
+</code></pre>
+<h3 id="23">2.3 可執行的正規化與正定性測試<a class="headerlink" href="#23" title="Permanent link">#</a></h3>
+<pre><code class="language-r">minimum_Q_eigenvalue &lt;- vapply(seq_len(T_dcc), function(t) {
+  min(eigen(dcc_result$Q[, , t], symmetric = TRUE, only.values = TRUE)$values)
+}, numeric(1))
+
+minimum_R_eigenvalue &lt;- vapply(seq_len(T_dcc), function(t) {
+  min(eigen(dcc_result$R[, , t], symmetric = TRUE, only.values = TRUE)$values)
+}, numeric(1))
+
+largest_diagonal_error &lt;- max(vapply(seq_len(T_dcc), function(t) {
+  max(abs(diag(dcc_result$R[, , t]) - 1))
+}, numeric(1)))
+
+largest_asymmetry &lt;- max(vapply(seq_len(T_dcc), function(t) {
+  max(abs(dcc_result$R[, , t] - t(dcc_result$R[, , t])))
+}, numeric(1)))
+
+stopifnot(
+  min(minimum_Q_eigenvalue) &gt; 0,
+  min(minimum_R_eigenvalue) &gt; 0,
+  largest_diagonal_error &lt; 1e-12,
+  largest_asymmetry &lt; 1e-12
+)
+
+data.frame(
+  minimum_Q_eigenvalue = min(minimum_Q_eigenvalue),
+  minimum_R_eigenvalue = min(minimum_R_eigenvalue),
+  largest_R_diagonal_error = largest_diagonal_error,
+  largest_R_asymmetry = largest_asymmetry
+)
+</code></pre>
+<pre><code>##   minimum_Q_eigenvalue minimum_R_eigenvalue largest_R_diagonal_error
+## 1            0.3795239            0.3346327             2.220446e-16
+##   largest_R_asymmetry
+## 1                   0
+</code></pre>
+<pre><code class="language-r">rho_12 &lt;- dcc_result$R[1, 2, ]
+plot(
+  seq_len(T_dcc), rho_12,
+  type = &quot;l&quot;, col = &quot;#173B57&quot;,
+  xlab = &quot;期數&quot;, ylab = expression(rho[12 * &quot;,t&quot;]),
+  main = &quot;合成資料的 DCC 條件相關&quot;
+)
+abline(v = max(dcc_train_id), lty = 2, col = &quot;#A34045&quot;)
+legend(
+  &quot;bottomright&quot;, legend = &quot;估計期／保留期分界&quot;,
+  lty = 2, col = &quot;#A34045&quot;, bty = &quot;n&quot;
+)
+</code></pre>
+<p><img alt="plot of chunk dcc-correlation-plot" src="./R12_taiwan_dcc_icapm_case_study_files/figure-gfm/dcc-correlation-plot-1.png"></p>
+<p>保留期的新衝擊可以逐期進入已鎖定參數的濾波器，但 (Q_bar,a,b) 沒有用保留期重新估計。這是合理的即時更新概念；然而它仍只是合成資料的演算法測試，不是臺灣 DCC 估計。</p>
+<h2 id="3">3. 載入凍結的第二階段追蹤資料<a class="headerlink" href="#3" title="Permanent link">#</a></h2>
+<pre><code class="language-r">panel &lt;- read.csv(panel_file, stringsAsFactors = FALSE)
+manifest &lt;- read.csv(manifest_file, stringsAsFactors = FALSE)
+
+manifest_key &lt;- &quot;data/processed/taiwan_icapm_second_stage_47x497.csv&quot;
+manifest_row &lt;- manifest[manifest$file == manifest_key, , drop = FALSE]
+actual_md5 &lt;- unname(tools::md5sum(panel_file))
+
+expected_names &lt;- c(&quot;day&quot;, &quot;firm&quot;, &quot;return&quot;, &quot;cov_X&quot;, &quot;cov_vix&quot;, &quot;cov_liq&quot;)
+stopifnot(
+  identical(names(panel), expected_names),
+  nrow(manifest_row) == 1L,
+  nrow(panel) == manifest_row$rows,
+  ncol(panel) == manifest_row$columns,
+  identical(actual_md5, manifest_row$md5),
+  nrow(panel) == 23359L,
+  !anyNA(panel),
+  all(vapply(panel, is.numeric, logical(1))),
+  all(vapply(panel, function(x) all(is.finite(x)), logical(1))),
+  !anyDuplicated(panel[c(&quot;day&quot;, &quot;firm&quot;)])
+)
+
+data.frame(
+  rows = nrow(panel),
+  firms = length(unique(panel$firm)),
+  days = length(unique(panel$day)),
+  md5 = actual_md5
+)
+</code></pre>
+<pre><code>##    rows firms days                              md5
+## 1 23359    47  497 98fb791d16ee3b3e536ef0ce33381e93
+</code></pre>
+<h3 id="31">3.1 平衡追蹤結構測試<a class="headerlink" href="#31" title="Permanent link">#</a></h3>
+<pre><code class="language-r">observations_by_firm &lt;- table(panel$firm)
+firms_by_day &lt;- table(panel$day)
+
+stopifnot(
+  identical(sort(unique(panel$firm)), 1:47),
+  identical(sort(unique(panel$day)), 1:497),
+  all(observations_by_firm == 497L),
+  all(firms_by_day == 47L)
+)
+
+data.frame(
+  quantity = c(
+    &quot;每家公司最少日數&quot;, &quot;每家公司最多日數&quot;,
+    &quot;每日最少公司數&quot;, &quot;每日最多公司數&quot;
+  ),
+  value = c(
+    min(observations_by_firm), max(observations_by_firm),
+    min(firms_by_day), max(firms_by_day)
+  )
+)
+</code></pre>
+<pre><code>##           quantity value
+## 1 每家公司最少日數   497
+## 2 每家公司最多日數   497
+## 3   每日最少公司數    47
+## 4   每日最多公司數    47
+</code></pre>
+<p>欄位 <code>cov_X</code>、<code>cov_vix</code>、<code>cov_liq</code> 已經是第一階段產出的共變異數代理變數。以下保留原檔尺度，不自行把它們重新解讀成百分比或小數單位。</p>
+<pre><code class="language-r">summary(panel[c(&quot;return&quot;, &quot;cov_X&quot;, &quot;cov_vix&quot;, &quot;cov_liq&quot;)])
+</code></pre>
+<pre><code>##      return              cov_X            cov_vix            cov_liq          
+##  Min.   :-7.362482   Min.   :0.06796   Min.   :-12.1305   Min.   :-0.0494139  
+##  1st Qu.:-1.034991   1st Qu.:0.84434   1st Qu.: -1.1787   1st Qu.:-0.0034409  
+##  Median :-0.007912   Median :1.18083   Median : -0.6805   Median :-0.0012879  
+##  Mean   :-0.001485   Mean   :1.43038   Mean   : -1.0592   Mean   :-0.0018979  
+##  3rd Qu.: 1.021664   3rd Qu.:1.76456   3rd Qu.: -0.4590   3rd Qu.: 0.0001013  
+##  Max.   : 7.046405   Max.   :9.21821   Max.   :  0.3682   Max.   : 0.0840229
+</code></pre>
+<h2 id="4">4. 只按日期切分第二階段<a class="headerlink" href="#4" title="Permanent link">#</a></h2>
+<p>前 397 日為訓練期，最後 100 日為測試期。所有公司使用相同日期分界，才能保留共同市場日期衝擊；不能把 23,359 列隨機打散。</p>
+<pre><code class="language-r">training_last_day &lt;- 397L
+panel_train &lt;- panel[panel$day &lt;= training_last_day, , drop = FALSE]
+panel_test &lt;- panel[panel$day &gt; training_last_day, , drop = FALSE]
+
+stopifnot(
+  nrow(panel_train) == 47L * 397L,
+  nrow(panel_test) == 47L * 100L,
+  max(panel_train$day) &lt; min(panel_test$day),
+  identical(sort(unique(panel_train$firm)), sort(unique(panel_test$firm)))
+)
+
+data.frame(
+  sample = c(&quot;訓練期&quot;, &quot;測試期&quot;),
+  first_day = c(min(panel_train$day), min(panel_test$day)),
+  last_day = c(max(panel_train$day), max(panel_test$day)),
+  rows = c(nrow(panel_train), nrow(panel_test))
+)
+</code></pre>
+<pre><code>##   sample first_day last_day  rows
+## 1 訓練期         1      397 18659
+## 2 測試期       398      497  4700
+</code></pre>
+<p>這項切分只保證<strong>第二階段</strong>沒有直接用測試期報酬估計斜率與固定效果。由於缺少第一階段原始程式，我們無法確認測試期的共變異數欄位是否完全依當時資訊濾波；因此不把以下結果稱為完整即時預測。</p>
+<h2 id="5-within">5. 固定效果 within 估計<a class="headerlink" href="#5-within" title="Permanent link">#</a></h2>
+<p>模型為</p>
+<p>\[
+y_{it}=\alpha_i+\beta_X\,covX_{it}
++\beta_V\,covVIX_{it}+\beta_L\,covLIQ_{it}+e_{it}.
+\]</p>
+<p>下列函數先在每家公司內去平均，再以 OLS 求共同斜率；之後用訓練期平均殘差重建每家公司固定效果。</p>
+<pre><code class="language-r">fit_within_ols &lt;- function(data, outcome, predictors, id) {
+  y &lt;- data[[outcome]]
+  X &lt;- as.matrix(data[, predictors, drop = FALSE])
+  group &lt;- data[[id]]
+
+  y_within &lt;- y - ave(y, group, FUN = mean)
+  X_within &lt;- vapply(seq_along(predictors), function(j) {
+    X[, j] - ave(X[, j], group, FUN = mean)
+  }, numeric(nrow(data)))
+  colnames(X_within) &lt;- predictors
+
+  beta &lt;- drop(qr.solve(crossprod(X_within), crossprod(X_within, y_within)))
+  names(beta) &lt;- predictors
+  alpha_observation &lt;- y - drop(X %*% beta)
+  alpha &lt;- tapply(alpha_observation, group, mean)
+  residual &lt;- y - unname(alpha[as.character(group)]) - drop(X %*% beta)
+
+  list(
+    beta = beta,
+    alpha = alpha,
+    residual = residual,
+    X_within = X_within,
+    y_within = y_within
+  )
+}
+
+predict_within_ols &lt;- function(object, newdata, predictors, id) {
+  firm_key &lt;- as.character(newdata[[id]])
+  if (anyNA(object$alpha[firm_key])) {
+    stop(&quot;測試資料含訓練期未出現的公司，無法套用固定效果。&quot;)
+  }
+  X_new &lt;- as.matrix(newdata[, predictors, drop = FALSE])
+  unname(object$alpha[firm_key]) + drop(X_new %*% object$beta)
+}
+
+predictors &lt;- c(&quot;cov_X&quot;, &quot;cov_vix&quot;, &quot;cov_liq&quot;)
+within_fit &lt;- fit_within_ols(
+  panel_train,
+  outcome = &quot;return&quot;,
+  predictors = predictors,
+  id = &quot;firm&quot;
+)
+
+data.frame(
+  predictor = names(within_fit$beta),
+  estimate = unname(within_fit$beta)
+)
+</code></pre>
+<pre><code>##   predictor    estimate
+## 1     cov_X  -0.1342485
+## 2   cov_vix  -0.1580951
+## 3   cov_liq -19.0472011
+</code></pre>
+<p>這些係數只是在現有生成共變異數上的描述性第二階段估計。未處理第一階段估計誤差，因此不能把一般 OLS 標準誤當成完整推論。</p>
+<h3 id="51">5.1 保留期與簡單基準比較<a class="headerlink" href="#51" title="Permanent link">#</a></h3>
+<p>基準模型只使用每家公司訓練期平均報酬。兩個模型都不能看測試期報酬來調參。</p>
+<pre><code class="language-r">prediction_within &lt;- predict_within_ols(
+  within_fit, panel_test, predictors = predictors, id = &quot;firm&quot;
+)
+training_firm_mean &lt;- tapply(panel_train$return, panel_train$firm, mean)
+prediction_baseline &lt;- unname(
+  training_firm_mean[as.character(panel_test$firm)]
+)
+
+point_loss &lt;- function(actual, predicted) {
+  c(
+    RMSE = sqrt(mean((actual - predicted)^2)),
+    MAE = mean(abs(actual - predicted))
+  )
+}
+
+evaluation &lt;- rbind(
+  fixed_effect_only = point_loss(panel_test$return, prediction_baseline),
+  fixed_effect_plus_covariances = point_loss(panel_test$return, prediction_within)
+)
+evaluation
+</code></pre>
+<pre><code>##                                   RMSE      MAE
+## fixed_effect_only             2.662622 1.972796
+## fixed_effect_plus_covariances 2.673590 1.980052
+</code></pre>
+<p>樣本外損失是穩定性診斷，不是因果識別。若共變異數欄位曾使用未來資料平滑，這個第二階段切分本身也不能排除洩漏。</p>
+<h2 id="6">6. 殘差的橫斷面相依診斷<a class="headerlink" href="#6" title="Permanent link">#</a></h2>
+<p>若同一天的公司殘差共同移動，把每一列當獨立觀察值會低估不確定性。將測試期殘差排成「日期 (\times) 公司」矩陣，查看平均絕對相關與第一特徵值占比。</p>
+<pre><code class="language-r">test_residual &lt;- panel_test$return - prediction_within
+residual_frame &lt;- transform(panel_test, residual = test_residual)
+residual_matrix &lt;- xtabs(residual ~ day + firm, data = residual_frame)
+
+residual_correlation &lt;- cor(residual_matrix)
+off_diagonal &lt;- residual_correlation[upper.tri(residual_correlation)]
+residual_eigenvalues &lt;- eigen(
+  residual_correlation,
+  symmetric = TRUE,
+  only.values = TRUE
+)$values
+
+data.frame(
+  mean_off_diagonal_correlation = mean(off_diagonal),
+  mean_absolute_off_diagonal_correlation = mean(abs(off_diagonal)),
+  first_eigenvalue_share = residual_eigenvalues[1] / sum(residual_eigenvalues)
+)
+</code></pre>
+<pre><code>##   mean_off_diagonal_correlation mean_absolute_off_diagonal_correlation
+## 1                     0.4900879                              0.4900879
+##   first_eigenvalue_share
+## 1              0.5206245
+</code></pre>
+<p>若診斷顯示共同成分，按公司單向叢聚的標準誤仍可能不足；研究設計需考慮共同日期衝擊、雙向叢聚、交互固定效果或保留相依結構的拔靴程序。</p>
+<h2 id="7">7. 選擇性中位數固定效果敏感度分析<a class="headerlink" href="#7" title="Permanent link">#</a></h2>
+<p>若已安裝 <code>quantreg</code>，下列程式估計未懲罰的公司虛擬變數中位數迴歸。它<strong>不是</strong>第 16 章公式中的懲罰式 PQRFE，也沒有提供相依資料下的有效推論；目的只在比較條件平均與條件中位數的點估計／保留期查核損失。</p>
+<pre><code class="language-r">check_loss &lt;- function(actual, predicted, tau) {
+  u &lt;- actual - predicted
+  mean(u * (tau - (u &lt; 0)))
+}
+
+if (requireNamespace(&quot;quantreg&quot;, quietly = TRUE)) {
+  panel_train$firm_factor &lt;- factor(panel_train$firm)
+  panel_test$firm_factor &lt;- factor(
+    panel_test$firm,
+    levels = levels(panel_train$firm_factor)
+  )
+
+  median_fit &lt;- quantreg::rq(
+    return ~ cov_X + cov_vix + cov_liq + firm_factor,
+    tau = 0.5,
+    data = panel_train,
+    method = &quot;fn&quot;
+  )
+  median_prediction &lt;- as.numeric(predict(median_fit, newdata = panel_test))
+
+  training_firm_median &lt;- tapply(panel_train$return, panel_train$firm, median)
+  median_baseline &lt;- unname(
+    training_firm_median[as.character(panel_test$firm)]
+  )
+
+  median_slopes &lt;- coef(median_fit)[c(&quot;cov_X&quot;, &quot;cov_vix&quot;, &quot;cov_liq&quot;)]
+  print(data.frame(
+    predictor = names(median_slopes),
+    median_regression_estimate = unname(median_slopes)
+  ))
+
+  print(data.frame(
+    model = c(&quot;公司訓練期中位數&quot;, &quot;未懲罰固定效果中位數迴歸&quot;),
+    test_check_loss = c(
+      check_loss(panel_test$return, median_baseline, 0.5),
+      check_loss(panel_test$return, median_prediction, 0.5)
+    )
+  ))
+} else {
+  message(&quot;未安裝 quantreg；基本 DCC 與 within 分析已完成，跳過本節。&quot;)
+}
+</code></pre>
+<pre><code>##   predictor median_regression_estimate
+## 1     cov_X                 0.02288162
+## 2   cov_vix                -0.12990358
+## 3   cov_liq               -11.76551890
+##                      model test_check_loss
+## 1         公司訓練期中位數       0.9836075
+## 2 未懲罰固定效果中位數迴歸       0.9894237
+</code></pre>
+<p>不能因三個中位數斜率與平均數斜率不同，就宣稱結構性風險趨避隨分量改變。要做這種解讀，尚需識別條件、完整 PQRFE 規格與能反映兩階段估計誤差的推論。</p>
+<h2 id="8">8. 本個案可以回答與不能回答的問題<a class="headerlink" href="#8" title="Permanent link">#</a></h2>
+<p>可以回答：</p>
+<ul>
+<li>凍結檔是否確實是 47 家公司、497 日的平衡追蹤資料？</li>
+<li>DCC 正規化程式是否產生對角線為 1 的正定相關矩陣？</li>
+<li>在固定的第二階段時間切分下，within 斜率與保留期損失如何計算？</li>
+<li>測試期殘差是否顯示值得進一步處理的橫斷面共同移動？</li>
+</ul>
+<p>不能回答：</p>
+<ul>
+<li>原始價格、無風險利率與狀態變數是否完全重建正確？</li>
+<li>第一階段 GARCH／DCC／ADCC 的參數與條件共變異數是否可複製？</li>
+<li>第二階段標準誤是否包含生成解釋變數的不確定性？</li>
+<li>原論文完整的懲罰式 PQRFE、調校、拔靴法與全部表圖是否可重現？</li>
+<li>點估計是否具有因果或結構偏好參數解讀？</li>
+</ul>
+<p>因此，本附錄的結論只能是「教材內的局部方法核對與第二階段個案研究」，不能寫成「完整 replication 成功」。</p>
+<pre><code class="language-r">sessionInfo()
+</code></pre>
+<pre><code>## R version 4.5.2 (2025-10-31)
+## Platform: aarch64-apple-darwin20
+## Running under: macOS Tahoe 26.5.1
+## 
+## Matrix products: default
+## BLAS:   /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib 
+## LAPACK: /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.1
+## 
+## locale:
+## [1] C.UTF-8/C.UTF-8/C.UTF-8/C/C.UTF-8/C.UTF-8
+## 
+## time zone: Asia/Tokyo
+## tzcode source: internal
+## 
+## attached base packages:
+## [1] stats     graphics  grDevices utils     datasets  methods   base     
+## 
+## other attached packages:
+## [1] tibble_3.3.0 dplyr_1.2.1 
+## 
+## loaded via a namespace (and not attached):
+##  [1] vctrs_0.7.2        cli_3.6.5          knitr_1.51         rlang_1.1.7       
+##  [5] xfun_0.57          otel_0.2.0         MatrixModels_0.5-4 generics_0.1.4    
+##  [9] glue_1.8.0         grid_4.5.2         evaluate_1.0.5     SparseM_1.84-2    
+## [13] MASS_7.3-65        lifecycle_1.0.5    compiler_4.5.2     pkgconfig_2.0.3   
+## [17] quantreg_6.1       lattice_0.22-7     R6_2.6.1           tidyselect_1.2.1  
+## [21] utf8_1.2.6         splines_4.5.2      pillar_1.11.1      magrittr_2.0.4    
+## [25] Matrix_1.7-4       tools_4.5.2        withr_3.0.2        survival_3.8-3
+</code></pre>
+      </article>
+      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R11_sp500_pca_corrected.html">← 修正後的 S&amp;P 500 PCA</a><a rel="next" href="R13_regularization.html">Ridge、LASSO、Elastic Net 與 post-LASSO →</a></nav>
+      <footer>© 陳釗而　《財務時間序列分析》</footer>
+    </main>
+    <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
+<ul>
+<li><a href="#1">1. 軟體、資料與可重現邊界</a></li>
+<li><a href="#2-dcc">2. DCC 教學遞迴：只驗證演算法，不估計真實模型</a><ul>
+<li><a href="#21">2.1 產生三變量標準化新衝擊</a></li>
+<li><a href="#22-dcc11">2.2 DCC(1,1) 濾波器</a></li>
+<li><a href="#23">2.3 可執行的正規化與正定性測試</a></li>
+</ul>
+</li>
+<li><a href="#3">3. 載入凍結的第二階段追蹤資料</a><ul>
+<li><a href="#31">3.1 平衡追蹤結構測試</a></li>
+</ul>
+</li>
+<li><a href="#4">4. 只按日期切分第二階段</a></li>
+<li><a href="#5-within">5. 固定效果 within 估計</a><ul>
+<li><a href="#51">5.1 保留期與簡單基準比較</a></li>
+</ul>
+</li>
+<li><a href="#6">6. 殘差的橫斷面相依診斷</a></li>
+<li><a href="#7">7. 選擇性中位數固定效果敏感度分析</a></li>
+<li><a href="#8">8. 本個案可以回答與不能回答的問題</a></li>
+</ul>
+</div>
+</aside>
+  </div>
+</body>
+</html>

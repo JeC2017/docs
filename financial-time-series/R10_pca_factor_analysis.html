@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="《財務時間序列分析》R 線上附錄：R10：PCA 與因子分析">
+  <title>R10：PCA 與因子分析｜財務時間序列分析</title>
+  <link rel="stylesheet" href="assets/site.css">
+  <script>
+    window.MathJax = {
+      tex: {inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']]},
+      svg: {fontCache: 'local'},
+      options: {skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']}
+    };
+  </script>
+  <script defer src="assets/mathjax-loader.js"></script>
+  <script defer src="assets/site.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要內容</a>
+  <header class="site-header">
+    <button class="menu-button" type="button" aria-controls="site-navigation" aria-expanded="false">目錄</button>
+    <a class="brand" href="index.html"><span>財務時間序列分析</span><small>R 線上附錄</small></a>
+    <a class="policy-link" href="data-policy.html">資料政策</a>
+  </header>
+  <div class="layout">
+    <nav id="site-navigation" class="sidebar" aria-label="全部線上附錄">
+      <p class="sidebar-title">線上附錄</p>
+      <ol><li><a href="index.html">首頁</a></li>
+<li><a href="data-policy.html">資料與重現政策</a></li>
+<li><a href="R00_environment_reproducibility.html">R00　環境、專案與可重現研究</a></li>
+<li><a href="R01_r_tidyverse_manual_ols.html">R01　R、tidyverse 與手動 OLS</a></li>
+<li><a href="R02_prices_dates_returns.html">R02　價格、日期與報酬率</a></li>
+<li><a href="R03_distributions_heavy_tails.html">R03　分配、厚尾與經驗特徵</a></li>
+<li><a href="R04_ar_ma_arma_simulation.html">R04　AR、MA 與 ARMA 模擬</a></li>
+<li><a href="R05_arma_estimation_diagnostics_forecasting.html">R05　ARMA 估計、診斷與多步預測</a></li>
+<li><a href="R06_leak_free_out_of_sample_evaluation.html">R06　無資料洩漏的樣本外評估</a></li>
+<li><a href="R07_unit_roots_differencing_breaks.html">R07　單根、差分與結構變動</a></li>
+<li><a href="R08_arch_garch_asymmetry_forecasting.html">R08　ARCH、GARCH、非對稱波動與預測</a></li>
+<li><a href="R09_portfolio_capm_factors.html">R09　投資組合、CAPM 與財務因子</a></li>
+<li><a href="R10_pca_factor_analysis.html" aria-current="page" class="active">R10　PCA 與因子分析</a></li>
+<li><a href="R11_sp500_pca_corrected.html">R11　修正後的 S&amp;P 500 PCA</a></li>
+<li><a href="R12_taiwan_dcc_icapm_case_study.html">R12　臺灣 DCC／ICAPM 案例</a></li>
+<li><a href="R13_regularization.html">R13　Ridge、LASSO、Elastic Net 與 post-LASSO</a></li>
+<li><a href="R14_financial_factor_selection.html">R14　金融因子選擇</a></li>
+<li><a href="R15_double_selection_dml.html">R15　雙重選擇、正交化與 DML</a></li>
+<li><a href="R16_var_irf.html">R16　VAR、識別與衝擊反應函數</a></li>
+<li><a href="R17_cointegration_vecm.html">R17　共整合、Johansen 檢定與 VECM</a></li>
+<li><a href="R18_local_projection_irf.html">R18　VAR、局部投影與進階 IRF</a></li></ol>
+    </nav>
+    <main id="main-content" class="content">
+      <div class="publication-note">
+        本網站提供作者執行後的教學內容與程式原始檔；未經確認可再散布的原始資料不隨網站發布。
+        詳見<a href="data-policy.html">資料與重現政策</a>。
+      </div>
+      <article>
+        <header class="article-header"><p class="eyebrow">《財務時間序列分析》線上附錄</p><h1>R10：PCA 與因子分析</h1><div class="source-links" aria-label="原始檔下載"><a href="source/R10_pca_factor_analysis.Rmd">R Markdown 原始檔</a><a href="source/R10_pca_factor_analysis.md">執行後 Markdown</a></div></header>
+        <p>本附錄對應第 15 章，以固定種子的合成因子資料說明主成分分析（PCA）、低秩重建、因子個數選擇與最大概似因子分析。模擬的優點是共同因子與負荷量真值可核對；它不是任何真實市場的實證結果。</p>
+<pre><code class="language-r">knitr::opts_chunk$set(
+  echo = TRUE, message = FALSE, warning = FALSE,
+  fig.width = 7, fig.height = 4
+)
+stopifnot(getRversion() &gt;= &quot;4.3.0&quot;)
+set.seed(1010)
+</code></pre>
+<h2 id="1">1. 軟體與時間切分<a class="headerlink" href="#1" title="Permanent link">#</a></h2>
+<p>本檔只使用 R 內建的 <code>stats</code> 與 <code>graphics</code>，不安裝套件、不下載資料、不使用 <code>setwd()</code>。700 期資料依時間固定切成：</p>
+<ul>
+<li>1--400：估計期；</li>
+<li>401--520：驗證期，只用來選主成分個數；</li>
+<li>521--700：最終測試期。</li>
+</ul>
+<pre><code class="language-r">data.frame(
+  component = c(&quot;R&quot;, &quot;stats&quot;, &quot;graphics&quot;),
+  version = c(
+    R.version.string,
+    as.character(packageVersion(&quot;stats&quot;)),
+    as.character(packageVersion(&quot;graphics&quot;))
+  )
+)
+</code></pre>
+<pre><code>##   component                      version
+## 1         R R version 4.5.2 (2025-10-31)
+## 2     stats                        4.5.2
+## 3  graphics                        4.5.2
+</code></pre>
+<h2 id="2">2. 產生低秩共同結構<a class="headerlink" href="#2" title="Permanent link">#</a></h2>
+<p>令</p>
+<p>\[
+\mathbf x_t=\mathbf B\mathbf f_t+\mathbf u_t,
+\]</p>
+<p>其中三個因子具有不同持續性，十個觀察變數有不同負荷量與個別變異。</p>
+<pre><code class="language-r">T_total &lt;- 700
+N &lt;- 10
+r_true &lt;- 3
+
+simulate_ar1 &lt;- function(n, phi, sd = 1) {
+  stopifnot(abs(phi) &lt; 1, sd &gt; 0)
+  x &lt;- numeric(n)
+  innovation_sd &lt;- sd * sqrt(1 - phi^2)
+  x[1] &lt;- rnorm(1, sd = sd)
+  for (t in 2:n) {
+    x[t] &lt;- phi * x[t - 1] + rnorm(1, sd = innovation_sd)
+  }
+  x
+}
+
+F_true &lt;- cbind(
+  F1 = simulate_ar1(T_total, phi = 0.55),
+  F2 = simulate_ar1(T_total, phi = 0.25),
+  F3 = simulate_ar1(T_total, phi = -0.20)
+)
+
+B_true &lt;- rbind(
+  c(0.90, 0.10, 0.00),
+  c(0.85, 0.15, 0.05),
+  c(0.75, 0.20, 0.10),
+  c(0.10, 0.90, 0.05),
+  c(0.15, 0.85, 0.10),
+  c(0.20, 0.75, 0.15),
+  c(0.05, 0.10, 0.90),
+  c(0.10, 0.15, 0.85),
+  c(0.20, 0.10, 0.75),
+  c(0.45, 0.40, 0.35)
+)
+rownames(B_true) &lt;- paste0(&quot;X&quot;, seq_len(N))
+colnames(B_true) &lt;- colnames(F_true)
+
+idio_sd &lt;- seq(0.35, 0.65, length.out = N)
+U &lt;- matrix(rnorm(T_total * N), nrow = T_total)
+U &lt;- sweep(U, 2, idio_sd, &quot;*&quot;)
+X &lt;- F_true %*% t(B_true) + U
+colnames(X) &lt;- rownames(B_true)
+
+estimate_id &lt;- 1:400
+validation_id &lt;- 401:520
+test_id &lt;- 521:700
+</code></pre>
+<pre><code class="language-r">round(cov(X[estimate_id, ]), 2)
+</code></pre>
+<pre><code>##       X1   X2   X3   X4   X5   X6   X7   X8   X9  X10
+## X1  0.98 0.82 0.79 0.29 0.33 0.33 0.06 0.08 0.12 0.52
+## X2  0.82 0.95 0.78 0.31 0.35 0.35 0.08 0.11 0.13 0.54
+## X3  0.79 0.78 0.94 0.38 0.41 0.40 0.13 0.17 0.20 0.54
+## X4  0.29 0.31 0.38 1.09 0.85 0.74 0.14 0.20 0.18 0.44
+## X5  0.33 0.35 0.41 0.85 1.04 0.72 0.16 0.20 0.20 0.48
+## X6  0.33 0.35 0.40 0.74 0.72 0.87 0.16 0.21 0.18 0.46
+## X7  0.06 0.08 0.13 0.14 0.16 0.16 1.06 0.72 0.68 0.34
+## X8  0.08 0.11 0.17 0.20 0.20 0.21 0.72 0.99 0.62 0.37
+## X9  0.12 0.13 0.20 0.18 0.20 0.18 0.68 0.62 0.97 0.35
+## X10 0.52 0.54 0.54 0.44 0.48 0.46 0.34 0.37 0.35 0.92
+</code></pre>
+<h2 id="3-pca">3. PCA 的特徵分解<a class="headerlink" href="#3-pca" title="Permanent link">#</a></h2>
+<p><code>prcomp()</code> 以奇異值分解實作 PCA。這裡先標準化各欄，因此等價於對估計期相關矩陣做 PCA。</p>
+<pre><code class="language-r">pca_estimate &lt;- prcomp(
+  X[estimate_id, , drop = FALSE],
+  center = TRUE,
+  scale. = TRUE
+)
+
+eigenvalues &lt;- pca_estimate$sdev^2
+PVE &lt;- eigenvalues / sum(eigenvalues)
+explained &lt;- data.frame(
+  component = seq_along(PVE),
+  eigenvalue = eigenvalues,
+  PVE = PVE,
+  cumulative_PVE = cumsum(PVE)
+)
+explained
+</code></pre>
+<pre><code>##    component eigenvalue        PVE cumulative_PVE
+## 1          1  4.5348975 0.45348975      0.4534897
+## 2          2  2.1167328 0.21167328      0.6651630
+## 3          3  1.5119799 0.15119799      0.8163610
+## 4          4  0.4102693 0.04102693      0.8573879
+## 5          5  0.3653930 0.03653930      0.8939272
+## 6          6  0.2930908 0.02930908      0.9232363
+## 7          7  0.2507491 0.02507491      0.9483112
+## 8          8  0.1965901 0.01965901      0.9679702
+## 9          9  0.1687588 0.01687588      0.9848461
+## 10        10  0.1515388 0.01515388      1.0000000
+</code></pre>
+<pre><code class="language-r">plot(
+  explained$component, explained$eigenvalue,
+  type = &quot;b&quot;, pch = 19, col = &quot;#173B57&quot;,
+  xlab = &quot;主成分&quot;, ylab = &quot;特徵值&quot;,
+  main = &quot;只用估計期建立的陡坡圖&quot;
+)
+abline(h = 1, lty = 2, col = &quot;#A34045&quot;)
+</code></pre>
+<p><img alt="plot of chunk scree-plot" src="./R10_pca_factor_analysis_files/figure-gfm/scree-plot-1.png"></p>
+<h3 id="31">3.1 以矩陣運算核對<a class="headerlink" href="#31" title="Permanent link">#</a></h3>
+<pre><code class="language-r">Z_estimate &lt;- scale(
+  X[estimate_id, , drop = FALSE],
+  center = pca_estimate$center,
+  scale = pca_estimate$scale
+)
+S_estimate &lt;- cov(Z_estimate)
+eigen_direct &lt;- eigen(S_estimate, symmetric = TRUE)
+
+stopifnot(
+  isTRUE(all.equal(
+    unname(eigenvalues),
+    unname(eigen_direct$values),
+    tolerance = 1e-10
+  ))
+)
+
+# 特徵向量可整欄反號，所以比較投影外積。
+projection_prcomp &lt;- tcrossprod(pca_estimate$rotation[, 1:3])
+projection_eigen &lt;- tcrossprod(eigen_direct$vectors[, 1:3])
+max(abs(projection_prcomp - projection_eigen))
+</code></pre>
+<pre><code>## [1] 6.661338e-16
+</code></pre>
+<h2 id="4">4. 主成分與真因子的關係<a class="headerlink" href="#4" title="Permanent link">#</a></h2>
+<p>PCA 不知道真因子名稱；只能由資料找共同子空間。下表取絕對相關，避免特徵向量任意反號造成誤解。</p>
+<pre><code class="language-r">score_estimate &lt;- pca_estimate$x[, 1:5, drop = FALSE]
+round(abs(cor(score_estimate, F_true[estimate_id, ])), 3)
+</code></pre>
+<pre><code>##        F1    F2    F3
+## PC1 0.679 0.646 0.347
+## PC2 0.415 0.129 0.834
+## PC3 0.537 0.682 0.168
+## PC4 0.096 0.023 0.024
+## PC5 0.030 0.010 0.045
+</code></pre>
+<p>即使前三個主成分與三個真因子高度相關，欄次序也可能交換或混合。可識別的通常是共同子空間，不是未加限制的每一個因子名稱。</p>
+<h2 id="5">5. 無資料洩漏的低秩重建<a class="headerlink" href="#5" title="Permanent link">#</a></h2>
+<h3 id="51">5.1 固定估計期中心、尺度與負荷量<a class="headerlink" href="#51" title="Permanent link">#</a></h3>
+<pre><code class="language-r">reconstruct_from_pca &lt;- function(fit, newdata, r) {
+  stopifnot(r &gt;= 0, r &lt;= ncol(fit$rotation))
+  Z &lt;- scale(newdata, center = fit$center, scale = fit$scale)
+  if (r == 0) {
+    Z_hat &lt;- matrix(0, nrow = nrow(Z), ncol = ncol(Z))
+  } else {
+    V &lt;- fit$rotation[, seq_len(r), drop = FALSE]
+    score &lt;- Z %*% V
+    Z_hat &lt;- score %*% t(V)
+  }
+  X_hat &lt;- sweep(Z_hat, 2, fit$scale, &quot;*&quot;)
+  sweep(X_hat, 2, fit$center, &quot;+&quot;)
+}
+
+reconstruction_mse &lt;- function(actual, reconstructed) {
+  mean((actual - reconstructed)^2)
+}
+</code></pre>
+<h3 id="52-ftsmathtoken00001zz">5.2 只用驗證期選 \(r\)<a class="headerlink" href="#52-ftsmathtoken00001zz" title="Permanent link">#</a></h3>
+<pre><code class="language-r">r_grid &lt;- 0:N
+validation_mse &lt;- vapply(r_grid, function(r) {
+  X_hat &lt;- reconstruct_from_pca(
+    pca_estimate,
+    X[validation_id, , drop = FALSE],
+    r = r
+  )
+  reconstruction_mse(X[validation_id, ], X_hat)
+}, numeric(1))
+
+selection_table &lt;- data.frame(
+  r = r_grid,
+  validation_MSE = validation_mse
+)
+selection_table
+</code></pre>
+<pre><code>##     r validation_MSE
+## 1   0   8.777857e-01
+## 2   1   5.548663e-01
+## 3   2   3.534909e-01
+## 4   3   1.889625e-01
+## 5   4   1.552875e-01
+## 6   5   1.134014e-01
+## 7   6   7.763963e-02
+## 8   7   5.067196e-02
+## 9   8   2.800476e-02
+## 10  9   1.357753e-02
+## 11 10   5.744278e-31
+</code></pre>
+<p>若只最小化同一組變數的重建誤差，保留全部 \(N\) 個主成分必然最好，因為沒有降維懲罰。為讓問題反映「用較少維度換取多少誤差」，本例使用一個事先指定的規則：選擇重建 MSE 不超過完整 PCA 驗證誤差加上總變異 10% 的最小 \(r\)。另一種方法是預先要求累積解釋比例達 80% 或 90%。</p>
+<pre><code class="language-r">validation_total_variance &lt;- mean(apply(
+  X[validation_id, , drop = FALSE], 2, var
+))
+tolerance &lt;- validation_mse[N + 1] + 0.10 * validation_total_variance
+r_selected &lt;- min(r_grid[validation_mse &lt;= tolerance])
+r_selected
+</code></pre>
+<pre><code>## [1] 6
+</code></pre>
+<p>規則與容許誤差必須在查看測試期之前固定。</p>
+<h3 id="53-ftsmathtoken00004zz">5.3 鎖定 \(r\) 後重新估計，最後一次評估測試期<a class="headerlink" href="#53-ftsmathtoken00004zz" title="Permanent link">#</a></h3>
+<p>可在選定 \(r\) 後合併估計與驗證期重新估計 PCA；測試期仍未參與。</p>
+<pre><code class="language-r">development_id &lt;- c(estimate_id, validation_id)
+pca_development &lt;- prcomp(
+  X[development_id, , drop = FALSE],
+  center = TRUE,
+  scale. = TRUE
+)
+X_test_hat &lt;- reconstruct_from_pca(
+  pca_development,
+  X[test_id, , drop = FALSE],
+  r = r_selected
+)
+test_mse &lt;- reconstruction_mse(X[test_id, ], X_test_hat)
+
+data.frame(
+  selected_r = r_selected,
+  validation_tolerance = tolerance,
+  final_test_MSE = test_mse
+)
+</code></pre>
+<pre><code>##   selected_r validation_tolerance final_test_MSE
+## 1          6           0.08689857     0.07810104
+</code></pre>
+<p>測試期資料用來計算當期主成分分數與重建，這是同日降維；若要在前一期預測本期因子，還須對分數建立時間序列模型。</p>
+<h2 id="6-varimax">6. 因子分析與 varimax 旋轉<a class="headerlink" href="#6-varimax" title="Permanent link">#</a></h2>
+<p><code>factanal()</code> 是 R 內建的最大概似因子分析。它把每個變數變異拆成共同性與個別變異，目標不同於 PCA。</p>
+<pre><code class="language-r">fa_three &lt;- factanal(
+  X[estimate_id, , drop = FALSE],
+  factors = 3,
+  rotation = &quot;varimax&quot;,
+  scores = &quot;regression&quot;
+)
+fa_three
+</code></pre>
+<pre><code>## 
+## Call:
+## factanal(x = X[estimate_id, , drop = FALSE], factors = 3, scores = &quot;regression&quot;,     rotation = &quot;varimax&quot;)
+## 
+## Uniquenesses:
+##    X1    X2    X3    X4    X5    X6    X7    X8    X9   X10 
+## 0.149 0.152 0.185 0.192 0.207 0.271 0.267 0.327 0.388 0.434 
+## 
+## Loadings:
+##     Factor1 Factor2 Factor3
+## X1  0.910   0.149          
+## X2  0.901   0.186          
+## X3  0.859   0.257   0.109  
+## X4  0.157   0.880          
+## X5  0.216   0.857   0.107  
+## X6  0.258   0.803   0.131  
+## X7                  0.854  
+## X8          0.122   0.809  
+## X9  0.104   0.102   0.768  
+## X10 0.533   0.386   0.366  
+## 
+##                Factor1 Factor2 Factor3
+## SS loadings      2.814   2.455   2.158
+## Proportion Var   0.281   0.246   0.216
+## Cumulative Var   0.281   0.527   0.743
+## 
+## Test of the hypothesis that 3 factors are sufficient.
+## The chi square statistic is 8.95 on 18 degrees of freedom.
+## The p-value is 0.961
+</code></pre>
+<pre><code class="language-r">loadings_matrix &lt;- unclass(fa_three$loadings)
+round(loadings_matrix, 3)
+</code></pre>
+<pre><code>##     Factor1 Factor2 Factor3
+## X1    0.910   0.149   0.017
+## X2    0.901   0.186   0.045
+## X3    0.859   0.257   0.109
+## X4    0.157   0.880   0.088
+## X5    0.216   0.857   0.107
+## X6    0.258   0.803   0.131
+## X7    0.033   0.058   0.854
+## X8    0.060   0.122   0.809
+## X9    0.104   0.102   0.768
+## X10   0.533   0.386   0.366
+</code></pre>
+<pre><code class="language-r">communality &lt;- rowSums(loadings_matrix^2)
+factor_summary &lt;- data.frame(
+  variable = rownames(loadings_matrix),
+  communality = communality,
+  uniqueness = fa_three$uniquenesses
+)
+factor_summary
+</code></pre>
+<pre><code>##     variable communality uniqueness
+## X1        X1   0.8511288  0.1488711
+## X2        X2   0.8477483  0.1522515
+## X3        X3   0.8153370  0.1846630
+## X4        X4   0.8075700  0.1924301
+## X5        X5   0.7930710  0.2069290
+## X6        X6   0.7285846  0.2714154
+## X7        X7   0.7331248  0.2668756
+## X8        X8   0.6731115  0.3268863
+## X9        X9   0.6117841  0.3882197
+## X10      X10   0.5661422  0.4338530
+</code></pre>
+<p>因子旋轉可讓負荷量群組更清楚，但不會把統計因子自動變成已識別的經濟衝擊。若改變旋轉法，單一欄的名稱與符號可能改變，共同重建空間則可相近。</p>
+<h2 id="7-pca-pca">7. 共變異數 PCA 與相關矩陣 PCA<a class="headerlink" href="#7-pca-pca" title="Permanent link">#</a></h2>
+<p>用相同估計期比較 <code>scale.=FALSE</code> 與 <code>scale.=TRUE</code>。由於本例各欄個別變異不同，兩組負荷量不會完全相同。</p>
+<pre><code class="language-r">pca_cov &lt;- prcomp(
+  X[estimate_id, , drop = FALSE],
+  center = TRUE, scale. = FALSE
+)
+pca_cor &lt;- pca_estimate
+
+comparison &lt;- data.frame(
+  variable = colnames(X),
+  covariance_PC1 = pca_cov$rotation[, 1],
+  correlation_PC1 = pca_cor$rotation[, 1]
+)
+comparison
+</code></pre>
+<pre><code>##     variable covariance_PC1 correlation_PC1
+## X1        X1     -0.3346065      -0.3385481
+## X2        X2     -0.3423127      -0.3517636
+## X3        X3     -0.3621640      -0.3732021
+## X4        X4     -0.3520707      -0.3269951
+## X5        X5     -0.3609405      -0.3445571
+## X6        X6     -0.3345797      -0.3527932
+## X7        X7     -0.2059879      -0.1915774
+## X8        X8     -0.2218401      -0.2150694
+## X9        X9     -0.2214534      -0.2179987
+## X10      X10     -0.3644677      -0.3765357
+</code></pre>
+<pre><code class="language-r">matplot(
+  seq_len(N),
+  cbind(abs(comparison$covariance_PC1),
+        abs(comparison$correlation_PC1)),
+  type = &quot;b&quot;, pch = c(16, 1), lty = 1,
+  col = c(&quot;#173B57&quot;, &quot;#A34045&quot;),
+  xaxt = &quot;n&quot;, xlab = &quot;變數&quot;, ylab = &quot;|PC1 負荷量|&quot;,
+  main = &quot;尺度選擇會改變 PCA 問題&quot;
+)
+axis(1, at = seq_len(N), labels = colnames(X))
+legend(
+  &quot;topright&quot;,
+  legend = c(&quot;共變異數 PCA&quot;, &quot;相關矩陣 PCA&quot;),
+  col = c(&quot;#173B57&quot;, &quot;#A34045&quot;),
+  pch = c(16, 1), lty = 1, bty = &quot;n&quot;
+)
+</code></pre>
+<p><img alt="plot of chunk loading-plot" src="./R10_pca_factor_analysis_files/figure-gfm/loading-plot-1.png"></p>
+<h2 id="8">8. 可重現結論<a class="headerlink" href="#8" title="Permanent link">#</a></h2>
+<p>本附錄驗證：</p>
+<ol>
+<li><code>prcomp()</code> 的奇異值與相關矩陣特徵值一致；</li>
+<li>主成分符號可反轉，應比較投影空間而非單一正負號；</li>
+<li>驗證期只用來選 \(r\)，測試期直到最後才使用；</li>
+<li>測試期標準化沿用發展期中心與尺度；</li>
+<li>PCA 與最大概似因子分析的目標、個別變異處理與旋轉解讀不同。</li>
+</ol>
+<pre><code class="language-r">sessionInfo()
+</code></pre>
+<pre><code>## R version 4.5.2 (2025-10-31)
+## Platform: aarch64-apple-darwin20
+## Running under: macOS Tahoe 26.5.1
+## 
+## Matrix products: default
+## BLAS:   /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib 
+## LAPACK: /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.1
+## 
+## locale:
+## [1] C.UTF-8/C.UTF-8/C.UTF-8/C/C.UTF-8/C.UTF-8
+## 
+## time zone: Asia/Tokyo
+## tzcode source: internal
+## 
+## attached base packages:
+## [1] stats     graphics  grDevices utils     datasets  methods   base     
+## 
+## other attached packages:
+## [1] tibble_3.3.0 dplyr_1.2.1 
+## 
+## loaded via a namespace (and not attached):
+##  [1] utf8_1.2.6       R6_2.6.1         tidyselect_1.2.1 xfun_0.57       
+##  [5] magrittr_2.0.4   glue_1.8.0       knitr_1.51       pkgconfig_2.0.3 
+##  [9] generics_0.1.4   lifecycle_1.0.5  cli_3.6.5        vctrs_0.7.2     
+## [13] withr_3.0.2      compiler_4.5.2   tools_4.5.2      evaluate_1.0.5  
+## [17] pillar_1.11.1    otel_0.2.0       rlang_1.1.7
+</code></pre>
+      </article>
+      <nav class="pager" aria-label="前後附錄"><a rel="prev" href="R09_portfolio_capm_factors.html">← 投資組合、CAPM 與財務因子</a><a rel="next" href="R11_sp500_pca_corrected.html">修正後的 S&amp;P 500 PCA →</a></nav>
+      <footer>© 陳釗而　《財務時間序列分析》</footer>
+    </main>
+    <aside class="page-toc"><h2>本頁目錄</h2><div class="toc">
+<ul>
+<li><a href="#1">1. 軟體與時間切分</a></li>
+<li><a href="#2">2. 產生低秩共同結構</a></li>
+<li><a href="#3-pca">3. PCA 的特徵分解</a><ul>
+<li><a href="#31">3.1 以矩陣運算核對</a></li>
+</ul>
+</li>
+<li><a href="#4">4. 主成分與真因子的關係</a></li>
+<li><a href="#5">5. 無資料洩漏的低秩重建</a><ul>
+<li><a href="#51">5.1 固定估計期中心、尺度與負荷量</a></li>
+<li><a href="#52-ftsmathtoken00001zz">5.2 只用驗證期選 \(r\)</a></li>
+<li><a href="#53-ftsmathtoken00004zz">5.3 鎖定 \(r\) 後重新估計，最後一次評估測試期</a></li>
+</ul>
+</li>
+<li><a href="#6-varimax">6. 因子分析與 varimax 旋轉</a></li>
+<li><a href="#7-pca-pca">7. 共變異數 PCA 與相關矩陣 PCA</a></li>
+<li><a href="#8">8. 可重現結論</a></li>
+</ul>
+</div>
+</aside>
+  </div>
+</body>
+</html>
